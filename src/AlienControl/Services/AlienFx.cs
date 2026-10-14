@@ -1,28 +1,45 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace AlienControl.Services;
 
 /// <summary>
-/// Thin wrapper over alienfx-cli (lighting). No admin needed.
-/// Run "alienfx-cli probe" once so lights are named, or setall does nothing on low-level API.
+/// Thin wrapper over alienfx-cli (lighting).
+/// The m15 R7 keyboard is per-key RGB and its light IDs don't follow key order, so colors are
+/// sent to every ID with chained setone commands instead of setall (which needs probe names).
 /// Command reference: https://github.com/T-Troll/alienfx-tools/blob/master/Doc/alienfx-cli.md
 /// </summary>
 public sealed class AlienFx
 {
     private readonly CliRunner _cli = new("alienfx-cli.exe");
+    private readonly Settings _s;
+
+    public AlienFx(Settings settings) => _s = settings;
 
     public bool IsAvailable => _cli.IsAvailable;
 
-    public Task<CliResult> SetAllAsync(byte r, byte g, byte b) => _cli.RunAsync($"setall={r},{g},{b}");
+    /// <summary>Static color on every keyboard key and the chassis lights.</summary>
+    public Task<CliResult> SetAllAsync(byte r, byte g, byte b)
+    {
+        var cmds = new List<string> { $"setglobal={_s.KeyboardDevice},0,1" }; // stop any keyboard effect
+        cmds.AddRange(Enumerable.Range(0, _s.KeyboardLightCount).Select(i => $"setone={_s.KeyboardDevice},{i},{r},{g},{b}"));
+        cmds.AddRange(_s.ChassisLights.Select(i => $"setone={_s.ChassisDevice},{i},{r},{g},{b}"));
+        return _cli.RunAsync(string.Join(" ", cmds));
+    }
 
     public Task<CliResult> OffAsync() => SetAllAsync(0, 0, 0);
 
-    /// <summary>Hardware brightness 0..255 for one device.</summary>
-    public Task<CliResult> SetBrightnessAsync(int device, int level) => _cli.RunAsync($"setdim={device},{level}");
+    /// <summary>Hardware brightness 0..255 on keyboard and chassis.</summary>
+    public Task<CliResult> SetBrightnessAsync(int level) =>
+        _cli.RunAsync($"setdim={_s.KeyboardDevice},{level} setdim={_s.ChassisDevice},{level}");
 
-    /// <summary>Global hardware effect (APIv5/APIv8 keyboards). Type ids differ per API, see docs.</summary>
-    public Task<CliResult> SetGlobalEffectAsync(int device, int type, int mode = 1) =>
-        _cli.RunAsync($"setglobal={device},{type},{mode}");
+    /// <summary>
+    /// APIv5 keyboard effect. Types: 0 Color, 2 Breathing, 3 Single-color wave, 4 Dual-color wave,
+    /// 8 Pulse, 9 Mixed pulse, 10 Night Rider, 11 Laser. (No spectrum on APIv5.)
+    /// </summary>
+    public Task<CliResult> SetKeyboardEffectAsync(int type, byte r, byte g, byte b) =>
+        _cli.RunAsync($"setglobal={_s.KeyboardDevice},{type},1,{r},{g},{b}");
 
     public Task<CliResult> StatusAsync() => _cli.RunAsync("status");
 }
