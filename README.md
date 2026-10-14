@@ -1,6 +1,6 @@
 # Alien Control GUI
 
-Goal: a modern, lightweight G-Helper-style GUI over T-Troll's AlienFX Tools (github.com/t-troll/alienfx-tools) for Amine's Alienware m15 R7 (i7-12700H, RTX 3070 Ti Laptop GPU, 32 GB RAM). It replaces Alienware Command Center, whose background services keep WMI Provider Host busy.
+Goal: a modern, lightweight G-Helper-style GUI over T-Troll's AlienFX Tools (github.com/t-troll/alienfx-tools) for Alienware m15 R7 (i7-12700H, RTX 3070 Ti Laptop GPU, 32 GB RAM). It replaces Alienware Command Center, whose background services keep WMI Provider Host busy.
 
 - GUI only; never touch the AlienFX core. Buttons call alienfan-cli:
   - setpower / getpower: performance modes; setgmode=1/0: G-Mode
