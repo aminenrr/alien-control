@@ -18,6 +18,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly GKeyHook _gkey;
     private int _lastPowerIndex;
     private byte[] _lastColor = { 0, 229, 255 };
+    private readonly DispatcherTimer _indicatorTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly System.Collections.Generic.Dictionary<int, bool> _indicators = new();
+    private bool _lightsManaged;   // true once the app has set a color (keyboard left firmware mode)
+    private bool _indicatorBusy;
     private readonly DispatcherTimer _poll = new();
     private bool _polling;
     private bool _allowClose;
@@ -36,6 +40,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         GKeyToggle.IsChecked = _settings.GKeyEnabled;
         UpdateGKeyText();
 
+        foreach (var id in new[] { _settings.GModeKey, _settings.TouchpadKey, _settings.SpeakerMuteKey, _settings.MicMuteKey, _settings.WinLockKey })
+            _indicators[id] = false;
+        if (_settings.LastColor is { Length: 3 } saved) _lastColor = saved;
+        // Status-key watcher: in-process reads only (no CLI) unless a state changes.
+        _indicatorTimer.Tick += async (_, _) => await SyncIndicatorsAsync();
+        Dispatcher.BeginInvoke(new Action(async () => await StartupLightingAsync()));
+
         _poll.Interval = TimeSpan.FromSeconds(Math.Max(1, _settings.PollSeconds));
         _poll.Tick += async (_, _) => await RefreshSensorsAsync();
 
@@ -53,7 +64,57 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             Status("Put alienfan-cli.exe and alienfx-cli.exe in the tools folder next to AlienControl.exe.");
     }
 
-    public void AllowClose() { _allowClose = true; _gkey.Dispose(); }
+    public void AllowClose() { _allowClose = true; _gkey.Dispose(); _indicatorTimer.Stop(); }
+
+    // ---------- status keys ----------
+
+    private async Task StartupLightingAsync()
+    {
+        if (!_fx.IsAvailable) return;
+        _gmodeOn = await _fan.GetGModeAsync() == true;
+        ReadIndicatorStates();
+        // Reapply the user's color after boot (firmware resets to its default); otherwise leave firmware lighting alone.
+        if (_settings.LastColor is { Length: 3 } c)
+        {
+            await _fx.SetAllAsync(c[0], c[1], c[2], _indicators);
+            _lightsManaged = true;
+        }
+        _indicatorTimer.Start();
+    }
+
+    /// <summary>Reads current states into _indicators; returns the keys whose state changed.</summary>
+    private System.Collections.Generic.List<int> ReadIndicatorStates()
+    {
+        var changed = new System.Collections.Generic.List<int>();
+        void Set(int key, bool? value)
+        {
+            if (value is not { } v) return;
+            if (!_indicators.TryGetValue(key, out var old) || old != v) changed.Add(key);
+            _indicators[key] = v;
+        }
+        Set(_settings.GModeKey, _gmodeOn);
+        Set(_settings.SpeakerMuteKey, SystemState.SpeakerMuted());
+        Set(_settings.MicMuteKey, SystemState.MicMuted());
+        Set(_settings.TouchpadKey, SystemState.TouchpadOff());
+        return changed;
+    }
+
+    private async Task SyncIndicatorsAsync()
+    {
+        if (_indicatorBusy) return;
+        _indicatorBusy = true;
+        try
+        {
+            var changed = ReadIndicatorStates();
+            if (!_lightsManaged) return;
+            foreach (var key in changed)
+            {
+                var c = _indicators[key] ? _settings.IndicatorOnColor : _lastColor;
+                await _fx.SetKeyAsync(key, c[0], c[1], c[2]);
+            }
+        }
+        finally { _indicatorBusy = false; }
+    }
 
     protected override void OnClosing(CancelEventArgs e)
     {
@@ -145,6 +206,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             PowerHint.Text = ((RadioButton)sender).Content?.ToString() ?? "";
         }
         Report(r);
+        await SyncIndicatorsAsync();
     }
 
     /// <summary>G-key press: toggle G-Mode; turning it off returns to the last power mode.</summary>
@@ -163,6 +225,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _gmodeOn = true;
         }
         if (IsVisible) await RefreshStateAsync();
+        await SyncIndicatorsAsync();
     }
 
     private void GKeyToggle_Click(object sender, RoutedEventArgs e)
@@ -202,7 +265,16 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private async void Color_Click(object sender, RoutedEventArgs e)
     {
         _lastColor = ((string)((FrameworkElement)sender).Tag).Split(',').Select(byte.Parse).ToArray();
-        Report(await _fx.SetAllAsync(_lastColor[0], _lastColor[1], _lastColor[2]));
+        await ApplyColorAsync(_lastColor);
+    }
+
+    private async Task ApplyColorAsync(byte[] c)
+    {
+        ReadIndicatorStates();
+        Report(await _fx.SetAllAsync(c[0], c[1], c[2], _indicators));
+        _lightsManaged = true;
+        _settings.LastColor = c;
+        _settings.Save();
     }
 
     // APIv5 keyboard effects in the last picked color: 2 = Breathing, 3 = Single-color wave.
@@ -212,7 +284,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private async void Wave_Click(object sender, RoutedEventArgs e) =>
         Report(await _fx.SetKeyboardEffectAsync(3, _lastColor[0], _lastColor[1], _lastColor[2]));
 
-    private async void LightsOff_Click(object sender, RoutedEventArgs e) => Report(await _fx.OffAsync());
+    private async void LightsOff_Click(object sender, RoutedEventArgs e)
+    {
+        _lastColor = new byte[] { 0, 0, 0 };
+        await ApplyColorAsync(_lastColor);
+    }
 
     private void Brightness_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
