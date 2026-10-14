@@ -19,16 +19,25 @@ public sealed class AlienFx
 
     public bool IsAvailable => _cli.IsAvailable;
 
-    /// <summary>Static color on every keyboard key and the chassis lights.</summary>
-    public Task<CliResult> SetAllAsync(byte r, byte g, byte b)
+    /// <summary>
+    /// Static color on every keyboard key and the chassis lights. Status keys listed in
+    /// <paramref name="indicatorsOn"/> that are on get the indicator color instead.
+    /// </summary>
+    public Task<CliResult> SetAllAsync(byte r, byte g, byte b, IReadOnlyDictionary<int, bool>? indicatorsOn = null)
     {
+        var w = _s.IndicatorOnColor;
         var cmds = new List<string> { $"setglobal={_s.KeyboardDevice},0,1" }; // stop any keyboard effect
-        cmds.AddRange(Enumerable.Range(0, _s.KeyboardLightCount).Select(i => $"setone={_s.KeyboardDevice},{i},{r},{g},{b}"));
+        cmds.AddRange(Enumerable.Range(0, _s.KeyboardLightCount).Select(i =>
+            indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on
+                ? $"setone={_s.KeyboardDevice},{i},{w[0]},{w[1]},{w[2]}"
+                : $"setone={_s.KeyboardDevice},{i},{r},{g},{b}"));
         cmds.AddRange(_s.ChassisLights.Select(i => $"setone={_s.ChassisDevice},{i},{r},{g},{b}"));
         return _cli.RunAsync(string.Join(" ", cmds));
     }
 
-    public Task<CliResult> OffAsync() => SetAllAsync(0, 0, 0);
+    /// <summary>One keyboard key.</summary>
+    public Task<CliResult> SetKeyAsync(int id, byte r, byte g, byte b) =>
+        _cli.RunAsync($"setone={_s.KeyboardDevice},{id},{r},{g},{b}");
 
     /// <summary>Hardware brightness 0..255 on keyboard and chassis.</summary>
     public Task<CliResult> SetBrightnessAsync(int level) =>
