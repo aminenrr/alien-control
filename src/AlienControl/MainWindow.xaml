@@ -136,7 +136,7 @@
                     <ui:ToggleSwitch x:Name="StartupToggle" Click="Startup_Click" />
                     <TextBlock Text="Run on startup" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#C9D2DC" FontSize="12" />
                 </StackPanel>
-                <TextBlock x:Name="VersionText" Text="v0.2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                <TextBlock x:Name="VersionText" Text="v0.3" HorizontalAlignment="Center" VerticalAlignment="Center"
                            Foreground="{StaticResource MutedText}" FontSize="12" />
                 <ui:Button Content="Quit" HorizontalAlignment="Right" Click="Quit_Click" />
             </Grid>
