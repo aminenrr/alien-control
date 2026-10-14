@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:640px;height:780px;font-family:Inter,"Segoe UI",sans-serif;
+ background:radial-gradient(circle at 15% 20%,#0f3a4a 0,transparent 45%),radial-gradient(circle at 85% 90%,#2a1450 0,transparent 50%),#07090d;
+ display:flex;align-items:center;justify-content:center;color:#e8edf2}
+.win{width:520px;border-radius:14px;overflow:hidden;background:rgba(28,31,38,.92);
+ border:1px solid rgba(255,255,255,.08);box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(0,229,255,.06)}
+.title{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;
+ background:linear-gradient(90deg,rgba(0,200,230,.16),rgba(120,60,220,.12));border-bottom:1px solid rgba(255,255,255,.06)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:.2px}
+.logo{width:22px;height:22px}
+.ctrls{display:flex;gap:16px;color:#8a95a3;font-size:14px}
+.body{padding:18px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
+.stat{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px 12px}
+.stat .k{font-size:10.5px;color:#8a95a3;text-transform:uppercase;letter-spacing:.8px}
+.stat .v{font-size:19px;font-weight:600;margin-top:3px}
+.stat .v small{font-size:11px;color:#8a95a3;font-weight:500}
+.bar{height:3px;border-radius:2px;background:rgba(255,255,255,.08);margin-top:7px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#00e5ff,#7c4dff)}
+.sec{margin-bottom:18px}
+.sh{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.sh b{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
+.sh span{font-size:11.5px;color:#8a95a3}
+.seg{display:grid;gap:8px}
+.c4{grid-template-columns:repeat(4,1fr)}.c3{grid-template-columns:repeat(3,1fr)}.c5{grid-template-columns:repeat(5,1fr)}
+.btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);border-radius:10px;
+ padding:13px 6px 11px;text-align:center;font-size:12.5px;color:#c9d2dc}
+.btn svg{display:block;margin:0 auto 6px;width:20px;height:20px;stroke:#aab4c0}
+.btn.on{background:linear-gradient(180deg,rgba(0,229,255,.18),rgba(0,229,255,.06));border-color:#00d8f0;color:#fff;
+ box-shadow:0 0 18px rgba(0,229,255,.18) inset}
+.btn.on svg{stroke:#00e5ff}
+.btn.g.on{background:linear-gradient(180deg,rgba(255,70,90,.22),rgba(255,70,90,.06));border-color:#ff4d6a}
+.small .btn{padding:9px 4px;font-size:12px}
+.row{display:flex;gap:8px;align-items:center}
+.sel{flex:1.2;height:40px;align-items:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px 12px;font-size:12.5px;display:flex;justify-content:space-between}
+.sw{width:22px;height:22px;border-radius:6px;background:conic-gradient(#00e5ff,#7c4dff,#ff4d6a,#00e5ff)}
+.slider{position:relative;height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin:10px 4px 4px}
+.slider i{position:absolute;left:0;top:0;height:100%;border-radius:3px;background:linear-gradient(90deg,#00e5ff,#7c4dff)}
+.slider b{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 0 4px rgba(0,229,255,.25)}
+.foot{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;border-top:1px solid rgba(255,255,255,.06);font-size:12px;color:#8a95a3}
+.tg{display:flex;align-items:center;gap:8px;color:#c9d2dc}
+.tgl{width:34px;height:18px;border-radius:9px;background:#00c8e0;position:relative}
+.tgl:after{content:"";position:absolute;right:3px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff}
+.quit{background:rgba(255,255,255,.06);border-radius:8px;padding:7px 16px;color:#c9d2dc}
+</style></head><body>
+<div class="win">
+ <div class="title">
+  <div class="brand"><svg class="logo" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" stroke-width="1.6"><path d="M12 2C7 2 4 6 4 10c0 5 5 10 8 12 3-2 8-7 8-12 0-4-3-8-8-8z"/><path d="M8 11c1.5 0 3 1 3 2.5M16 11c-1.5 0-3 1-3 2.5"/></svg>Alien Control <span style="color:#8a95a3;font-weight:400;font-size:12px">· m15 R7</span></div>
+  <div class="ctrls"><span>—</span><span>✕</span></div>
+ </div>
+ <div class="body">
+  <div class="stats">
+   <div class="stat"><div class="k">CPU</div><div class="v">62<small>°C</small></div><div class="bar"><i style="width:62%"></i></div></div>
+   <div class="stat"><div class="k">GPU</div><div class="v">58<small>°C</small></div><div class="bar"><i style="width:58%"></i></div></div>
+   <div class="stat"><div class="k">CPU Fan</div><div class="v">3100<small> rpm</small></div><div class="bar"><i style="width:55%"></i></div></div>
+   <div class="stat"><div class="k">GPU Fan</div><div class="v">2950<small> rpm</small></div><div class="bar"><i style="width:52%"></i></div></div>
+  </div>
+
+  <div class="sec"><div class="sh"><b>⚡ Performance Mode</b><span>Balanced</span></div>
+   <div class="seg c4">
+    <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3 2"/></svg>Quiet</div>
+    <div class="btn on"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7"><path d="M4 12h16M12 4v16"/><circle cx="12" cy="12" r="8"/></svg>Balanced</div>
+    <div class="btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Performance</div>
+    <div class="btn g"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.7"><path d="M12 2c2 4 6 5 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3 1-6 1-8z"/></svg>G-Mode</div>
+   </div></div>
+
+  <div class="sec small"><div class="sh"><b>🎮 GPU Power Limit</b><span>No limit</span></div>
+   <div class="seg c5"><div class="btn on">Max</div><div class="btn">High</div><div class="btn">Mid</div><div class="btn">Low</div><div class="btn">Min</div></div></div>
+
+  <div class="sec small"><div class="sh"><b>🧠 CPU Boost</b><span>Plugged in</span></div>
+   <div class="seg c4"><div class="btn">Off</div><div class="btn">Efficient</div><div class="btn on">Aggressive</div><div class="btn">Max</div></div></div>
+
+  <div class="sec small"><div class="sh"><b>🌀 Fans</b><span>BIOS controlled</span></div>
+   <div class="seg c3"><div class="btn on">Auto</div><div class="btn">Max Boost</div><div class="btn">Custom curve…</div></div></div>
+
+  <div class="sec"><div class="sh"><b>💡 Lighting</b><span>Brightness 80%</span></div>
+   <div class="row"><div class="sel">Spectrum wave <span>▾</span></div><div class="sel" style="flex:1">Color <div class="sw"></div></div><div class="sel" style="flex:.6;justify-content:center">Off</div></div>
+   <div class="slider"><i style="width:80%"></i><b style="left:80%"></b></div></div>
+ </div>
+ <div class="foot"><div class="tg"><div class="tgl"></div>Run on startup</div><span>v0.1 mock</span><div class="quit">Quit</div></div>
+</div>
+</body></html>
