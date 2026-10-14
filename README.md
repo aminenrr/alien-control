@@ -44,8 +44,10 @@ Sensors are polled only while the window is open; closed, it idles in the tray.
 
 `setgpu` is not in alienfan-cli v9.6, so there is no GPU power limit control.
 The keyboard is per-key RGB (APIv5) and its light IDs don't follow key order, so colors are
-sent to IDs 0 to 135. The four status keys (F1, mic mute, mute, Windows lock) are firmware
-indicators and aren't colored. Avoid `alienfx-cli probe` on the keyboard: interrupting it
+sent to IDs 0 to 135. Any software color takes the keyboard out of firmware mode, which stops it
+lighting the status keys, so the app drives them itself: F1 (G-Mode) = 1, F12 (touchpad lock) = 12,
+speaker mute = 16, mic mute = 19, right Windows lock = 109. They turn white when on.
+The power-button Alienhead is never touched. Avoid `alienfx-cli probe` on the keyboard: interrupting it
 leaves keys dark until a reboot.
 
 ## Build
@@ -65,4 +67,5 @@ by T-Troll and contributors (MIT license).
 
 ## Status
 
+v0.3: status keys (G-Mode, mutes, touchpad lock) lit by the app, last color reapplied at start.
 v0.2: verified power mode map, G-key support, per-key lighting fix, Breathe/Wave effects, GPU limit removed.
