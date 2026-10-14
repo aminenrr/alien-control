@@ -33,11 +33,22 @@ public partial class App : Application
         _tray = new WinForms.NotifyIcon
         {
             Text = "Alien Control",
-            Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? "") ?? SystemIcons.Application,
+            Icon = LoadTrayIcon(),
             ContextMenuStrip = menu,
             Visible = true
         };
         _tray.MouseClick += (_, a) => { if (a.Button == WinForms.MouseButtons.Left) ShowMain(); };
+    }
+
+    private static Icon LoadTrayIcon()
+    {
+        try
+        {
+            var res = GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"));
+            if (res is not null) return new Icon(res.Stream, WinForms.SystemInformation.SmallIconSize);
+        }
+        catch { }
+        return Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? "") ?? SystemIcons.Application;
     }
 
     public void ShowMain()
@@ -45,6 +56,8 @@ public partial class App : Application
         if (_window is null) return;
         _window.Show();
         if (_window.WindowState == WindowState.Minimized) _window.WindowState = WindowState.Normal;
+        _window.SnapToCorner();
+        _window.Topmost = true;
         _window.Activate();
     }
 
