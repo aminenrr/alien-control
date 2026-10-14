@@ -29,6 +29,18 @@ public sealed class Settings
     public int ChassisDevice { get; set; } = 1;
     public int[] ChassisLights { get; set; } = { 0, 2, 3, 4, 5 }; // Alienhead, KB zones (1 = power button, left alone)
 
+    // Status keys. Any software color switches the keyboard out of firmware mode, which stops it
+    // lighting these, so the app does it: normal color when off, IndicatorOnColor when on.
+    public int GModeKey { get; set; } = 1;          // F1
+    public int TouchpadKey { get; set; } = 12;      // F12 T-PAD
+    public int SpeakerMuteKey { get; set; } = 16;
+    public int MicMuteKey { get; set; } = 19;
+    public int WinLockKey { get; set; } = 109;      // right Windows key (state not readable yet)
+    public byte[] IndicatorOnColor { get; set; } = { 255, 255, 255 };
+
+    /// <summary>Last static color picked; reapplied at app start. Null = leave firmware lighting alone.</summary>
+    public byte[]? LastColor { get; set; }
+
     // G-key (F1 G-Mode key). AWCC used to handle it; the app now listens for it.
     // Virtual-key code; 0x80 = F17, the usual Dell G-key. Use "Detect" in the app to learn yours.
     public bool GKeyEnabled { get; set; } = true;
