@@ -4,13 +4,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using AlienControl.Services;
 
 namespace AlienControl;
 
-public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
+public partial class MainWindow : Window
 {
     private readonly AlienFan _fan = new();
     private readonly AlienFx _fx;
@@ -57,12 +58,36 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             else _poll.Stop();
         };
 
+        SizeChanged += (_, _) => SnapToCorner();
+        SystemParameters.StaticPropertyChanged += (_, a) =>
+        {
+            if (a.PropertyName == nameof(SystemParameters.WorkArea)) Dispatcher.BeginInvoke(new Action(SnapToCorner));
+        };
+
         VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1");
         StartupToggle.IsChecked = Startup.IsEnabled();
 
         if (!_fan.IsAvailable || !_fx.IsAvailable)
             Status("Put alienfan-cli.exe and alienfx-cli.exe in the tools folder next to AlienControl.exe.");
     }
+
+    // ---------- window: G-Helper style, pinned to the bottom-right corner above the taskbar ----------
+
+    public void SnapToCorner()
+    {
+        UpdateLayout();
+        var wa = SystemParameters.WorkArea;
+        double w = ActualWidth > 0 ? ActualWidth : Width;
+        double h = ActualHeight > 0 ? ActualHeight : 700;
+        Left = wa.Right - w - 2;
+        Top = wa.Bottom - h - 2;
+    }
+
+    protected override void OnContentRendered(EventArgs e) { base.OnContentRendered(e); SnapToCorner(); }
+
+    private void Header_MouseDown(object sender, MouseButtonEventArgs e) { /* pinned; no dragging */ }
+    private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void Close_Click(object sender, RoutedEventArgs e) => Hide();
 
     public void AllowClose() { _allowClose = true; _gkey.Dispose(); _indicatorTimer.Stop(); }
 
@@ -171,13 +196,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         finally { _polling = false; }
     }
 
-    private static void SetTemp(TextBlock text, ProgressBar bar, TempReading? t)
+    private static void SetTemp(Run text, ProgressBar bar, TempReading? t)
     {
-        text.Text = t is null ? "--" : $"{t.Celsius}°C";
+        text.Text = t is null ? "--" : $"{t.Celsius}";
         bar.Value = t?.Celsius ?? 0;
     }
 
-    private static void SetRpm(TextBlock text, ProgressBar bar, FanReading? f)
+    private static void SetRpm(Run text, ProgressBar bar, FanReading? f)
     {
         text.Text = f is null ? "--" : $"{f.Rpm}";
         bar.Value = f?.Rpm ?? 0;
