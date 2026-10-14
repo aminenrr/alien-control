@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace AlienControl.Services;
 
 /// <summary>
-/// Thin wrapper over alienfan-cli (fans, power, G-Mode, GPU limit, CPU boost, temps).
+/// Thin wrapper over alienfan-cli (fans, power, G-Mode, CPU boost, temps). setgpu is not in v9.6 and is not used.
 /// Command reference: https://github.com/T-Troll/alienfx-tools/blob/master/Doc/alienfan-cli.md
 /// </summary>
 public sealed class AlienFan
@@ -41,13 +41,13 @@ public sealed class AlienFan
         return snap;
     }
 
-    /// <summary>Returns the current power mode name and index, e.g. ("Balanced", 2).</summary>
-    public async Task<(string Name, int Index)?> GetPowerAsync()
+    /// <summary>Raw BIOS power value, e.g. 0xA0 from "Power mode: Level 160 (a0)". Null if unreadable.</summary>
+    public async Task<int?> GetPowerRawAsync()
     {
         var r = await _cli.RunAsync("getpower");
-        var m = Regex.Match(r.Output, @"Power mode:\s*(.+?)\s*\(([0-9a-fA-F]+)\)");
+        var m = Regex.Match(r.Output, @"Power mode:.*\(([0-9a-fA-F]+)\)");
         if (!m.Success) return null;
-        return (m.Groups[1].Value, int.Parse(m.Groups[2].Value, NumberStyles.HexNumber));
+        return int.Parse(m.Groups[1].Value, NumberStyles.HexNumber);
     }
 
     public Task<CliResult> SetPowerAsync(int index) => _cli.RunAsync($"setpower={index}");
@@ -55,15 +55,12 @@ public sealed class AlienFan
     public async Task<bool?> GetGModeAsync()
     {
         var r = await _cli.RunAsync("gmode");
-        if (r.Output.Contains("G-mode is On")) return true;
-        if (r.Output.Contains("G-mode is Off")) return false;
-        return null;
+        var m = Regex.Match(r.Output, @"G-mode\s*(is\s*)?(On|Off)", RegexOptions.IgnoreCase);
+        if (!m.Success) return null;
+        return m.Groups[2].Value.Equals("On", System.StringComparison.OrdinalIgnoreCase);
     }
 
     public Task<CliResult> SetGModeAsync(bool on) => _cli.RunAsync($"setgmode={(on ? 1 : 0)}");
-
-    /// <summary>0 = no limit … 4 = max limit. Unverified on the m15 R7 BIOS.</summary>
-    public Task<CliResult> SetGpuLimitAsync(int level) => _cli.RunAsync($"setgpu={level}");
 
     /// <summary>0..4 = disabled, enabled, aggressive, efficient, efficient aggressive (AC, battery).</summary>
     public Task<CliResult> SetCpuBoostAsync(int ac, int dc) => _cli.RunAsync($"setperf={ac},{dc}");
