@@ -31,7 +31,7 @@ public sealed class AlienFx
             indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on
                 ? $"setone={_s.KeyboardDevice},{i},{w[0]},{w[1]},{w[2]}"
                 : $"setone={_s.KeyboardDevice},{i},{r},{g},{b}"));
-        cmds.AddRange(_s.ChassisLights.Select(i => $"setone={_s.ChassisDevice},{i},{r},{g},{b}"));
+        cmds.AddRange(_s.ChassisLights.Where(i => i != Settings.PowerButtonLight).Select(i => $"setone={_s.ChassisDevice},{i},{r},{g},{b}"));
         return _cli.RunAsync(string.Join(" ", cmds));
     }
 
