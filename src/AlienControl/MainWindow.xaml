@@ -63,18 +63,18 @@
                 <RadioButton x:Name="ModeGMode" GroupName="Mode" Content="G-Mode" Style="{StaticResource GModeButton}" Click="Mode_Click" />
             </UniformGrid>
 
-            <!-- GPU power limit -->
-            <Grid Margin="4,0,4,4">
-                <TextBlock Text="🎮  GPU Power Limit" Style="{StaticResource SectionTitle}" />
-                <TextBlock Text="unverified on m15 R7" Style="{StaticResource SectionHint}" />
+            <!-- G-key -->
+            <Grid Margin="4,0,4,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="GKeyText" Text="G-key (F1) toggles G-Mode" VerticalAlignment="Center"
+                           FontSize="12" Foreground="{StaticResource MutedText}" />
+                <ui:ToggleSwitch x:Name="GKeyToggle" Grid.Column="1" Margin="0,0,8,0" Click="GKeyToggle_Click" />
+                <ui:Button Grid.Column="2" Content="Detect key" Click="GKeyDetect_Click" />
             </Grid>
-            <UniformGrid Columns="5" Margin="0,0,0,10">
-                <RadioButton GroupName="Gpu" Tag="0" Content="Max" Padding="4,9" Style="{StaticResource SegButton}" Click="Gpu_Click" />
-                <RadioButton GroupName="Gpu" Tag="1" Content="High" Padding="4,9" Style="{StaticResource SegButton}" Click="Gpu_Click" />
-                <RadioButton GroupName="Gpu" Tag="2" Content="Mid" Padding="4,9" Style="{StaticResource SegButton}" Click="Gpu_Click" />
-                <RadioButton GroupName="Gpu" Tag="3" Content="Low" Padding="4,9" Style="{StaticResource SegButton}" Click="Gpu_Click" />
-                <RadioButton GroupName="Gpu" Tag="4" Content="Min" Padding="4,9" Style="{StaticResource SegButton}" Click="Gpu_Click" />
-            </UniformGrid>
 
             <!-- CPU boost (AC) -->
             <Grid Margin="4,0,4,4">
@@ -117,7 +117,10 @@
                     <Button Style="{StaticResource Swatch}" Background="#3CFF7A" Tag="60,255,122" Click="Color_Click" ToolTip="Green" />
                     <Button Style="{StaticResource Swatch}" Background="#FFFFFF" Tag="255,255,255" Click="Color_Click" ToolTip="White" />
                 </StackPanel>
-                <ui:Button Grid.Column="1" Content="Spectrum" Margin="6,0" Click="Spectrum_Click" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ui:Button Content="Breathe" Margin="6,0,0,0" Click="Breathe_Click" />
+                    <ui:Button Content="Wave" Margin="6,0" Click="Wave_Click" />
+                </StackPanel>
                 <ui:Button Grid.Column="2" Content="Off" Click="LightsOff_Click" />
             </Grid>
             <Slider x:Name="BrightnessSlider" Minimum="0" Maximum="100" Value="80" Margin="4,10,4,0"
@@ -133,7 +136,7 @@
                     <ui:ToggleSwitch x:Name="StartupToggle" Click="Startup_Click" />
                     <TextBlock Text="Run on startup" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#C9D2DC" FontSize="12" />
                 </StackPanel>
-                <TextBlock x:Name="VersionText" Text="v0.1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                <TextBlock x:Name="VersionText" Text="v0.2" HorizontalAlignment="Center" VerticalAlignment="Center"
                            Foreground="{StaticResource MutedText}" FontSize="12" />
                 <ui:Button Content="Quit" HorizontalAlignment="Right" Click="Quit_Click" />
             </Grid>
