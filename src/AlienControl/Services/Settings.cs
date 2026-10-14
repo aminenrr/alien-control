@@ -27,7 +27,10 @@ public sealed class Settings
     public int KeyboardDevice { get; set; } = 0;
     public int KeyboardLightCount { get; set; } = 136;
     public int ChassisDevice { get; set; } = 1;
-    public int[] ChassisLights { get; set; } = { 0, 2, 3, 4, 5 }; // Alienhead, KB zones (1 = power button, left alone)
+    // Mapped on the m15 R7 (2026-10-14): 0 + 1 = rear ring (painted as one light), 3 = lid Alienhead.
+    // 2 = power button: never sent, the firmware keeps blue on AC / amber on battery. 4..15 = nothing visible.
+    public int[] ChassisLights { get; set; } = { 0, 1, 3 };
+    public const int PowerButtonLight = 2;
 
     // Status keys. Any software color switches the keyboard out of firmware mode, which stops it
     // lighting these, so the app does it: normal color when off, IndicatorOnColor when on.
@@ -60,6 +63,14 @@ public sealed class Settings
             {
                 var s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath));
                 if (s is not null && s.SettingsVersion >= CurrentVersion) return s;
+                if (s is not null && s.SettingsVersion == 2)
+                {
+                    // v2 sent the power button (ID 2) and missed half the ring (ID 1).
+                    s.ChassisLights = new[] { 0, 1, 3 };
+                    s.SettingsVersion = CurrentVersion;
+                    s.Save();
+                    return s;
+                }
                 // Older file had guessed power indexes; replace with verified defaults.
             }
         }
@@ -69,7 +80,7 @@ public sealed class Settings
         return d;
     }
 
-    private const int CurrentVersion = 2;
+    private const int CurrentVersion = 3;
     public int SettingsVersion { get; set; } = CurrentVersion;
 
     public void Save()
