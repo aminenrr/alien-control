@@ -13,8 +13,11 @@ namespace AlienControl;
 public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 {
     private readonly AlienFan _fan = new();
-    private readonly AlienFx _fx = new();
+    private readonly AlienFx _fx;
     private readonly Settings _settings = Settings.Load();
+    private readonly GKeyHook _gkey;
+    private int _lastPowerIndex;
+    private byte[] _lastColor = { 0, 229, 255 };
     private readonly DispatcherTimer _poll = new();
     private bool _polling;
     private bool _allowClose;
@@ -24,6 +27,14 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     public MainWindow()
     {
         InitializeComponent();
+        _fx = new AlienFx(_settings);
+        _lastPowerIndex = _settings.BalancedPowerIndex;
+
+        _gkey = new GKeyHook(_settings.GKeyVk, _settings.GKeyScan) { Enabled = _settings.GKeyEnabled };
+        _gkey.Pressed += () => Dispatcher.BeginInvoke(new Action(async () => await ToggleGModeAsync()));
+        _gkey.Install();
+        GKeyToggle.IsChecked = _settings.GKeyEnabled;
+        UpdateGKeyText();
 
         _poll.Interval = TimeSpan.FromSeconds(Math.Max(1, _settings.PollSeconds));
         _poll.Tick += async (_, _) => await RefreshSensorsAsync();
@@ -42,7 +53,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             Status("Put alienfan-cli.exe and alienfx-cli.exe in the tools folder next to AlienControl.exe.");
     }
 
-    public void AllowClose() => _allowClose = true;
+    public void AllowClose() { _allowClose = true; _gkey.Dispose(); }
 
     protected override void OnClosing(CancelEventArgs e)
     {
@@ -61,13 +72,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _gmodeOn = g == true;
         if (_gmodeOn) { ModeGMode.IsChecked = true; PowerHint.Text = "G-Mode"; return; }
 
-        var p = await _fan.GetPowerAsync();
-        if (p is { } power)
+        var raw = await _fan.GetPowerRawAsync();
+        if (raw is { } value)
         {
-            PowerHint.Text = power.Name;
-            ModeQuiet.IsChecked = power.Index == _settings.QuietPowerIndex;
-            ModeBalanced.IsChecked = power.Index == _settings.BalancedPowerIndex;
-            ModePerformance.IsChecked = power.Index == _settings.PerformancePowerIndex;
+            int idx = _settings.PowerRawByIndex.FirstOrDefault(kv => kv.Value == value).Key;
+            if (idx > 0) _lastPowerIndex = idx;
+            ModeQuiet.IsChecked = idx == _settings.QuietPowerIndex;
+            ModeBalanced.IsChecked = idx == _settings.BalancedPowerIndex;
+            ModePerformance.IsChecked = idx == _settings.PerformancePowerIndex;
+            PowerHint.Text = idx == _settings.QuietPowerIndex ? "Quiet"
+                : idx == _settings.BalancedPowerIndex ? "Balanced"
+                : idx == _settings.PerformancePowerIndex ? "Performance"
+                : $"Other mode ({value:x})";
         }
     }
 
@@ -125,13 +141,52 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                     : _settings.PerformancePowerIndex;
             r = await _fan.SetPowerAsync(idx);
             _gmodeOn = false;
+            _lastPowerIndex = idx;
             PowerHint.Text = ((RadioButton)sender).Content?.ToString() ?? "";
         }
         Report(r);
     }
 
-    private async void Gpu_Click(object sender, RoutedEventArgs e) =>
-        Report(await _fan.SetGpuLimitAsync(TagInt(sender)));
+    /// <summary>G-key press: toggle G-Mode; turning it off returns to the last power mode.</summary>
+    private async Task ToggleGModeAsync()
+    {
+        var current = await _fan.GetGModeAsync() ?? _gmodeOn;
+        if (current)
+        {
+            await _fan.SetGModeAsync(false);
+            Report(await _fan.SetPowerAsync(_lastPowerIndex));
+            _gmodeOn = false;
+        }
+        else
+        {
+            Report(await _fan.SetGModeAsync(true));
+            _gmodeOn = true;
+        }
+        if (IsVisible) await RefreshStateAsync();
+    }
+
+    private void GKeyToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.GKeyEnabled = _gkey.Enabled = GKeyToggle.IsChecked == true;
+        _settings.Save();
+        UpdateGKeyText();
+    }
+
+    private void GKeyDetect_Click(object sender, RoutedEventArgs e)
+    {
+        GKeyText.Text = "Press the G-key (F1) now…";
+        _gkey.LearnNext = (vk, scan) => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            _settings.GKeyVk = _gkey.Vk = vk;
+            _settings.GKeyScan = _gkey.Scan = scan;
+            _settings.Save();
+            UpdateGKeyText();
+            Status($"G-key set to key 0x{vk:X2} (scan 0x{scan:X2}).");
+        }));
+    }
+
+    private void UpdateGKeyText() =>
+        GKeyText.Text = $"G-key toggles G-Mode  ·  key 0x{_settings.GKeyVk:X2}" + (_settings.GKeyEnabled ? "" : " (off)");
 
     private async void Cpu_Click(object sender, RoutedEventArgs e) =>
         // AC level from the button; battery stays on "efficient" (3).
@@ -146,12 +201,16 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void Color_Click(object sender, RoutedEventArgs e)
     {
-        var rgb = ((string)((FrameworkElement)sender).Tag).Split(',').Select(byte.Parse).ToArray();
-        Report(await _fx.SetAllAsync(rgb[0], rgb[1], rgb[2]));
+        _lastColor = ((string)((FrameworkElement)sender).Tag).Split(',').Select(byte.Parse).ToArray();
+        Report(await _fx.SetAllAsync(_lastColor[0], _lastColor[1], _lastColor[2]));
     }
 
-    private async void Spectrum_Click(object sender, RoutedEventArgs e) =>
-        Report(await _fx.SetGlobalEffectAsync(_settings.LightDevice, _settings.SpectrumEffectType));
+    // APIv5 keyboard effects in the last picked color: 2 = Breathing, 3 = Single-color wave.
+    private async void Breathe_Click(object sender, RoutedEventArgs e) =>
+        Report(await _fx.SetKeyboardEffectAsync(2, _lastColor[0], _lastColor[1], _lastColor[2]));
+
+    private async void Wave_Click(object sender, RoutedEventArgs e) =>
+        Report(await _fx.SetKeyboardEffectAsync(3, _lastColor[0], _lastColor[1], _lastColor[2]));
 
     private async void LightsOff_Click(object sender, RoutedEventArgs e) => Report(await _fx.OffAsync());
 
@@ -163,7 +222,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private async void Brightness_Commit(object sender, MouseButtonEventArgs e)
     {
         int level = (int)Math.Round(BrightnessSlider.Value * 255 / 100);
-        Report(await _fx.SetBrightnessAsync(_settings.LightDevice, level));
+        Report(await _fx.SetBrightnessAsync(level));
     }
 
     private void Startup_Click(object sender, RoutedEventArgs e)
