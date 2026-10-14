@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
@@ -7,15 +8,33 @@ namespace AlienControl.Services;
 /// <summary>User settings stored in %AppData%\AlienControl\settings.json.</summary>
 public sealed class Settings
 {
-    // setpower indexes differ per machine; run alienfan-cli without arguments to see the list
-    // and adjust these. Defaults are guesses until verified on the m15 R7.
-    public int QuietPowerIndex { get; set; } = 1;
-    public int BalancedPowerIndex { get; set; } = 2;
-    public int PerformancePowerIndex { get; set; } = 3;
+    // setpower takes an index; getpower reports the raw BIOS value.
+    // Verified on the m15 R7 (System ID 83886594):
+    //   1 = a0 Balanced, 2 = a1 Balanced-Performance, 3 = a5 Battery Saver, 4 = a3 Quiet, 5 = a4 Performance
+    public int QuietPowerIndex { get; set; } = 4;
+    public int BalancedPowerIndex { get; set; } = 1;
+    public int PerformancePowerIndex { get; set; } = 5;
+
+    /// <summary>setpower index -> raw value reported by getpower.</summary>
+    public Dictionary<int, int> PowerRawByIndex { get; set; } = new()
+    {
+        [1] = 0xA0, [2] = 0xA1, [3] = 0xA5, [4] = 0xA3, [5] = 0xA4
+    };
 
     public int MaxFanBoost { get; set; } = 100;
-    public int LightDevice { get; set; } = 0;
-    public int SpectrumEffectType { get; set; } = 8; // APIv8 "Spectrum"; APIv5 wave is 3
+
+    // Lighting: device 0 = per-key keyboard (APIv5), device 1 = AW-ELC chassis (APIv4).
+    public int KeyboardDevice { get; set; } = 0;
+    public int KeyboardLightCount { get; set; } = 136;
+    public int ChassisDevice { get; set; } = 1;
+    public int[] ChassisLights { get; set; } = { 0, 2, 3, 4, 5 }; // Alienhead, KB zones (1 = power button, left alone)
+
+    // G-key (F1 G-Mode key). AWCC used to handle it; the app now listens for it.
+    // Virtual-key code; 0x80 = F17, the usual Dell G-key. Use "Detect" in the app to learn yours.
+    public bool GKeyEnabled { get; set; } = true;
+    public int GKeyVk { get; set; } = 0x80;
+    public int GKeyScan { get; set; } = 0; // 0 = match any scan code
+
     public int PollSeconds { get; set; } = 2;
 
     private static string FilePath =>
@@ -26,13 +45,20 @@ public sealed class Settings
         try
         {
             if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? new Settings();
+            {
+                var s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath));
+                if (s is not null && s.SettingsVersion >= CurrentVersion) return s;
+                // Older file had guessed power indexes; replace with verified defaults.
+            }
         }
         catch { /* fall back to defaults */ }
-        var s = new Settings();
-        s.Save();
-        return s;
+        var d = new Settings();
+        d.Save();
+        return d;
     }
+
+    private const int CurrentVersion = 2;
+    public int SettingsVersion { get; set; } = CurrentVersion;
 
     public void Save()
     {
