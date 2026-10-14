@@ -14,11 +14,11 @@ Alien Control is GUI only. Every button runs one of T-Troll's command-line tools
 |---|---|---|
 | Performance mode | alienfan-cli | `setpower=<n>`, `getpower` |
 | G-Mode | alienfan-cli | `setgmode=1/0`, `gmode` |
-| GPU power limit (unverified on m15 R7) | alienfan-cli | `setgpu=0..4` |
 | CPU boost | alienfan-cli | `setperf=<ac>,<dc>` |
 | Fans | alienfan-cli | `setfans=<boost>,<boost>` |
 | Temps / RPM | alienfan-cli | `temp rpm` |
-| Lighting | alienfx-cli | `setall`, `setdim`, `setglobal` |
+| Lighting (per-key keyboard + chassis) | alienfx-cli | `setone` on every light ID, `setdim`, `setglobal` |
+| G-key (F1) | app | global keyboard hook, toggles `setgmode` |
 
 Sensors are polled only while the window is open; closed, it idles in the tray.
 
@@ -28,9 +28,25 @@ Sensors are polled only while the window is open; closed, it idles in the tray.
 2. Download the latest [alienfx-tools release](https://github.com/T-Troll/alienfx-tools/releases),
    copy `alienfan-cli.exe`, `alienfx-cli.exe` (plus their DLLs) into `tools/` next to `AlienControl.exe`.
    On Intel systems also copy the `DPTF` files as described in T-Troll's README.
-3. Run `alienfx-cli probe` once so your lights are named.
-4. Run `alienfan-cli` (as admin) with no arguments to see your power modes, then set the
-   indexes in `%AppData%\AlienControl\settings.json` (`QuietPowerIndex`, `BalancedPowerIndex`, `PerformancePowerIndex`).
+3. Run Alien Control as administrator. Defaults are set for the m15 R7; other models can edit
+   `%AppData%\AlienControl\settings.json`.
+4. Click **Detect key** and press the G-key (F1) once so the app learns its key code.
+
+### m15 R7 power modes (verified)
+
+| `setpower=` | `getpower` raw | Mode |
+|---|---|---|
+| 1 | a0 | Balanced |
+| 2 | a1 | Balanced-Performance |
+| 3 | a5 | Battery Saver |
+| 4 | a3 | Quiet |
+| 5 | a4 | Performance |
+
+`setgpu` is not in alienfan-cli v9.6, so there is no GPU power limit control.
+The keyboard is per-key RGB (APIv5) and its light IDs don't follow key order, so colors are
+sent to IDs 0 to 135. The four status keys (F1, mic mute, mute, Windows lock) are firmware
+indicators and aren't colored. Avoid `alienfx-cli probe` on the keyboard: interrupting it
+leaves keys dark until a reboot.
 
 ## Build
 
@@ -49,4 +65,4 @@ by T-Troll and contributors (MIT license).
 
 ## Status
 
-v0.1 skeleton: UI wired to both CLIs. Not yet tested on hardware.
+v0.2: verified power mode map, G-key support, per-key lighting fix, Breathe/Wave effects, GPU limit removed.
