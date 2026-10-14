@@ -1,0 +1,7 @@
+bin/
+obj/
+.vs/
+*.user
+src/AlienControl/tools/*.exe
+src/AlienControl/tools/*.dll
+publish/
