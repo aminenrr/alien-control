@@ -10,9 +10,14 @@
     <AssemblyName>AlienControl</AssemblyName>
     <RootNamespace>AlienControl</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.3.1</Version>
+    <Version>0.4.0</Version>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="WPF-UI" Version="3.0.5" />
