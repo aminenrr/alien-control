@@ -61,10 +61,16 @@ Two themes, switched in the gear menu (saved in settings, default **Legend**):
 - **Legend**: Alienware-style terminal look, mono numbers and numbered section headers, tick bars, cyan accent.
 - **Fluent**: Windows 11 cards, segmented controls and rounded bars.
 
-Each theme is its own ResourceDictionary (`Themes/Legend.xaml`, `Themes/Fluent.xaml`); only the active one is loaded. Everything is static (no animations,
-blur or Mica), so the app idles at ~0% CPU. The accent follows the lighting color.
+Each theme is its own ResourceDictionary (`Themes/Legend.xaml`, `Themes/Fluent.xaml`); only the active one is loaded. No blur or Mica, and the app idles at ~0% CPU.
+The accent follows the lighting color.
 
-The gear menu also holds **Detect key** for the G-key and the experimental **Faster charging** toggle.
+Since v0.8.2 there are a few subtle, one-shot animations: the window fades and rises in when shown and fades out
+before hiding to the tray, buttons fade their hover and shrink slightly when pressed, a newly selected mode grows its
+underline and pulses once, the profile chip fades to its new color, and the gear menu fades and slides. They animate
+only opacity and scale/position, are capped at 60 fps, never loop and never run while the window is hidden.
+**Reduce motion** in the gear menu turns all of them off (saved in settings, off by default).
+
+The gear menu also holds **Detect key** for the G-key, **Reduce motion** and the experimental **Faster charging** toggle.
 
 ### Tray profiles
 
