@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        Title="Alien Control"
+        Title="Alien Controls"
         Icon="Assets/app.ico"
         Width="560" SizeToContent="Height" ResizeMode="NoResize"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
@@ -28,7 +28,7 @@
             </Grid.RowDefinitions>
 
             <!-- Header -->
-            <Border Grid.Row="0" CornerRadius="16,16,0,0" Padding="20,14,12,14"
+            <Border Grid.Row="0" CornerRadius="16,16,0,0" Padding="18,10,10,10"
                     BorderBrush="#14FFFFFF" BorderThickness="0,0,0,1"
                     MouseLeftButtonDown="Header_MouseDown">
                 <Border.Background>
@@ -40,10 +40,8 @@
                 </Border.Background>
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Viewbox Width="20" Height="24" VerticalAlignment="Center">
-                            <Path Data="{StaticResource AlienHead}" Fill="White" Width="100" Height="120" />
-                        </Viewbox>
-                        <TextBlock Text="Alien Control" Margin="12,0,0,0" FontSize="18" FontWeight="SemiBold"
+                        <Image Source="Assets/logo.png" Height="24" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
+                        <TextBlock Text="Alien Controls" Margin="12,0,0,0" FontSize="18" FontWeight="SemiBold"
                                    Foreground="#F2F5F8" VerticalAlignment="Center" />
                         <TextBlock Text="·  m15 R7" Margin="12,2,0,0" FontSize="13" Foreground="{StaticResource MutedText}"
                                    VerticalAlignment="Center" />
@@ -55,28 +53,18 @@
                 </Grid>
             </Border>
 
-            <StackPanel Grid.Row="1" Margin="16,14,16,8">
+            <StackPanel Grid.Row="1" Margin="14,10,14,6">
 
-                <!-- Sensors -->
-                <UniformGrid Columns="4" Margin="0,0,0,12">
+                <!-- Sensors: temps and fan % on row 1, memory on row 2 -->
+                <UniformGrid Columns="4" Margin="0,0,0,0">
                     <Border Style="{StaticResource StatCard}">
                         <StackPanel>
                             <TextBlock Text="CPU" Style="{StaticResource StatLabel}" />
                             <TextBlock Margin="0,2,0,0">
                                 <Run x:Name="CpuTempText" Text="--" FontSize="22" FontWeight="SemiBold" Foreground="#F2F5F8" />
-                                <Run Text="°C" FontSize="12" Foreground="{StaticResource MutedText}" />
+                                <Run x:Name="CpuTempTextUnit" Text="°C" FontSize="12" Foreground="{StaticResource MutedText}" />
                             </TextBlock>
                             <ProgressBar x:Name="CpuTempBar" Style="{StaticResource StatBar}" Maximum="100" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource StatCard}">
-                        <StackPanel>
-                            <TextBlock Text="GPU" Style="{StaticResource StatLabel}" />
-                            <TextBlock Margin="0,2,0,0">
-                                <Run x:Name="GpuTempText" Text="--" FontSize="22" FontWeight="SemiBold" Foreground="#F2F5F8" />
-                                <Run Text="°C" FontSize="12" Foreground="{StaticResource MutedText}" />
-                            </TextBlock>
-                            <ProgressBar x:Name="GpuTempBar" Style="{StaticResource StatBar}" Maximum="100" />
                         </StackPanel>
                     </Border>
                     <Border Style="{StaticResource StatCard}">
@@ -84,9 +72,19 @@
                             <TextBlock Text="CPU FAN" Style="{StaticResource StatLabel}" />
                             <TextBlock Margin="0,2,0,0">
                                 <Run x:Name="CpuFanText" Text="--" FontSize="22" FontWeight="SemiBold" Foreground="#F2F5F8" />
-                                <Run Text="rpm" FontSize="12" Foreground="{StaticResource MutedText}" />
+                                <Run x:Name="CpuFanTextUnit" Text="%" FontSize="12" Foreground="{StaticResource MutedText}" />
                             </TextBlock>
-                            <ProgressBar x:Name="CpuFanBar" Style="{StaticResource StatBar}" Maximum="6000" />
+                            <ProgressBar x:Name="CpuFanBar" Style="{StaticResource StatBar}" Maximum="100" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCard}">
+                        <StackPanel>
+                            <TextBlock Text="GPU" Style="{StaticResource StatLabel}" />
+                            <TextBlock Margin="0,2,0,0">
+                                <Run x:Name="GpuTempText" Text="--" FontSize="22" FontWeight="SemiBold" Foreground="#F2F5F8" />
+                                <Run x:Name="GpuTempTextUnit" Text="°C" FontSize="12" Foreground="{StaticResource MutedText}" />
+                            </TextBlock>
+                            <ProgressBar x:Name="GpuTempBar" Style="{StaticResource StatBar}" Maximum="100" />
                         </StackPanel>
                     </Border>
                     <Border Style="{StaticResource StatCard}">
@@ -94,9 +92,31 @@
                             <TextBlock Text="GPU FAN" Style="{StaticResource StatLabel}" />
                             <TextBlock Margin="0,2,0,0">
                                 <Run x:Name="GpuFanText" Text="--" FontSize="22" FontWeight="SemiBold" Foreground="#F2F5F8" />
-                                <Run Text="rpm" FontSize="12" Foreground="{StaticResource MutedText}" />
+                                <Run x:Name="GpuFanTextUnit" Text="%" FontSize="12" Foreground="{StaticResource MutedText}" />
                             </TextBlock>
-                            <ProgressBar x:Name="GpuFanBar" Style="{StaticResource StatBar}" Maximum="6000" />
+                            <ProgressBar x:Name="GpuFanBar" Style="{StaticResource StatBar}" Maximum="100" />
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+                <UniformGrid Columns="2" Margin="0,0,0,10">
+                    <Border Style="{StaticResource StatCard}">
+                        <StackPanel>
+                            <TextBlock Text="RAM" Style="{StaticResource StatLabel}" />
+                            <TextBlock Margin="0,2,0,0">
+                                <Run x:Name="RamText" Text="--" FontSize="22" FontWeight="SemiBold" Foreground="#F2F5F8" />
+                                <Run x:Name="RamTextUnit" Text="/ -- GB" FontSize="12" Foreground="{StaticResource MutedText}" />
+                            </TextBlock>
+                            <ProgressBar x:Name="RamBar" Style="{StaticResource StatBar}" Maximum="100" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource StatCard}">
+                        <StackPanel>
+                            <TextBlock Text="VRAM" Style="{StaticResource StatLabel}" />
+                            <TextBlock Margin="0,2,0,0">
+                                <Run x:Name="VramText" Text="--" FontSize="22" FontWeight="SemiBold" Foreground="#F2F5F8" />
+                                <Run x:Name="VramTextUnit" Text="/ -- GB" FontSize="12" Foreground="{StaticResource MutedText}" />
+                            </TextBlock>
+                            <ProgressBar x:Name="VramBar" Style="{StaticResource StatBar}" Maximum="100" />
                         </StackPanel>
                     </Border>
                 </UniformGrid>
@@ -118,7 +138,7 @@
                 </UniformGrid>
 
                 <!-- G-key -->
-                <Grid Margin="4,2,4,14">
+                <Grid Margin="4,0,4,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -135,7 +155,7 @@
                     <TextBlock Text="🧠  CPU Boost" Style="{StaticResource SectionTitle}" />
                     <TextBlock Text="Plugged in" Style="{StaticResource SectionHint}" />
                 </Grid>
-                <UniformGrid Columns="4" Margin="0,0,0,12">
+                <UniformGrid Columns="4" Margin="0,0,0,8">
                     <RadioButton GroupName="Cpu" Tag="0" Content="Off" Style="{StaticResource SegButton}" Click="Cpu_Click" />
                     <RadioButton GroupName="Cpu" Tag="1" Content="On" Style="{StaticResource SegButton}" Click="Cpu_Click" />
                     <RadioButton GroupName="Cpu" Tag="3" Content="Efficient" Style="{StaticResource SegButton}" Click="Cpu_Click" />
@@ -147,7 +167,7 @@
                     <TextBlock Text="🌀  Fans" Style="{StaticResource SectionTitle}" />
                     <TextBlock x:Name="FanHint" Text="BIOS controlled" Style="{StaticResource SectionHint}" />
                 </Grid>
-                <UniformGrid Columns="3" Margin="0,0,0,12">
+                <UniformGrid Columns="3" Margin="0,0,0,8">
                     <RadioButton x:Name="FanAuto" GroupName="Fan" Content="Auto" IsChecked="True" Style="{StaticResource SegButton}" Click="Fan_Click" />
                     <RadioButton x:Name="FanMax" GroupName="Fan" Content="Max Boost" Style="{StaticResource SegButton}" Click="Fan_Click" />
                     <RadioButton x:Name="FanCurve" GroupName="Fan" Content="Custom curve…" IsEnabled="False" Style="{StaticResource SegButton}" ToolTip="Coming later" />
@@ -186,13 +206,13 @@
             </StackPanel>
 
             <!-- Footer -->
-            <Border Grid.Row="2" BorderBrush="#14FFFFFF" BorderThickness="0,1,0,0" Padding="20,12">
+            <Border Grid.Row="2" BorderBrush="#14FFFFFF" BorderThickness="0,1,0,0" Padding="18,8">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <ui:ToggleSwitch x:Name="StartupToggle" Click="Startup_Click" />
                         <TextBlock Text="Run on startup" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#C9D2DC" FontSize="13" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.4" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <TextBlock x:Name="VersionText" Text="v0.5" HorizontalAlignment="Center" VerticalAlignment="Center"
                                Foreground="{StaticResource MutedText}" FontSize="12" />
                     <Button Style="{StaticResource CardButton}" Padding="18,7" Margin="0" Content="Quit" HorizontalAlignment="Right" Click="Quit_Click" />
                 </Grid>
