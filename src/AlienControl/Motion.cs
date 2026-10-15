@@ -143,7 +143,7 @@ public static class Motion
         el.SetValue(PressedProperty, false);
         var s = Scale(el);
         if (!Enabled || !el.IsVisible) { Set(s, ScaleTransform.ScaleXProperty, 1); Set(s, ScaleTransform.ScaleYProperty, 1); return; }
-        Play(null, (s, ScaleTransform.ScaleXProperty, Tween(null, 1, 120, Cubic)),
+        Play(() => Settle(el), (s, ScaleTransform.ScaleXProperty, Tween(null, 1, 120, Cubic)),
                    (s, ScaleTransform.ScaleYProperty, Tween(null, 1, 120, Cubic)));
     }
 
@@ -160,7 +160,20 @@ public static class Motion
             Play(null, (Scale(ind), ScaleTransform.ScaleXProperty, Tween(0, 1, 160, Cubic)));
         }
         var s = Scale(el);
-        Play(null, (s, ScaleTransform.ScaleXProperty, Pulse()), (s, ScaleTransform.ScaleYProperty, Pulse()));
+        Play(() => Settle(el), (s, ScaleTransform.ScaleXProperty, Pulse()), (s, ScaleTransform.ScaleYProperty, Pulse()));
+    }
+
+    /// <summary>After a press/pulse ends (and no new press started), remove the transform entirely so the
+    /// button's text is laid out on whole device pixels again (crisp, ClearType) instead of under a held scale.</summary>
+    private static void Settle(FrameworkElement el)
+    {
+        if ((bool)el.GetValue(PressedProperty)) return;
+        if (el.RenderTransform is ScaleTransform s && !s.IsFrozen)
+        {
+            s.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            s.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            el.RenderTransform = Transform.Identity;
+        }
     }
 
     /// <summary>1 -> 1.03 -> 1 over 180 ms, starting from the current scale (e.g. 0.97 after a press).</summary>
