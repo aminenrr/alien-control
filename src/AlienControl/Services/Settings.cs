@@ -48,6 +48,9 @@ public sealed class Settings
     /// <summary>Last static color picked; reapplied at app start. Null = leave firmware lighting alone.</summary>
     public byte[]? LastColor { get; set; }
 
+    /// <summary>APIv5 effect type: 0 Static, 2 Breathing, 3 Wave, 4 Dual wave, 8 Pulse, 9 Mixed pulse, 10 Night Rider, 11 Laser.</summary>
+    public int LastEffect { get; set; } = 0;
+
     // G-key (F1 G-Mode key). AWCC used to handle it; the app now listens for it.
     // Virtual-key code; 0x80 = F17, the usual Dell G-key. Use "Detect" in the app to learn yours.
     public bool GKeyEnabled { get; set; } = true;
