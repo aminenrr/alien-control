@@ -74,9 +74,9 @@ Two themes, switched in the gear menu (saved in settings, default **Legend**):
 Each theme is its own ResourceDictionary (`Themes/Legend.xaml`, `Themes/Fluent.xaml`); only the active one is loaded. No blur or Mica, and the app idles at ~0% CPU.
 The accent follows the lighting color.
 
-Since v0.8.2 there are a few subtle, one-shot animations: the window fades and rises in when shown and fades out
-before hiding to the tray, buttons fade their hover and shrink slightly when pressed, a newly selected mode grows its
-underline and pulses once, the profile chip fades to its new color, and the gear menu fades and slides. They animate
+Since v0.8.2 there are a few subtle, one-shot animations: since v0.8.6 the window slides up out of the bottom edge when shown
+and back down before hiding to the tray, like the Windows 11 Quick Settings flyout; buttons fade their hover and shrink slightly when pressed, a newly selected mode grows its
+underline and pulses once, the profile chip fades to its new color, and the gear menu slides up. They animate
 only opacity and scale/position, are capped at 60 fps, never loop and never run while the window is hidden.
 **Reduce motion** in the gear menu turns all of them off (saved in settings, off by default).
 
@@ -120,6 +120,7 @@ RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemor
 
 ## Status
 
+v0.8.6: animation fix (Quick Settings style window slide, visible hover/press/selection), temporary animation log removed.
 v0.8.5: Quiet preset at 240 Hz, power readout every 1 s with an AC total estimate, Faster charging removed, BIOS report fixes, temporary animation log.
 v0.8.4: Legend drops the section numbers (icons only), Fluent shows brightness once.
 v0.8.3: sharper rendering (shadow moved off the card, ClearType, layout rounding) and a neutral Fluent background.

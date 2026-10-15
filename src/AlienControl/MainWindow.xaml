@@ -21,7 +21,9 @@
          v0.8.3 sharpness fix: the shadow lives on its OWN empty Border behind the card. An Effect on the card itself
          renders all text and icons through an offscreen bitmap (soft, grayscale, blurry at 125%). The card has an
          opaque background, so ClearTypeHint lets text use ClearType even in this transparent window.
-         RootCard (the Grid) is what the open/hide animations move and fade. -->
+         RootCard (the Grid) is what the open/hide animations slide. -->
+    <!-- v0.8.6: ClipHost clips the card while it slides up from / down past the bottom edge (Win11 Quick Settings style). -->
+    <Grid x:Name="ClipHost" ClipToBounds="True">
     <Grid x:Name="RootCard" Margin="10">
     <Border x:Name="CardShadow" Style="{DynamicResource WindowCard}" IsHitTestVisible="False">
         <Border.Effect>
@@ -111,10 +113,12 @@
                                 </UniformGrid>
                                 <Border Style="{DynamicResource MemRow}">
                                     <UniformGrid Columns="2">
-                                        <Border x:Name="RamCard" Style="{DynamicResource StatCellFirst}" Cursor="Hand"
-                                                RenderTransformOrigin="0.5,0.5" fx:Motion.Interactive="True"
-                                                MouseLeftButtonUp="RamCard_LeftClick" MouseRightButtonUp="RamCard_RightClick"
-                                                ToolTip="Click: quick RAM clean · Right-click: deep clean (also clears the file cache)">
+                                        <!-- v0.8.6: a Grid so the RAM card gets the same hover overlay as the buttons (RamHoverFx). -->
+                                        <Grid x:Name="RamCard" Background="Transparent" Cursor="Hand"
+                                              RenderTransformOrigin="0.5,0.5" fx:Motion.Interactive="True"
+                                              MouseLeftButtonUp="RamCard_LeftClick" MouseRightButtonUp="RamCard_RightClick"
+                                              ToolTip="Click: quick RAM clean · Right-click: deep clean (also clears the file cache)">
+                                        <Border Style="{DynamicResource StatCellFirst}">
                                             <StackPanel>
                                                 <Grid>
                                                     <TextBlock Text="{DynamicResource Str.Ram}" Style="{DynamicResource StatLabel}" />
@@ -128,6 +132,8 @@
                                                 <ProgressBar x:Name="RamBar" Style="{DynamicResource StatBar}" Maximum="100" />
                                             </StackPanel>
                                         </Border>
+                                        <Border x:Name="RamHoverFx" Background="{DynamicResource HoverFxBrush}" CornerRadius="3" Opacity="0" IsHitTestVisible="False" />
+                                        </Grid>
                                         <Border Style="{DynamicResource StatCell}">
                                             <StackPanel>
                                                 <TextBlock Text="{DynamicResource Str.Vram}" Style="{DynamicResource StatLabel}" />
@@ -491,5 +497,6 @@
             </Border>
         </Grid>
     </Border>
+    </Grid>
     </Grid>
 </Window>

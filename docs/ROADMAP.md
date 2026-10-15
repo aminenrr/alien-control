@@ -1,8 +1,8 @@
 # Roadmap
 
 ## Bugs being fixed now
-- Animations (v0.8.2) don't play on the laptop with Reduce motion off. v0.8.5 logs every animation to `motion.log`;
-  fix after reading it, then delete `Services/MotionLog.cs` and its calls.
+- None open. v0.8.6 should fix the invisible animations (cause found in the v0.8.5 log); waiting on a laptop test.
+  If they still look dead, next suspect is the `AllowsTransparency` layered window dropping frames.
 
 ## Next after the bugs
 - GPU modes: Procmon recordings (below), then wire the row.
@@ -11,6 +11,7 @@
 - Talk about: notifications when a preset changes, and automatic preset on AC vs battery.
 
 ## Waiting on hardware tests
+- v0.8.6 animations (Quick Settings slide, timings to tune by eye).
 - v0.8.0 to v0.8.2 (themes, gear menu, profiles, power readout, chip, animations) not yet run on the laptop.
 - "Check Ultimate support" report: gives the exact Dell BIOS attribute for MUX and the right RAPL counter instance.
 

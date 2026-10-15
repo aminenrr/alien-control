@@ -9,7 +9,8 @@ using System.Windows.Media.Animation;
 namespace AlienControl;
 
 /// <summary>
-/// v0.8.2 micro-animations. Rules: only Opacity and RenderTransform (Scale / Translate) are animated,
+/// v0.8.2 micro-animations (v0.8.6: Quick Settings style window slide, stronger values). Rules: only Opacity and
+/// RenderTransform (Scale / Translate) are animated,
 /// every storyboard is one-shot (no RepeatBehavior, no timers) with DesiredFrameRate = 60, short EaseOut curves.
 /// Nothing runs while the window is hidden, so idle cost stays zero.
 /// <see cref="Enabled"/> = false is "Reduce motion": every animation is skipped and values jump to their end
@@ -21,6 +22,10 @@ public static class Motion
     public static bool Enabled { get; set; } = true;
 
     public const int Fps = 60;
+
+    // v0.8.6 timings: the v0.8.2 values (70-180 ms, 0.97 / 1.03 scale, ~3 RGB-step hover) ran but were too faint to see.
+    public const int HoverMs = 150, PressMs = 90, ReleaseMs = 160, SelectMs = 220;
+    public const double PressScale = 0.95;
     public static readonly IEasingFunction Cubic = Freeze(new CubicEase { EasingMode = EasingMode.EaseOut });
     public static readonly IEasingFunction Quad = Freeze(new QuadraticEase { EasingMode = EasingMode.EaseOut });
 
@@ -36,37 +41,34 @@ public static class Motion
         return a;
     }
 
-    /// <summary>Runs the tracks together in ONE storyboard (60 fps cap, HoldEnd) and returns it.</summary>
-    public static Storyboard Play(Action? completed, params (DependencyObject Target, DependencyProperty Property, AnimationTimeline Anim)[] tracks)
+    /// <summary>
+    /// A Fluent-style curve as a one-keyframe spline animation (WPF easing functions can't take a cubic-bezier).
+    /// from = null starts at the current (possibly animated) value.
+    /// </summary>
+    public static DoubleAnimationUsingKeyFrames Spline(double? from, double to, int ms, KeySpline curve)
     {
-        // TEMPORARY v0.8.5 diagnostics (MotionLog): which animation starts, finishes or throws.
-        string label = string.Join("+", System.Linq.Enumerable.Select(tracks, t =>
-            $"{(t.Target is FrameworkElement fe && fe.Name.Length > 0 ? fe.Name : t.Target.GetType().Name)}.{t.Property.Name}"));
-        try
-        {
-            var sbx = PlayCore(completed, label, tracks);
-            AlienControl.Services.MotionLog.Write($"begin {label}");
-            return sbx;
-        }
-        catch (Exception ex)
-        {
-            AlienControl.Services.MotionLog.Write($"FAILED {label}: {ex.GetType().Name}: {ex.Message}");
-            throw;
-        }
+        var k = new DoubleAnimationUsingKeyFrames();
+        if (from is { } f) k.KeyFrames.Add(new DiscreteDoubleKeyFrame(f, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        k.KeyFrames.Add(new SplineDoubleKeyFrame(to, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(ms)), curve));
+        return k;
     }
 
-    private static Storyboard PlayCore(Action? completed, string label, (DependencyObject Target, DependencyProperty Property, AnimationTimeline Anim)[] tracks)
+    /// <summary>Fluent "decelerate" (fast start, long soft stop): flyouts sliding in.</summary>
+    public static KeySpline Decelerate => new(0, 0, 0, 1);
+    /// <summary>Accelerate (slow start, quick exit): flyouts sliding out.</summary>
+    public static KeySpline Accelerate => new(0.7, 0, 1, 0.5);
+
+    /// <summary>Runs the tracks together in ONE storyboard (60 fps cap, HoldEnd) and returns it.</summary>
+    public static Storyboard Play(Action? completed, params (DependencyObject Target, DependencyProperty Property, AnimationTimeline Anim)[] tracks)
     {
         var sb = new Storyboard();
         Timeline.SetDesiredFrameRate(sb, Fps);
         foreach (var (target, prop, anim) in tracks)
         {
-            Timeline.SetDesiredFrameRate(anim, Fps);
             Storyboard.SetTarget(anim, target);
             Storyboard.SetTargetProperty(anim, new PropertyPath(prop));
             sb.Children.Add(anim);
         }
-        sb.Completed += (_, _) => AlienControl.Services.MotionLog.Write($"done {label}");
         if (completed is not null) sb.Completed += (_, _) => completed();
         sb.Begin();   // SnapshotAndReplace: a new run takes over smoothly from the current value
         return sb;
@@ -97,15 +99,20 @@ public static class Motion
         return t;
     }
 
-    private static FrameworkElement? Part(FrameworkElement el, string name) =>
-        el is Control { Template: { } t } c ? t.FindName(name, c) as FrameworkElement : null;
+    /// <summary>A named part of a control template, or for a Panel (the RAM card) its child whose name ends in the name.</summary>
+    private static FrameworkElement? Part(FrameworkElement el, string name) => el switch
+    {
+        Control { Template: { } t } c => t.FindName(name, c) as FrameworkElement,
+        Panel p => System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.OfType<FrameworkElement>(p.Children), x => x.Name.EndsWith(name)),
+        _ => null
+    };
 
     // ---------------------------------------------------------------- fx:Motion.Interactive (theme button styles)
 
     /// <summary>
-    /// Set by the theme styles on buttons: hover = fade the template's "HoverFx" overlay (100 ms),
-    /// press = scale 0.97 (70 ms) and back (120 ms), and for toggle buttons a selection "impact":
-    /// the "Ul" / "Glow" indicator grows in (ScaleX 0 -> 1, 160 ms) and the button pulses 1 -> 1.03 -> 1 (180 ms).
+    /// Set by the theme styles on buttons: hover = fade the template's "HoverFx" overlay (150 ms),
+    /// press = scale 0.95 (90 ms) and back (160 ms), and for toggle buttons a selection "impact":
+    /// the "Ul" / "Glow" indicator grows in (ScaleX 0 -> 1, 220 ms) and the button pulses 1 -> 1.04 -> 1 (220 ms).
     /// </summary>
     public static readonly DependencyProperty InteractiveProperty = DependencyProperty.RegisterAttached(
         "Interactive", typeof(bool), typeof(Motion), new PropertyMetadata(false, OnInteractiveChanged));
@@ -139,20 +146,19 @@ public static class Motion
 
     private static void Hover(FrameworkElement el, bool on)
     {
-        if (Part(el, "HoverFx") is not { } fx) { AlienControl.Services.MotionLog.Write($"no HoverFx in {el.GetType().Name} '{el.Name}' (Enabled={Enabled})"); return; }
-        if (!(Enabled && el.IsVisible)) AlienControl.Services.MotionLog.Write($"hover skipped: Enabled={Enabled} IsVisible={el.IsVisible}");
-        if (Enabled && el.IsVisible) Play(null, (fx, UIElement.OpacityProperty, Tween(null, on ? 1 : 0, 100, Quad)));
+        if (Part(el, "HoverFx") is not { } fx) return;
+        if (Enabled && el.IsVisible) Play(null, (fx, UIElement.OpacityProperty, Tween(null, on ? 1 : 0, HoverMs, Quad)));
         else Set(fx, UIElement.OpacityProperty, on ? 1 : 0);
     }
 
     private static void OnDown(object sender, MouseButtonEventArgs e)
     {
         var el = (FrameworkElement)sender;
-        if (!Enabled || !el.IsEnabled || !el.IsVisible) { AlienControl.Services.MotionLog.Write($"press skipped: Enabled={Enabled} IsEnabled={el.IsEnabled} IsVisible={el.IsVisible}"); return; }
+        if (!Enabled || !el.IsEnabled || !el.IsVisible) return;
         el.SetValue(PressedProperty, true);
         var s = Scale(el);
-        Play(null, (s, ScaleTransform.ScaleXProperty, Tween(null, 0.97, 70, Quad)),
-                   (s, ScaleTransform.ScaleYProperty, Tween(null, 0.97, 70, Quad)));
+        Play(null, (s, ScaleTransform.ScaleXProperty, Tween(null, PressScale, PressMs, Quad)),
+                   (s, ScaleTransform.ScaleYProperty, Tween(null, PressScale, PressMs, Quad)));
     }
 
     private static void OnUp(object sender, MouseButtonEventArgs e) => Release((FrameworkElement)sender);
@@ -163,8 +169,8 @@ public static class Motion
         el.SetValue(PressedProperty, false);
         var s = Scale(el);
         if (!Enabled || !el.IsVisible) { Set(s, ScaleTransform.ScaleXProperty, 1); Set(s, ScaleTransform.ScaleYProperty, 1); return; }
-        Play(() => Settle(el), (s, ScaleTransform.ScaleXProperty, Tween(null, 1, 120, Cubic)),
-                   (s, ScaleTransform.ScaleYProperty, Tween(null, 1, 120, Cubic)));
+        Play(() => Settle(el), (s, ScaleTransform.ScaleXProperty, Tween(null, 1, ReleaseMs, Cubic)),
+                   (s, ScaleTransform.ScaleYProperty, Tween(null, 1, ReleaseMs, Cubic)));
     }
 
     /// <summary>Selection impact: runs for clicks and for state read back from hardware while the window is open.</summary>
@@ -177,7 +183,7 @@ public static class Motion
         {
             if (Part(el, name) is not { } ind) continue;
             ind.RenderTransformOrigin = new Point(0.5, 0.5);
-            Play(null, (Scale(ind), ScaleTransform.ScaleXProperty, Tween(0, 1, 160, Cubic)));
+            Play(null, (Scale(ind), ScaleTransform.ScaleXProperty, Tween(0, 1, SelectMs, Cubic)));
         }
         var s = Scale(el);
         Play(() => Settle(el), (s, ScaleTransform.ScaleXProperty, Pulse()), (s, ScaleTransform.ScaleYProperty, Pulse()));
@@ -196,12 +202,12 @@ public static class Motion
         }
     }
 
-    /// <summary>1 -> 1.03 -> 1 over 180 ms, starting from the current scale (e.g. 0.97 after a press).</summary>
+    /// <summary>1 -> 1.04 -> 1 over 220 ms, starting from the current scale (e.g. 0.97 after a press).</summary>
     private static DoubleAnimationUsingKeyFrames Pulse()
     {
         var k = new DoubleAnimationUsingKeyFrames();
-        k.KeyFrames.Add(new EasingDoubleKeyFrame(1.03, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(70)), Quad));
-        k.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(180)), Quad));
+        k.KeyFrames.Add(new EasingDoubleKeyFrame(1.04, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(80)), Quad));
+        k.KeyFrames.Add(new EasingDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(220)), Quad));
         return k;
     }
 }

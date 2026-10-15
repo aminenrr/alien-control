@@ -42,6 +42,8 @@
     <SolidColorBrush x:Key="AccentBorder" Color="#804CC2FF" />
     <SolidColorBrush x:Key="AccentFaint" Color="#2E4CC2FF" />
     <SolidColorBrush x:Key="AccentGlow" Color="#554CC2FF" />
+    <!-- v0.8.6: hover overlay, ~7% white -->
+    <SolidColorBrush x:Key="HoverFxBrush" Color="#12FFFFFF" />
     <SolidColorBrush x:Key="AccentCheckedBg" Color="#16FFFFFF" />
     <SolidColorBrush x:Key="TopLineBrush" Color="Transparent" />
 
@@ -138,7 +140,7 @@
                 <ControlTemplate TargetType="Button">
                     <Grid>
                         <Border x:Name="Bd" Background="Transparent" />
-                        <Border x:Name="HoverFx" Background="#14FFFFFF" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" Background="{DynamicResource HoverFxBrush}" Opacity="0" IsHitTestVisible="False" />
                         <ContentPresenter Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"
                                           TextElement.Foreground="{TemplateBinding Foreground}" />
                     </Grid>
@@ -294,7 +296,7 @@
                 <ControlTemplate TargetType="RadioButton">
                     <Grid>
                         <Border x:Name="Bd" Background="Transparent" CornerRadius="5" />
-                        <Border x:Name="HoverFx" CornerRadius="5" Background="#0DFFFFFF" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" CornerRadius="5" Background="{DynamicResource HoverFxBrush}" Opacity="0" IsHitTestVisible="False" />
                         <Border Padding="{TemplateBinding Padding}">
                             <StackPanel HorizontalAlignment="Center">
                                 <ContentPresenter x:Name="Ic" Content="{TemplateBinding Tag}" Width="20" Height="20" Margin="0,0,0,4"
@@ -333,7 +335,7 @@
                 <ControlTemplate TargetType="RadioButton">
                     <Grid>
                         <Border x:Name="Bd" Background="Transparent" CornerRadius="5" />
-                        <Border x:Name="HoverFx" CornerRadius="5" Background="#0DFFFFFF" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" CornerRadius="5" Background="{DynamicResource HoverFxBrush}" Opacity="0" IsHitTestVisible="False" />
                         <Border Padding="{TemplateBinding Padding}">
                             <StackPanel HorizontalAlignment="Center">
                                 <ContentPresenter x:Name="Ic" Content="{TemplateBinding Tag}" Width="20" Height="20" Margin="0,0,0,4"
@@ -369,7 +371,7 @@
                 <ControlTemplate TargetType="Button">
                     <Grid>
                         <Border x:Name="Bd" Background="#0FFFFFFF" BorderBrush="#12FFFFFF" BorderThickness="1" CornerRadius="5" />
-                        <Border x:Name="HoverFx" Margin="1" CornerRadius="4" Background="#0AFFFFFF" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" Margin="1" CornerRadius="4" Background="{DynamicResource HoverFxBrush}" Opacity="0" IsHitTestVisible="False" />
                         <Border BorderThickness="1" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
                         </Border>
@@ -400,9 +402,12 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border Background="Transparent" Padding="2,3">
-                        <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" />
-                    </Border>
+                    <Grid>
+                        <Border x:Name="HoverFx" CornerRadius="3" Background="{DynamicResource HoverFxBrush}" Opacity="0" IsHitTestVisible="False" />
+                        <Border Background="Transparent" Padding="2,3">
+                            <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#CCFFFFFF" /></Trigger>
                     </ControlTemplate.Triggers>

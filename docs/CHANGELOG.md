@@ -2,6 +2,18 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.8.6 (2026-10-15), untested
+- Animation fix, from the v0.8.5 motion.log: every storyboard ran and completed, but they weren't visible.
+  - Window open/close now slides like the Windows 11 Quick Settings flyout: up out of the bottom edge (clipped by a new
+    `ClipHost`) in 250 ms with the Fluent decelerate curve, back down in 170 ms with an accelerate curve. No fade.
+  - The slide starts on the first rendered frame, and the hardware reads on show (state, GPU hint, refresh rate) wait until
+    it has played. Before, a 160 ms open took 1004 ms of clock time behind that work, so it finished before the first frame.
+  - Hover overlays now visible: new `HoverFxBrush` (Legend ~10% white, Fluent ~7%); Legend's old `#14191E` on `#0E1013`
+    was about 3 RGB steps. Hover 150 ms, press 0.95 / 90 ms, release 160 ms, selection pulse 1.04 / 220 ms, underline 220 ms,
+    profile chip 0.2 to 1 over 250 ms, gear flyout slides 14 DIP in 160 ms.
+  - Link buttons (Check Ultimate support) and the RAM card got hover overlays (the RAM card is now a Grid).
+- Temporary `Services/MotionLog.cs` and all its calls removed; no more `motion.log`.
+
 ## v0.8.5 (2026-10-15), untested
 - Presets: only Battery uses 60 Hz; Quiet, Balanced and Performance use 240 Hz.
 - Power readout every 1 s with a 2-sample average (was 2 s x 3), on its own timer, only while the window is open.

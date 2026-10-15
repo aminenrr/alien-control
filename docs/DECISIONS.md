@@ -25,6 +25,10 @@ Why things are the way they are. Newest decisions win.
 - Animations (v0.8.2) replace the earlier "fully static" rule, on condition they cost nothing at idle:
   Opacity/RenderTransform only, one-shot, 60 fps, nothing while hidden. "Reduce motion" (off by default) makes it static.
 
+- v0.8.6 (Amine): window open/close copies the Windows 11 Quick Settings flyout (slide up from the bottom edge, slide back
+  down on close, no fade) instead of the v0.8.2 fade + 12 DIP rise. Hover/press/selection made stronger because the
+  v0.8.2 values ran but were too faint to notice. Timings are by eye, tuned after the laptop test.
+
 - v0.8.4 (Amine): Legend section headers are icon-only (numbers removed); Fluent shows the brightness % once.
 
 ## Features

@@ -47,7 +47,6 @@ public partial class MainWindow : Window
         // Only the active theme dictionary is loaded; it must be there before the XAML resolves its keys.
         App.ApplyTheme(_settings.Theme);
         Motion.Enabled = !_settings.ReduceMotion;   // v0.8.2: Reduce motion = no animations at all
-        MotionLog.Start(Motion.Enabled);            // TEMPORARY v0.8.5 diagnostics, remove with MotionLog.cs
         InitializeComponent();
         ReduceMotionToggle.IsChecked = _settings.ReduceMotion;
         ThemeLegend.IsChecked = IsLegend;
@@ -85,11 +84,17 @@ public partial class MainWindow : Window
         {
             if (IsVisible)
             {
-                PlayOpen(fromCurrent: false);   // v0.8.2 fade + rise (instant with Reduce motion)
+                PlayOpen(fromCurrent: false);   // v0.8.6 Quick Settings style slide (instant with Reduce motion)
+                int gen = _showGen;
                 UpdateProfileChip(CurrentProfile);
+                // v0.8.6: the hardware reads wait until the slide has played, so they can't stall its frames
+                // (v0.8.5 log: a 160 ms open took 1004 ms because this work ran on the UI thread first).
+                if (Motion.Enabled) await Task.Delay(OpenMs + 40);
+                if (!IsVisible || gen != _showGen) return;
                 RefreshDisplayRate();          // read once on show, no timer
                 _ = RefreshGpuHintAsync();
                 await RefreshStateAsync();
+                if (!IsVisible || gen != _showGen) return;
                 _poll.Start();
                 _powerTimer.Start();
             }
@@ -176,24 +181,48 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => HideToTray();
 
-    // ---------- v0.8.2 window open / hide animation (Opacity + TranslateY on the card, one-shot, 60 fps) ----------
+    // ---------- v0.8.6 window open / hide: Windows 11 Quick Settings style slide ----------
+    // The card slides up from the bottom edge (ClipHost clips it, so it rises out of the edge like the Win11 flyout)
+    // and slides back down past the edge on hide. TranslateTransform.Y only, one-shot, 60 fps, nothing while hidden.
 
+    private const int OpenMs = 250, HideMs = 170;
     private int _showGen;     // bumps on every show/hide so a stale hide never fires after a re-show
     private bool _hiding;
+    private bool _openQueued;
 
-    /// <summary>Fade 0 -> 1 and rise +12 -> 0 over 160 ms. fromCurrent: resume from a hide that was interrupted.</summary>
+    /// <summary>Distance that puts the card fully below the clip edge.</summary>
+    private double SlideDistance => (ClipHost.ActualHeight > 0 ? ClipHost.ActualHeight : 800) + 2;
+
+    /// <summary>fromCurrent: resume from a hide that was interrupted (no jump). Otherwise the card is parked below
+    /// the edge and the slide starts on the first rendered frame, after Show() has done its layout work.</summary>
     private void PlayOpen(bool fromCurrent)
     {
         _showGen++;
         _hiding = false;
-        if (!Motion.Enabled) { MotionLog.Write("open: skipped (Motion.Enabled=false)"); ResetCard(); return; }
-        MotionLog.Write($"open: fromCurrent={fromCurrent} Opacity={RootCard.Opacity} WindowState={WindowState}");
+        if (!Motion.Enabled) { ResetCard(); return; }
         var shift = Motion.Translate(RootCard);
+        Motion.Set(RootCard, OpacityProperty, 1);
+        if (fromCurrent) { StartSlideIn(_showGen); return; }
+        Motion.Set(shift, TranslateTransform.YProperty, SlideDistance);
+        if (_openQueued) return;
+        _openQueued = true;
         int gen = _showGen;
-        // On completion drop the held animation values, so the card ends at exact Opacity 1 / Y 0 (ClearType, crisp text).
+        EventHandler? onFrame = null;
+        onFrame = (_, _) =>
+        {
+            CompositionTarget.Rendering -= onFrame;   // one-shot: never keeps a per-frame hook alive
+            _openQueued = false;
+            if (gen == _showGen && !_hiding && IsVisible) StartSlideIn(gen);
+        };
+        CompositionTarget.Rendering += onFrame;
+    }
+
+    private void StartSlideIn(int gen)
+    {
+        var shift = Motion.Translate(RootCard);
+        // On completion drop the transform, so the card rests at exact Y 0 (crisp ClearType text).
         Motion.Play(() => { if (gen == _showGen && !_hiding) ResetCard(); },
-            (RootCard, OpacityProperty, Motion.Tween(fromCurrent ? null : 0, 1, 160, Motion.Cubic)),
-            (shift, TranslateTransform.YProperty, Motion.Tween(fromCurrent ? null : 12, 0, 160, Motion.Cubic)));
+            (shift, TranslateTransform.YProperty, Motion.Spline(null, 0, OpenMs, Motion.Decelerate)));
     }
 
     /// <summary>App.ShowMain calls this before Show(): a show during the hide animation cancels the hide.</summary>
@@ -202,32 +231,30 @@ public partial class MainWindow : Window
         if (_hiding) PlayOpen(fromCurrent: true);
     }
 
-    /// <summary>Fade to 0 and drop +8 over 120 ms, THEN Hide(). Falls back to an instant Hide() whenever the
+    /// <summary>Slide down past the edge over 170 ms, THEN Hide(). Falls back to an instant Hide() whenever the
     /// animation can't run (Reduce motion, minimized, a second request, an exception) and, as a safety net,
     /// if the storyboard hasn't completed 400 ms later (one-shot check, nothing repeats).</summary>
     public void HideToTray()
     {
         CloseSettings(instant: true);
         if (!IsVisible) return;
-        if (!Motion.Enabled || WindowState == WindowState.Minimized || _hiding)
-        { MotionLog.Write($"hide: instant (Enabled={Motion.Enabled} State={WindowState} hiding={_hiding})"); HideNow(); return; }
+        if (!Motion.Enabled || WindowState == WindowState.Minimized || _hiding) { HideNow(); return; }
         _hiding = true;
         int gen = ++_showGen;
         try
         {
             var shift = Motion.Translate(RootCard);
             Motion.Play(() => { if (gen == _showGen && _hiding) HideNow(); },
-                (RootCard, OpacityProperty, Motion.Tween(null, 0, 120, Motion.Quad)),
-                (shift, TranslateTransform.YProperty, Motion.Tween(null, 8, 120, Motion.Quad)));
+                (shift, TranslateTransform.YProperty, Motion.Spline(null, SlideDistance, HideMs, Motion.Accelerate)));
         }
-        catch (Exception ex) { MotionLog.Write($"hide: exception {ex.GetType().Name}: {ex.Message}"); HideNow(); return; }
+        catch { HideNow(); return; }
         _ = HideSafetyNetAsync(gen);
     }
 
     private async Task HideSafetyNetAsync(int gen)
     {
         await Task.Delay(400);
-        if (gen == _showGen && _hiding) { MotionLog.Write("hide: safety net fired (storyboard never completed)"); HideNow(); }
+        if (gen == _showGen && _hiding) HideNow();
     }
 
     private void HideNow()
@@ -235,7 +262,7 @@ public partial class MainWindow : Window
         _hiding = false;
         _showGen++;
         Hide();
-        ResetCard();   // back to fully visible while hidden, so the next show never starts transparent by accident
+        ResetCard();   // back to the rest position while hidden; PlayOpen parks it below the edge again on show
     }
 
     private void ResetCard()
@@ -739,7 +766,7 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(new Action(SnapToCorner), DispatcherPriority.Loaded);
     }
 
-    // ---------- gear flyout (v0.8.2: fade + 6 DIP slide, 120 ms; instant with Reduce motion) ----------
+    // ---------- gear flyout (v0.8.6: slide up 14 DIP, 160 ms decelerate, quick fade; instant with Reduce motion) ----------
 
     private bool _settingsPinned;   // "Detect key" keeps the flyout open while it waits for the G-key
     private int _flyGen;
@@ -757,8 +784,8 @@ public partial class MainWindow : Window
         var shift = Motion.Translate(SettingsPanel);
         if (!Motion.Enabled) { ResetFlyout(); return; }
         Motion.Play(null,
-            (SettingsPanel, OpacityProperty, Motion.Tween(0, 1, 120, Motion.Cubic)),
-            (shift, TranslateTransform.YProperty, Motion.Tween(6, 0, 120, Motion.Cubic)));
+            (SettingsPanel, OpacityProperty, Motion.Tween(0, 1, 90, Motion.Quad)),
+            (shift, TranslateTransform.YProperty, Motion.Spline(14, 0, 160, Motion.Decelerate)));
     }
 
     private void CloseSettings(bool instant = false)
@@ -775,7 +802,7 @@ public partial class MainWindow : Window
         {
             Motion.Play(() => { if (gen == _flyGen) { SettingsPopup.IsOpen = false; ResetFlyout(); } },
                 (SettingsPanel, OpacityProperty, Motion.Tween(null, 0, 120, Motion.Quad)),
-                (Motion.Translate(SettingsPanel), TranslateTransform.YProperty, Motion.Tween(null, 6, 120, Motion.Quad)));
+                (Motion.Translate(SettingsPanel), TranslateTransform.YProperty, Motion.Spline(null, 14, 120, Motion.Accelerate)));
         }
         catch { SettingsPopup.IsOpen = false; ResetFlyout(); }
     }
@@ -964,11 +991,11 @@ public partial class MainWindow : Window
         var col = Color.FromRgb(t.R, t.G, t.B);
         SolidColorBrush B(byte a) { var b = new SolidColorBrush(Color.FromArgb(a, col.R, col.G, col.B)); b.Freeze(); return b; }
         var label = Profiles.Label(p);
-        // v0.8.2: the new colour fades in (Opacity 0.3 -> 1, 150 ms) when the profile actually changes on screen.
+        // v0.8.2: the new colour fades in (v0.8.6: Opacity 0.2 -> 1, 250 ms) when the profile actually changes on screen.
         bool changed = _chipProfile is { } prev && prev != p;
         _chipProfile = p;
         if (changed && Motion.Enabled && ProfileChip.IsVisible)
-            Motion.Play(null, (ProfileChip, OpacityProperty, Motion.Tween(0.3, 1, 150, Motion.Quad)));
+            Motion.Play(null, (ProfileChip, OpacityProperty, Motion.Tween(0.2, 1, 250, Motion.Quad)));
         ProfileChipText.Text = IsLegend ? label.ToUpperInvariant() : label;
         ProfileChipText.Foreground = B(255);
         ProfileChipDot.Fill = B(255);

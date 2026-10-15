@@ -24,7 +24,7 @@ Needs the .NET 8 SDK on Windows (or `EnableWindowsTargeting` to compile-check on
 |---|---|
 | `App.xaml(.cs)` | tray icon, theme loading (`ApplyTheme`), accent (`ApplyAccent`), single window |
 | `MainWindow.xaml(.cs)` | the card UI, sensor loop (only while visible), hints, profile chip, gear flyout |
-| `Motion.cs` | all animations (v0.8.2), disabled by Reduce motion |
+| `Motion.cs` | all animations (v0.8.2, values and spline curves updated in v0.8.6), disabled by Reduce motion. The window slide itself lives in `MainWindow.xaml.cs` (`PlayOpen` / `HideToTray`, clipped by `ClipHost`) |
 | `Themes/Legend.xaml`, `Themes/Fluent.xaml` | **generated** by `dev/gen_themes.py`; same keys in both. Edit the generator, never the XAML |
 | `Services/CliRunner.cs` | runs the T-Troll CLIs hidden and captures output |
 | `Services/AlienFan.cs` | power modes, G-Mode, CPU boost, fans, temps (parses raw `getpower` hex) |

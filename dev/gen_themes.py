@@ -214,6 +214,8 @@ def legend():
     <SolidColorBrush x:Key="AccentBorder" Color="#8000D8F0" />
     <SolidColorBrush x:Key="AccentFaint" Color="#2E00E5FF" />
     <SolidColorBrush x:Key="AccentGlow" Color="#5500E5FF" />
+    <!-- v0.8.6: hover overlay, ~10% white (the old #14191E on #0E1013 was ~3 RGB steps, invisible) -->
+    <SolidColorBrush x:Key="HoverFxBrush" Color="#1AFFFFFF" />
     <LinearGradientBrush x:Key="AccentCheckedBg" StartPoint="0,0" EndPoint="0,1">
         <GradientStop Color="#1700E5FF" Offset="0" /><GradientStop Color="#0500E5FF" Offset="1" />
     </LinearGradientBrush>
@@ -326,7 +328,7 @@ def legend():
                 <ControlTemplate TargetType="Button">
                     <Grid>
                         <Border x:Name="Bd" Background="Transparent" CornerRadius="3" />
-                        <Border x:Name="HoverFx" Background="#14FFFFFF" CornerRadius="3" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" Background="{{DynamicResource HoverFxBrush}}" CornerRadius="3" Opacity="0" IsHitTestVisible="False" />
                         <ContentPresenter Width="15" Height="15" HorizontalAlignment="Center" VerticalAlignment="Center"
                                           TextElement.Foreground="{{TemplateBinding Foreground}}" />
                     </Grid>
@@ -472,7 +474,7 @@ def legend():
                 <ControlTemplate TargetType="RadioButton">
                     <Grid>
                         <Border x:Name="Bd" Background="#0E1013" BorderBrush="#1C2127" BorderThickness="1" CornerRadius="4" />
-                        <Border x:Name="HoverFx" Margin="1" CornerRadius="3" Background="#14191E" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" Margin="1" CornerRadius="3" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <Border BorderThickness="1" Padding="{{TemplateBinding Padding}}">
                             <StackPanel HorizontalAlignment="Center">
                                 <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="20" Height="20" Margin="0,0,0,6"
@@ -517,7 +519,7 @@ def legend():
                 <ControlTemplate TargetType="RadioButton">
                     <Grid>
                         <Border x:Name="Bd" Background="#0E1013" BorderBrush="#1C2127" BorderThickness="1" CornerRadius="4" />
-                        <Border x:Name="HoverFx" Margin="1" CornerRadius="3" Background="#14191E" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" Margin="1" CornerRadius="3" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <Border BorderThickness="1" Padding="{{TemplateBinding Padding}}">
                             <StackPanel HorizontalAlignment="Center">
                                 <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="20" Height="20" Margin="0,0,0,6"
@@ -564,7 +566,7 @@ def legend():
                 <ControlTemplate TargetType="Button">
                     <Grid>
                         <Border x:Name="Bd" Background="#0E1013" BorderBrush="#232930" BorderThickness="1" CornerRadius="4" />
-                        <Border x:Name="HoverFx" Margin="1" CornerRadius="3" Background="#151A1F" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" Margin="1" CornerRadius="3" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <Border BorderThickness="1" Padding="{{TemplateBinding Padding}}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{{TemplateBinding Foreground}}" />
                         </Border>
@@ -598,9 +600,12 @@ def legend():
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border Background="Transparent" Padding="2,3">
-                        <ContentPresenter TextElement.Foreground="{{TemplateBinding Foreground}}" />
-                    </Border>
+                    <Grid>
+                        <Border x:Name="HoverFx" CornerRadius="3" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
+                        <Border Background="Transparent" Padding="2,3">
+                            <ContentPresenter TextElement.Foreground="{{TemplateBinding Foreground}}" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#A9B4BF" /></Trigger>
                     </ControlTemplate.Triggers>
@@ -730,6 +735,8 @@ def fluent():
     <SolidColorBrush x:Key="AccentBorder" Color="#804CC2FF" />
     <SolidColorBrush x:Key="AccentFaint" Color="#2E4CC2FF" />
     <SolidColorBrush x:Key="AccentGlow" Color="#554CC2FF" />
+    <!-- v0.8.6: hover overlay, ~7% white -->
+    <SolidColorBrush x:Key="HoverFxBrush" Color="#12FFFFFF" />
     <SolidColorBrush x:Key="AccentCheckedBg" Color="#16FFFFFF" />
     <SolidColorBrush x:Key="TopLineBrush" Color="Transparent" />
 
@@ -805,7 +812,7 @@ def fluent():
                 <ControlTemplate TargetType="Button">
                     <Grid>
                         <Border x:Name="Bd" Background="Transparent" />
-                        <Border x:Name="HoverFx" Background="#14FFFFFF" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <ContentPresenter Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"
                                           TextElement.Foreground="{{TemplateBinding Foreground}}" />
                     </Grid>
@@ -961,7 +968,7 @@ def fluent():
                 <ControlTemplate TargetType="RadioButton">
                     <Grid>
                         <Border x:Name="Bd" Background="Transparent" CornerRadius="5" />
-                        <Border x:Name="HoverFx" CornerRadius="5" Background="#0DFFFFFF" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" CornerRadius="5" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <Border Padding="{{TemplateBinding Padding}}">
                             <StackPanel HorizontalAlignment="Center">
                                 <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="20" Height="20" Margin="0,0,0,4"
@@ -1000,7 +1007,7 @@ def fluent():
                 <ControlTemplate TargetType="RadioButton">
                     <Grid>
                         <Border x:Name="Bd" Background="Transparent" CornerRadius="5" />
-                        <Border x:Name="HoverFx" CornerRadius="5" Background="#0DFFFFFF" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" CornerRadius="5" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <Border Padding="{{TemplateBinding Padding}}">
                             <StackPanel HorizontalAlignment="Center">
                                 <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="20" Height="20" Margin="0,0,0,4"
@@ -1036,7 +1043,7 @@ def fluent():
                 <ControlTemplate TargetType="Button">
                     <Grid>
                         <Border x:Name="Bd" Background="#0FFFFFFF" BorderBrush="#12FFFFFF" BorderThickness="1" CornerRadius="5" />
-                        <Border x:Name="HoverFx" Margin="1" CornerRadius="4" Background="#0AFFFFFF" Opacity="0" IsHitTestVisible="False" />
+                        <Border x:Name="HoverFx" Margin="1" CornerRadius="4" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <Border BorderThickness="1" Padding="{{TemplateBinding Padding}}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{{TemplateBinding Foreground}}" />
                         </Border>
@@ -1067,9 +1074,12 @@ def fluent():
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border Background="Transparent" Padding="2,3">
-                        <ContentPresenter TextElement.Foreground="{{TemplateBinding Foreground}}" />
-                    </Border>
+                    <Grid>
+                        <Border x:Name="HoverFx" CornerRadius="3" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
+                        <Border Background="Transparent" Padding="2,3">
+                            <ContentPresenter TextElement.Foreground="{{TemplateBinding Foreground}}" />
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#CCFFFFFF" /></Trigger>
                     </ControlTemplate.Triggers>
