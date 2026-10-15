@@ -3,22 +3,28 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Management;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace AlienControl.Services;
 
-public enum GpuModeKind { Unknown, Eco, Standard, Ultimate }
+/// <summary>
+/// v0.8 names. IGpuOnly = the old Eco (RTX disabled), Optimus = the old Standard (hybrid),
+/// DGpuOnly = NVIDIA Advanced Optimus display mode "NVIDIA GPU only" (RTX drives the panel, no reboot),
+/// Ultimate = MUX through Dell BIOS WMI (restart). Ultimate is manual only: nothing switches to it automatically.
+/// </summary>
+public enum GpuModeKind { Unknown, IGpuOnly, Optimus, DGpuOnly, Ultimate }
 
 /// <summary>
-/// G-Helper style GPU modes for the m15 R7.
-///   Eco      = NVIDIA display device disabled (pnputil), Intel drives the screen. Hybrid mode only.
-///   Standard = hybrid: both GPUs on, Intel drives the screen, RTX wakes on demand.
-///   Ultimate = MUX / dGPU only: a BIOS setting, needs a restart. The AWCC WMI interface has no MUX
-///              method on this laptop (checked with alienfan-cli dump), so the app looks for the
-///              graphics attribute in Dell's BIOS WMI (root\dcim\sysman\biosattributes). If it isn't
-///              there, Ultimate stays disabled and the "BIOS report" can be copied for debugging.
-///   Optimized (in MainWindow) = Eco on battery, Standard on AC.
+/// GPU modes for the m15 R7 (v0.8: the UI buttons are preview only and not wired to these methods yet).
+///   iGPU only = NVIDIA display device disabled (pnputil), Intel drives the screen. Hybrid mode only.
+///   Optimus   = hybrid: both GPUs on, Intel drives the screen, RTX wakes on demand.
+///   dGPU only = NVIDIA Advanced Optimus "NVIDIA GPU only" display mode. NVIDIA has no API for it, so the app
+///               detects it (which adapter drives the internal panel) and can open NVIDIA's settings.
+///   Ultimate  = MUX: a BIOS setting, needs a restart. The AWCC WMI interface has no MUX method on this laptop,
+///               so the app looks for the graphics attribute in Dell's BIOS WMI. If it isn't there, Ultimate
+///               can't be toggled from Windows; "Check Ultimate support" copies a report.
 /// </summary>
 public static class GpuMode
 {
@@ -51,8 +57,76 @@ public static class GpuMode
         var nv = a.FirstOrDefault(x => x.IsNvidia);
         if (nv is null) return GpuModeKind.Unknown;
         if (intel is null || !intel.Ok) return GpuModeKind.Ultimate; // BIOS hid the iGPU: MUX on
-        if (nv.Disabled) return GpuModeKind.Eco;
-        return GpuModeKind.Standard;
+        if (nv.Disabled) return GpuModeKind.IGpuOnly;
+        if (InternalPanelOnNvidia() == true) return GpuModeKind.DGpuOnly; // Advanced Optimus "NVIDIA GPU only"
+        return GpuModeKind.Optimus;
+    }
+
+    // ---------- which adapter drives the internal panel (QueryDisplayConfig) ----------
+
+    [StructLayout(LayoutKind.Sequential)] private struct LUID { public uint Low; public int High; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PATH_SOURCE { public LUID adapterId; public uint id, modeInfoIdx, statusFlags; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PATH_TARGET
+    {
+        public LUID adapterId; public uint id, modeInfoIdx, outputTechnology, rotation, scaling;
+        public uint refreshNum, refreshDen, scanLineOrdering; public int targetAvailable; public uint statusFlags;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PATH_INFO { public PATH_SOURCE source; public PATH_TARGET target; public uint flags; }
+    [StructLayout(LayoutKind.Sequential, Size = 64)]
+    private struct MODE_INFO { public uint infoType, id; public LUID adapterId; }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct ADAPTER_NAME
+    {
+        public uint type, size; public LUID adapterId; public uint id;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string adapterDevicePath;
+    }
+
+    [DllImport("user32.dll")] private static extern int GetDisplayConfigBufferSizes(uint flags, out uint numPaths, out uint numModes);
+    [DllImport("user32.dll")]
+    private static extern int QueryDisplayConfig(uint flags, ref uint numPaths, [Out] PATH_INFO[] paths, ref uint numModes, [Out] MODE_INFO[] modes, IntPtr topology);
+    [DllImport("user32.dll")] private static extern int DisplayConfigGetDeviceInfo(ref ADAPTER_NAME info);
+
+    private const uint QDC_ONLY_ACTIVE_PATHS = 2;
+    private const uint OUTPUT_INTERNAL = 0x80000000, OUTPUT_LVDS = 6, OUTPUT_DP_EMBEDDED = 11, OUTPUT_UDI_EMBEDDED = 13;
+
+    /// <summary>True when an NVIDIA adapter (VEN_10DE) drives the built-in panel, null if unknown.</summary>
+    public static bool? InternalPanelOnNvidia()
+    {
+        try
+        {
+            if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out uint np, out uint nm) != 0) return null;
+            var paths = new PATH_INFO[np];
+            var modes = new MODE_INFO[nm];
+            if (QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero) != 0) return null;
+            for (int i = 0; i < np; i++)
+            {
+                uint tech = paths[i].target.outputTechnology;
+                if (tech != OUTPUT_INTERNAL && tech != OUTPUT_LVDS && tech != OUTPUT_DP_EMBEDDED && tech != OUTPUT_UDI_EMBEDDED) continue;
+                var name = new ADAPTER_NAME { type = 4, size = (uint)Marshal.SizeOf<ADAPTER_NAME>(), adapterId = paths[i].target.adapterId };
+                if (DisplayConfigGetDeviceInfo(ref name) != 0) return null;
+                return name.adapterDevicePath.Contains("VEN_10DE", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    /// <summary>Opens the NVIDIA Control Panel (Display > Manage display mode lives there). Not wired in v0.8.</summary>
+    public static string? OpenNvidiaDisplayMode()
+    {
+        try
+        {
+            string legacy = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                "NVIDIA Corporation", "Control Panel Client", "nvcplui.exe");
+            var target = System.IO.File.Exists(legacy) ? legacy
+                : @"shell:AppsFolder\NVIDIACorp.NVIDIAControlPanel_56jybvy8sckqj!NVIDIACorp.NVIDIAControlPanel";
+            Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
+            return null;
+        }
+        catch (Exception ex) { return "Couldn't open the NVIDIA Control Panel: " + ex.Message; }
     }
 
     /// <summary>Processes holding dedicated GPU memory (the RTX; the Intel iGPU uses shared memory).</summary>
@@ -107,7 +181,7 @@ public static class GpuMode
 
     // ---------- Dell BIOS WMI (Ultimate / MUX) ----------
 
-    private const string BiosNs = @"root\dcim\sysman\biosattributes";
+    private const string BiosNs = DellBios.Namespace;
 
     public sealed record BiosAttr(string Name, string Current, string[] Possible, bool MuxMeansOn);
 
@@ -117,23 +191,14 @@ public static class GpuMode
     /// <summary>Finds the BIOS attribute that controls hybrid graphics / the MUX, if Dell exposes one.</summary>
     public static BiosAttr? FindGraphicsAttribute()
     {
-        try
+        foreach (var a in DellBios.EnumAttributes())
         {
-            using var s = new ManagementObjectSearcher(BiosNs, "SELECT * FROM EnumerationAttribute");
-            foreach (ManagementObject o in s.Get())
-                using (o)
-                {
-                    string name = o["AttributeName"]?.ToString() ?? "";
-                    string key = name.Replace(" ", "").ToLowerInvariant();
-                    bool hybrid = HybridWords.Any(key.Contains);
-                    bool mux = !hybrid && (key.Contains("mux") || (MuxWords.Any(key.Contains) && key.Contains("graph")));
-                    if (!hybrid && !mux) continue;
-                    var cur = (o["CurrentValue"] as string[])?.FirstOrDefault() ?? "";
-                    var pos = (o["PossibleValue"] as string[]) ?? Array.Empty<string>();
-                    return new BiosAttr(name, cur, pos, MuxMeansOn: mux);
-                }
+            string key = a.Name.Replace(" ", "").ToLowerInvariant();
+            bool hybrid = HybridWords.Any(key.Contains);
+            bool mux = !hybrid && (key.Contains("mux") || (MuxWords.Any(key.Contains) && key.Contains("graph")));
+            if (!hybrid && !mux) continue;
+            return new BiosAttr(a.Name, a.Current, a.Possible, MuxMeansOn: mux);
         }
-        catch { }
         return null;
     }
 
@@ -143,7 +208,7 @@ public static class GpuMode
         return possible.FirstOrDefault(p => want.Any(w => p.Equals(w, StringComparison.OrdinalIgnoreCase)));
     }
 
-    /// <summary>Sets dGPU-only (MUX) on or off in BIOS. Takes effect after a restart.</summary>
+    /// <summary>Sets dGPU-only (MUX) on or off in BIOS. Takes effect after a restart. Manual use only.</summary>
     public static string? SetUltimate(bool ultimate)
     {
         var attr = FindGraphicsAttribute();
@@ -152,25 +217,7 @@ public static class GpuMode
         var value = Pick(attr.Possible, attr.MuxMeansOn ? ultimate : !ultimate);
         if (value is null) return $"Unknown values for {attr.Name}: {string.Join(", ", attr.Possible)}";
         if (value.Equals(attr.Current, StringComparison.OrdinalIgnoreCase)) return null;
-        try
-        {
-            using var cls = new ManagementClass(BiosNs, "BIOSAttributeInterface", null);
-            foreach (ManagementObject inst in cls.GetInstances())
-                using (inst)
-                {
-                    var p = inst.GetMethodParameters("SetAttribute");
-                    p["SecType"] = 0u;
-                    p["SecHndCount"] = 0u;
-                    p["SecHandle"] = Array.Empty<byte>();
-                    p["AttributeName"] = attr.Name;
-                    p["AttributeValue"] = value;
-                    var r = inst.InvokeMethod("SetAttribute", p, null);
-                    uint status = Convert.ToUInt32(r?["Status"] ?? r?["ReturnValue"] ?? 1u);
-                    return status == 0 ? null : $"BIOS refused the change (status {status}). A BIOS admin password blocks it.";
-                }
-        }
-        catch (Exception ex) { return "BIOS WMI error: " + ex.Message; }
-        return "BIOS WMI interface not found.";
+        return DellBios.SetAttribute(attr.Name, value);
     }
 
     /// <summary>Text report of display adapters and BIOS attributes, copied for debugging.</summary>
@@ -179,6 +226,14 @@ public static class GpuMode
         var sb = new StringBuilder("Alien Controls GPU report\n");
         foreach (var a in Adapters()) sb.AppendLine($"Adapter: {a.Name} | code {a.ErrorCode} | {a.PnpId}");
         sb.AppendLine($"Mode: {Current(Adapters())}");
+        sb.AppendLine($"Internal panel on NVIDIA (Advanced Optimus 'NVIDIA GPU only'): {InternalPanelOnNvidia()?.ToString() ?? "unknown"}");
+        var g = FindGraphicsAttribute();
+        sb.AppendLine(g is null
+            ? "Ultimate (MUX) from Windows: NOT possible - no hybrid/MUX attribute in Dell BIOS WMI."
+            : $"Ultimate (MUX) from Windows: possible via '{g.Name}' = {g.Current} [{string.Join("/", g.Possible)}]");
+        var x = DellBios.FindExpressCharge();
+        sb.AppendLine(x is null ? "ExpressCharge: not exposed" : $"ExpressCharge: '{x.Name}' = {x.Current} [{string.Join("/", x.Possible)}]");
+        sb.AppendLine(PowerMeter.Describe());
         try
         {
             using var s = new ManagementObjectSearcher(BiosNs, "SELECT * FROM EnumerationAttribute");
