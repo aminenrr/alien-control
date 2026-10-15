@@ -124,6 +124,7 @@ RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemor
 v0.9.7: GPU overclock (core / memory offsets, G-Mode on AC only, 20 s keep-or-revert), tested.
 v0.9.8: G-Mode chip / tray tint, compact Fluent.
 v0.9.9: white G-Mode, violet Custom, G-Mode = Aggressive CPU boost.
+v0.9.10: F2 (media mode) cycles Quiet / Balanced / Performance, F2 lit in the preset color.
 v0.8.10: icons take a new accent on the first click; "Performance" fits in Legend.
 v0.8.9: profiles set CPU boost, minimize slides into the screen edge.
 v0.8.8: window open/close slide moves the window itself (native), fixing the slide that never showed.

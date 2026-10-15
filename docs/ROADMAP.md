@@ -8,10 +8,10 @@
 - GPU modes: two modes since v0.9.2 (Advanced Optimus / Ultimate), waiting on a laptop test.
 - Ultimate: the BIOS exposes `HybridGraphics = Disabled/Enabled` through Dell BIOS WMI (no BIOS password on this laptop),
   so Ultimate = set `Disabled` + restart, Optimus = `Enabled` + restart. Wired together with the GPU row.
-- **Preset hotkey** (Amine, 2026-10-15): one key cycles Battery → Quiet → Balanced → Performance (G-Mode stays on F1,
-  not in the cycle). Key picked with "Detect key" like the G-key. A small themed toast shows the new preset **only
-  when the hotkey is used**; tray menu and in-window clicks never notify.
-- Still to talk about: automatic preset on AC vs battery (off by default).
+- **Preset key**: done in v0.9.10 as F2 (Macro A, media mode): Quiet → Balanced → Performance, F2 tinted green / cyan /
+  red. Battery is out of the cycle (later: only on battery power). Toast postponed.
+- Postponed (Amine, 2026-10-15): preset toast; automatic Battery on unplug.
+- Maybe later: bind F3 / F4 (Macro B / C, codes 02-52 / 02-53).
 
 ## Waiting on hardware tests
 - v0.8.7 tray toggle and themed tray menu.

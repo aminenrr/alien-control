@@ -49,6 +49,11 @@ public sealed class AlienFx
         return await _cli.RunAsync(string.Join(" ", cmds));
     }
 
+    /// <summary>v0.9.10: per-key colors on top of the base color (F2 preset tint). Status keys still win.</summary>
+    public System.Collections.Generic.Dictionary<int, byte[]> KeyOverrides { get; } = new();
+
+    private byte[] Base(int i, byte[] fallback) => KeyOverrides.TryGetValue(i, out var o) ? o : fallback;
+
     /// <summary>All keyboard keys in one frame, colors scaled by brightness. False if the HID path failed.</summary>
     public Task<bool> SetKeyboardAsync(byte[] baseColor, IReadOnlyDictionary<int, bool>? indicatorsOn, int brightness)
     {
@@ -56,7 +61,8 @@ public sealed class AlienFx
         var bc = Dim(baseColor, brightness);
         var keys = Enumerable.Range(0, _s.KeyboardLightCount).Select(i =>
         {
-            var c = indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on ? w : bc;
+            var c = indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on ? w
+                  : KeyOverrides.TryGetValue(i, out var o) ? Dim(o, brightness) : bc;
             return ((byte)i, c[0], c[1], c[2]);
         }).ToList();
         return Task.Run(() => { try { return _hid.SetKeys(keys); } catch { return false; } });
@@ -126,7 +132,7 @@ public sealed class AlienFx
         var keys = new List<(byte, byte, byte, byte)>(_s.KeyboardLightCount);
         for (int i = 0; i < _s.KeyboardLightCount; i++)
         {
-            var c = indicatorsOn.TryGetValue(i, out var on) && on ? w : Dim(colorOf(i), brightness);
+            var c = indicatorsOn.TryGetValue(i, out var on) && on ? w : Dim(Base(i, colorOf(i)), brightness);
             keys.Add(((byte)i, c[0], c[1], c[2]));
         }
         try { return _hid.SetKeys(keys); } catch { return false; }

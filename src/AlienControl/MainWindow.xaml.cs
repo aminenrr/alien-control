@@ -20,6 +20,8 @@ public partial class MainWindow : Window
     private readonly AlienFx _fx;
     private readonly Settings _settings = Settings.Load();
     private readonly GKeyHook _gkey;
+    private readonly MacroKeys _macro = new();   // v0.9.10: F2 preset key (raw HID)
+    private bool _f2Dirty;                        // F2 tint changed; next keyboard sync writes a frame
     private int _lastPowerIndex;
     private byte[] _lastColor = { 0, 229, 255 };
     private readonly DispatcherTimer _indicatorTimer = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -62,6 +64,9 @@ public partial class MainWindow : Window
         _gkey.Pressed += () => Dispatcher.BeginInvoke(new Action(async () => await ToggleGModeAsync()));
         _gkey.Install();
         UpdateGKeyText();
+        F2PresetsToggle.IsChecked = _settings.F2Presets;
+        _macro.Pressed += k => { if (k == 0) Dispatcher.BeginInvoke(new Action(async () => await CyclePresetAsync())); };
+        _macro.Install();
         SetHint(FanHint, "BIOS controlled", "BIOS");
         SetHint(GpuHint, "Optimus · RTX 3070 Ti", "OPTIMUS · 3070 Ti");
 
@@ -318,7 +323,7 @@ public partial class MainWindow : Window
         Hide();
     }
 
-    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
+    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _macro.Dispose(); _indicatorTimer.Stop(); }
 
     // ---------- status keys ----------
 
@@ -328,6 +333,7 @@ public partial class MainWindow : Window
         _gmodeOn = await _fan.GetGModeAsync() == true;
         await _fx.ResetHardwareDimAsync();
         ReadIndicatorStates();
+        UpdateF2Tint(ShownProfile);
         // Reapply the user's color after boot (firmware resets to its default); otherwise leave firmware lighting alone.
         if (_settings.LastColor is { Length: 3 } c)
         {
@@ -365,7 +371,7 @@ public partial class MainWindow : Window
             var changed = ReadIndicatorStates();
             if (!_lightsManaged || _settings.LastEffect != 0) return; // a static frame would stop the effect
             // One full frame: writing a single status key would blank the others.
-            if (changed.Count > 0) await _fx.SetKeyboardAsync(_lastColor, _indicators, _settings.Brightness);
+            if (changed.Count > 0 || _f2Dirty) { _f2Dirty = false; await _fx.SetKeyboardAsync(_lastColor, _indicators, _settings.Brightness); }
         }
         finally { _indicatorBusy = false; }
     }
@@ -1219,7 +1225,47 @@ public partial class MainWindow : Window
     {
         if (p != TrayProfile.GMode && _settings.Profile != p.ToString()) { _settings.Profile = p.ToString(); _settings.Save(); }
         UpdateProfileChip(p);
+        UpdateF2Tint(p);
         ProfileChanged?.Invoke(p);
+    }
+
+    // ---------- v0.9.10 F2 preset key ----------
+
+    /// <summary>F2 press: Quiet > Balanced > Performance > Quiet. Battery/Custom start at Quiet. G-Mode: F1 owns it, do nothing.</summary>
+    private async Task CyclePresetAsync()
+    {
+        if (!_settings.F2Presets || _gmodeOn) return;
+        var next = CurrentProfile switch
+        {
+            TrayProfile.Quiet => TrayProfile.Balanced,
+            TrayProfile.Balanced => TrayProfile.Performance,
+            _ => TrayProfile.Quiet,
+        };
+        await ApplyProfileAsync(next);
+    }
+
+    /// <summary>F2 key color for the shown preset; none (normal key color) in G-Mode, Battery, Custom or when off.</summary>
+    private void UpdateF2Tint(TrayProfile p)
+    {
+        byte[]? c = !_settings.F2Presets ? null : p switch
+        {
+            TrayProfile.Quiet => new byte[] { 0, 255, 0 },
+            TrayProfile.Balanced => new byte[] { 0, 229, 255 },
+            TrayProfile.Performance => new byte[] { 255, 0, 0 },
+            _ => null,
+        };
+        var key = _settings.F2Key;
+        var had = _fx.KeyOverrides.TryGetValue(key, out var old) ? old : null;
+        if (c is null) _fx.KeyOverrides.Remove(key); else _fx.KeyOverrides[key] = c;
+        if (!(had ?? Array.Empty<byte>()).AsSpan().SequenceEqual(c ?? Array.Empty<byte>())) _f2Dirty = true;
+    }
+
+    private async void F2Presets_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.F2Presets = F2PresetsToggle.IsChecked == true;
+        _settings.Save();
+        UpdateF2Tint(ShownProfile);
+        await SyncIndicatorsAsync();
     }
 
     private TrayProfile? _chipProfile;

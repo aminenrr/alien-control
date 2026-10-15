@@ -547,6 +547,19 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="F2 cycles presets" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Quiet, Balanced, Performance. F2 lights up in the preset color" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="F2PresetsToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="F2Presets_Click" ToolTip="F2 (media mode, no Fn) cycles Quiet / Balanced / Performance" />
+                                </Grid>
+
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="GKeyText" Text="G-key (F1) toggles G-Mode" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Margin="0,0,8,0" />
                                     <Button Grid.Column="1" Style="{DynamicResource GhostButton}" Content="Detect key" Click="GKeyDetect_Click" />
                                 </Grid>

@@ -2,6 +2,15 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.10 (2026-10-15), untested
+- **F2 cycles presets**: F2 in media mode (Macro A, no Fn) goes Quiet → Balanced → Performance → Quiet; from
+  Battery or Custom it starts at Quiet; in G-Mode it does nothing (F1 owns G-Mode). Read as raw HID from the keyboard
+  (0D62:CABC report 02-51), so no AWCC, no admin, no polling, and Fn+F2 (plain F2) is untouched.
+- F2's light shows the preset: Quiet green, Balanced cyan, Performance red; normal key color in G-Mode, Battery and
+  Custom. Written in the existing one-frame keyboard update, only when the preset changes. Works with the static color
+  and the software waves; firmware effects (breathing, pulse...) keep their own colors.
+- Gear menu: **F2 cycles presets** toggle (on by default). F2 light id is a guess (2), verify on the laptop.
+
 ## v0.9.9 (2026-10-15), untested
 - G-Mode is **white**: the G-Mode button (both themes), the header chip and the tray icon. Custom is now violet (#B266FF).
 - G-Mode sets CPU boost to **Aggressive** (no cap) whatever it was, and puts the preset's level back when it ends

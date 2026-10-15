@@ -83,6 +83,12 @@ public sealed class Settings
     /// <summary>v0.8.2: true = skip every UI animation (instant, like v0.8.1). Default off.</summary>
     public bool ReduceMotion { get; set; } = false;
 
+    /// <summary>v0.9.10: F2 (Macro A, media mode) cycles Quiet > Balanced > Performance and tints the F2 key. Default on.</summary>
+    public bool F2Presets { get; set; } = true;
+
+    /// <summary>v0.9.10: F2's light id on the keyboard (guessed 2, verify on the laptop).</summary>
+    public int F2Key { get; set; } = 2;
+
     /// <summary>v0.8.5: learned "rest of the laptop" power (W) for the AC total estimate. No migration needed.</summary>
     public double RestOfSystemW { get; set; } = 15;
 
