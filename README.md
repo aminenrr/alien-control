@@ -88,14 +88,75 @@ Sensors are polled only while the window is open; closed, it idles in the tray.
 
 ## Setup
 
-1. Stop and disable the AWCC services (`services.msc`).
-2. Download the latest [alienfx-tools release](https://github.com/T-Troll/alienfx-tools/releases),
-   copy `alienfan-cli.exe` and `alienfx-cli.exe` (plus any DLLs they need) next to `AlienControl.exe`
-   (a `tools/` folder there works too).
-   On Intel systems also copy the `DPTF` files as described in T-Troll's README.
-3. Run Alien Control as administrator. Defaults are set for the m15 R7; other models can edit
-   `%AppData%\AlienControl\settings.json`.
-4. Open the gear menu (next to Quit), click **Detect key** and press the G-key (F1) once so the app learns its key code.
+> [!WARNING]
+> Made and tested only on the **Alienware m15 R7**. Read the caution box at the top first.
+
+**You need:** Windows 10 / 11 (64-bit), admin rights, and about 5 minutes.
+You do **not** need to install AWCC, the AlienFX app (`alienfx-gui`) or any driver. Alien Controls only uses two
+small command-line tools from the alienfx-tools zip.
+
+### 1. Install the .NET 8 Desktop Runtime
+
+Download **.NET Desktop Runtime 8 (x64)** from [Microsoft](https://dotnet.microsoft.com/download/dotnet/8.0) and
+install it. Skip this if you already have it.
+
+### 2. Download Alien Controls
+
+Get `AlienControl-<version>-win-x64.zip` from the
+[Releases page](https://github.com/aminenrr/alien-control/releases/latest) and unzip it into a folder that stays put,
+for example `C:\Tools\AlienControl`.
+
+### 3. Add the two alienfx-tools CLIs
+
+1. Open the [alienfx-tools releases](https://github.com/T-Troll/alienfx-tools/releases/latest) and download
+   **`alienfx-tools.zip`** (not the `.msi` installer and not `fan-SDK_V1.zip`).
+2. From that zip, copy only these two files into the same folder as `AlienControl.exe`:
+   - `alienfan-cli.exe` (fans, power modes, G-Mode, CPU boost, temps)
+   - `alienfx-cli.exe` (keyboard and chassis lighting)
+
+   A `tools\` subfolder next to the exe works too. You don't need anything else from the zip.
+
+Your folder should look like this:
+
+```
+C:\Tools\AlienControl\
+  AlienControl.exe
+  alienfan-cli.exe
+  alienfx-cli.exe
+```
+
+### 4. Turn off AWCC
+
+AWCC and Alien Controls fight over the same hardware, so turn AWCC off:
+
+1. Press `Win + R`, type `services.msc`, press Enter.
+2. For each **Alienware / AWCC** service: right-click, then **Properties**. Set **Startup type** to **Disabled**,
+   click **Stop**, then **OK**.
+3. Also close or disable AWCC in **Task Manager → Startup apps** if it's there.
+
+You can undo this anytime by setting the services back to Automatic.
+
+### 5. Run it
+
+1. Double-click `AlienControl.exe` and accept the admin prompt (fan and power control need admin).
+   Windows SmartScreen may warn because the exe isn't signed: click **More info → Run anyway**.
+2. The window opens and the app lives in the tray (the Alienhead icon).
+3. Turn on **Run on startup** at the bottom of the window. It starts with Windows, in the tray, without an admin prompt.
+
+### 6. Check the hotkeys
+
+- **F1** toggles G-Mode, **F2** cycles the presets, **F3** opens / hides the app.
+- If F1 does nothing, open the gear menu (next to Quit), click **Detect key**, and press F1 once.
+
+### Updating
+
+Close the app from the tray (**Quit**), replace `AlienControl.exe` with the new one, and start it again.
+Keep the two CLIs. Settings stay in `%AppData%\AlienControl`.
+
+### Uninstalling
+
+Turn off **Run on startup**, quit the app, and delete the folder (and `%AppData%\AlienControl` if you want the settings
+gone). Set the AWCC services back to Automatic if you want AWCC again.
 
 ### m15 R7 power modes (verified)
 
