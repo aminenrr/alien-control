@@ -375,6 +375,8 @@ public partial class MainWindow : Window
     {
         int level = (int)Math.Round(BrightnessSlider.Value * 255 / 100);
         Report(await _fx.SetBrightnessAsync(level));
+        // setdim also blanks the five status keys; light them again.
+        if (_lightsManaged) { ReadIndicatorStates(); await _fx.SetIndicatorsAsync(_indicators, _lastColor); }
     }
 
     private void Startup_Click(object sender, RoutedEventArgs e)
