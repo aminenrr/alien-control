@@ -31,24 +31,40 @@ public partial class MainWindow : Window
     private int _fanCount = 2;
     private bool _gmodeOn;
     private readonly SystemStats _stats = new();
+    private readonly PowerMeter _power = new();
+
+    /// <summary>Raised when the tray profile changes (App tints the tray icon).</summary>
+    public event Action<TrayProfile>? ProfileChanged;
+    public TrayProfile CurrentProfile =>
+        Enum.TryParse<TrayProfile>(_settings.Profile, out var p) ? p : TrayProfile.Custom;
+
+    private bool IsLegend => _settings.Theme != "Fluent";
 
     public MainWindow()
     {
+        // Only the active theme dictionary is loaded; it must be there before the XAML resolves its keys.
+        App.ApplyTheme(_settings.Theme);
         InitializeComponent();
+        ThemeLegend.IsChecked = IsLegend;
+        ThemeFluent.IsChecked = !IsLegend;
         _fx = new AlienFx(_settings);
         _lastPowerIndex = _settings.BalancedPowerIndex;
 
-        _gkey = new GKeyHook(_settings.GKeyVk, _settings.GKeyScan) { Enabled = _settings.GKeyEnabled };
+        // G-key hook: always on since v0.8 (no off switch); "Detect key" lives in the gear menu.
+        _gkey = new GKeyHook(_settings.GKeyVk, _settings.GKeyScan);
         _gkey.Pressed += () => Dispatcher.BeginInvoke(new Action(async () => await ToggleGModeAsync()));
         _gkey.Install();
-        GKeyToggle.IsChecked = _settings.GKeyEnabled;
         UpdateGKeyText();
+        SetHint(FanHint, "BIOS controlled", "BIOS");
+        SetHint(GpuHint, "Optimus · RTX 3070 Ti", "OPTIMUS · 3070 Ti");
 
         foreach (var id in new[] { _settings.GModeKey, _settings.TouchpadKey, _settings.SpeakerMuteKey, _settings.MicMuteKey, _settings.WinLockKey })
             _indicators[id] = false;
         if (_settings.LastColor is { Length: 3 } saved) _lastColor = saved;
         ApplyAccent(_lastColor);
+        SelectSwatch(_lastColor);
         BrightnessSlider.Value = Math.Round(_settings.Brightness * 100 / 255.0);
+        UpdateBrightnessText((int)BrightnessSlider.Value);
         SelectEffectInBox();
         // Status-key watcher: in-process reads only (no CLI) unless a state changes.
         _indicatorTimer.Tick += async (_, _) => await SyncIndicatorsAsync();
@@ -60,7 +76,13 @@ public partial class MainWindow : Window
         // Poll sensors only while the window is visible; idle in the tray.
         IsVisibleChanged += async (_, _) =>
         {
-            if (IsVisible) { await RefreshStateAsync(); _poll.Start(); }
+            if (IsVisible)
+            {
+                RefreshDisplayRate();          // read once on show, no timer
+                _ = RefreshGpuHintAsync();
+                await RefreshStateAsync();
+                _poll.Start();
+            }
             else _poll.Stop();
         };
 
@@ -73,13 +95,8 @@ public partial class MainWindow : Window
         VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1");
         StartupToggle.IsChecked = Startup.IsEnabled();
 
-        // GPU: show the current mode, and run Optimized (Eco on battery / Standard on AC) on power changes.
-        Microsoft.Win32.SystemEvents.PowerModeChanged += (_, a) =>
-        {
-            if (a.Mode == Microsoft.Win32.PowerModes.StatusChange)
-                Dispatcher.BeginInvoke(new Action(async () => await ApplyOptimizedAsync()));
-        };
-        Dispatcher.BeginInvoke(new Action(async () => { await ApplyOptimizedAsync(); await RefreshGpuAsync(); }));
+        // Experimental ExpressCharge: one BIOS WMI read at start; the row stays hidden if not exposed.
+        Dispatcher.BeginInvoke(new Action(async () => await RefreshExpressAsync()));
 
         if (!_fan.IsAvailable || !_fx.IsAvailable)
             Status("Put alienfan-cli.exe and alienfx-cli.exe in the tools folder next to AlienControl.exe.");
@@ -132,7 +149,7 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Hide();
 
-    public void AllowClose() { StopAnimation(); _allowClose = true; _stats.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
+    public void AllowClose() { StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
 
     // ---------- status keys ----------
 
@@ -199,20 +216,22 @@ public partial class MainWindow : Window
 
         var g = await _fan.GetGModeAsync();
         _gmodeOn = g == true;
-        if (_gmodeOn) { ModeGMode.IsChecked = true; PowerHint.Text = "G-Mode"; return; }
+        if (_gmodeOn) { ModeGMode.IsChecked = true; SetHint(PowerHint, "G-Mode"); return; }
 
         var raw = await _fan.GetPowerRawAsync();
         if (raw is { } value)
         {
             int idx = _settings.PowerRawByIndex.FirstOrDefault(kv => kv.Value == value).Key;
             if (idx > 0) _lastPowerIndex = idx;
+            ModeBattery.IsChecked = idx == _settings.BatteryPowerIndex;
             ModeQuiet.IsChecked = idx == _settings.QuietPowerIndex;
             ModeBalanced.IsChecked = idx == _settings.BalancedPowerIndex;
             ModePerformance.IsChecked = idx == _settings.PerformancePowerIndex;
-            PowerHint.Text = idx == _settings.QuietPowerIndex ? "Quiet"
+            SetHint(PowerHint, idx == _settings.BatteryPowerIndex ? "Battery"
+                : idx == _settings.QuietPowerIndex ? "Quiet"
                 : idx == _settings.BalancedPowerIndex ? "Balanced"
                 : idx == _settings.PerformancePowerIndex ? "Performance"
-                : $"Other mode ({value:x})";
+                : $"Other mode ({value:x})");
         }
     }
 
@@ -238,8 +257,24 @@ public partial class MainWindow : Window
 
             if (SystemStats.Ram() is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
             if (_stats.Vram() is { } vram) SetMem(VramText, VramTextUnit, VramBar, vram.Used, vram.Total);
+
+            ShowPower(await Task.Run(_power.Sample));
         }
         finally { _polling = false; }
+    }
+
+    /// <summary>One power line; parts without a source are hidden, the line hides when none answers.</summary>
+    private void ShowPower(PowerMeter.Reading r)
+    {
+        PwrCpu.Visibility = r.CpuW is null ? Visibility.Collapsed : Visibility.Visible;
+        PwrGpu.Visibility = r.GpuW is null ? Visibility.Collapsed : Visibility.Visible;
+        PwrTotal.Visibility = r.TotalW is null ? Visibility.Collapsed : Visibility.Visible;
+        PwrCpuValue.Text = $"{r.CpuW} W";
+        PwrGpuValue.Text = $"{r.GpuW} W";
+        PwrTotalValue.Text = $"{r.TotalW} W";
+        PwrDot1.Visibility = r.CpuW is not null && (r.GpuW is not null || r.TotalW is not null) ? Visibility.Visible : Visibility.Collapsed;
+        PwrDot2.Visibility = r.GpuW is not null && r.TotalW is not null ? Visibility.Visible : Visibility.Collapsed;
+        PwrRow.Visibility = r.CpuW is null && r.GpuW is null && r.TotalW is null ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private static void SetTemp(Run text, ProgressBar bar, TempReading? t)
@@ -274,20 +309,22 @@ public partial class MainWindow : Window
         {
             r = await _fan.SetGModeAsync(true);
             _gmodeOn = true;
-            PowerHint.Text = "G-Mode";
+            SetHint(PowerHint, "G-Mode");
         }
         else
         {
             if (_gmodeOn) await _fan.SetGModeAsync(false);
-            int idx = sender == ModeQuiet ? _settings.QuietPowerIndex
+            int idx = sender == ModeBattery ? _settings.BatteryPowerIndex
+                    : sender == ModeQuiet ? _settings.QuietPowerIndex
                     : sender == ModeBalanced ? _settings.BalancedPowerIndex
                     : _settings.PerformancePowerIndex;
             r = await _fan.SetPowerAsync(idx);
             _gmodeOn = false;
             _lastPowerIndex = idx;
-            PowerHint.Text = ((RadioButton)sender).Content?.ToString() ?? "";
+            SetHint(PowerHint, ((RadioButton)sender).Content?.ToString() ?? "");
         }
         Report(r);
+        UpdateProfileFromState();
         await SyncIndicatorsAsync();
     }
 
@@ -307,41 +344,38 @@ public partial class MainWindow : Window
             _gmodeOn = true;
         }
         if (IsVisible) await RefreshStateAsync();
+        UpdateProfileFromState();
         await SyncIndicatorsAsync();
-    }
-
-    private void GKeyToggle_Click(object sender, RoutedEventArgs e)
-    {
-        _settings.GKeyEnabled = _gkey.Enabled = GKeyToggle.IsChecked == true;
-        _settings.Save();
-        UpdateGKeyText();
     }
 
     private void GKeyDetect_Click(object sender, RoutedEventArgs e)
     {
         GKeyText.Text = "Press the G-key (F1) now…";
+        SettingsPopup.StaysOpen = true;
         _gkey.LearnNext = (vk, scan) => Dispatcher.BeginInvoke(new Action(() =>
         {
             _settings.GKeyVk = _gkey.Vk = vk;
             _settings.GKeyScan = _gkey.Scan = scan;
             _settings.Save();
             UpdateGKeyText();
+            SettingsPopup.StaysOpen = false;
             Status($"G-key set to key 0x{vk:X2} (scan 0x{scan:X2}).");
         }));
     }
 
     private void UpdateGKeyText() =>
-        GKeyText.Text = $"G-key toggles G-Mode  ·  key 0x{_settings.GKeyVk:X2}" + (_settings.GKeyEnabled ? "" : " (off)");
+        GKeyText.Text = $"G-key (F1) toggles G-Mode · key 0x{_settings.GKeyVk:X2}";
 
     private async void Cpu_Click(object sender, RoutedEventArgs e) =>
         // AC level from the button; battery stays on "efficient" (3).
-        Report(await _fan.SetCpuBoostAsync(TagInt(sender), 3));
+        Report(await _fan.SetCpuBoostAsync(int.Parse((string)((RadioButton)sender).CommandParameter), 3));
 
     private async void Fan_Click(object sender, RoutedEventArgs e)
     {
         int boost = sender == FanMax ? _settings.MaxFanBoost : 0;
         Report(await _fan.SetFanBoostAsync(Enumerable.Repeat(boost, _fanCount).ToArray()));
-        FanHint.Text = boost == 0 ? "BIOS controlled" : $"Boost {boost}%";
+        if (boost == 0) SetHint(FanHint, "BIOS controlled", "BIOS");
+        else SetHint(FanHint, $"Boost {boost}%");
     }
 
     private async void Color_Click(object sender, RoutedEventArgs e)
@@ -441,6 +475,7 @@ public partial class MainWindow : Window
 
     private void CustomSwatch_Click(object sender, RoutedEventArgs e)
     {
+        SelectSwatch(_lastColor);
         if (!_lastColor.All(v => v == 0)) _custom = (byte[])_lastColor.Clone();
         UpdateCustomPreview();
         CustomPopup.IsOpen = true;
@@ -482,6 +517,7 @@ public partial class MainWindow : Window
     {
         CustomPopup.IsOpen = false;
         _lastColor = (byte[])_custom.Clone();
+        SelectSwatch(_lastColor);
         await ApplyLightingAsync(_lastColor);
     }
 
@@ -501,12 +537,20 @@ public partial class MainWindow : Window
     {
         StopAnimation();
         _lastColor = new byte[] { 0, 0, 0 };
+        SelectSwatch(_lastColor);
         await ApplyColorAsync(_lastColor);
     }
 
     private void Brightness_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (BrightnessHint is not null) BrightnessHint.Text = $"Brightness {(int)e.NewValue}%";
+        UpdateBrightnessText((int)e.NewValue);
+    }
+
+    private void UpdateBrightnessText(int v)
+    {
+        if (BrightnessHint is null || BrightnessValue is null) return;
+        SetHint(BrightnessHint, $"Brightness {v}%", $"{v}%");
+        BrightnessValue.Text = $"{v}%";
     }
 
     private async void Brightness_Commit(object sender, MouseButtonEventArgs e)
@@ -532,24 +576,76 @@ public partial class MainWindow : Window
 
     // ---------- helpers ----------
 
-    /// <summary>App accent follows the keyboard / ring color. Black (lights off) keeps the default cyan.</summary>
-    private static void ApplyAccent(byte[] c)
+    /// <summary>
+    /// App accent follows the keyboard / ring color. Black (lights off) keeps the theme default
+    /// (Legend cyan #00E5FF, Fluent #4CC2FF; the default cyan lighting also maps to #4CC2FF in Fluent).
+    /// Set at App.Resources level, so it is re-applied after every theme swap.
+    /// </summary>
+    private void ApplyAccent(byte[] c)
     {
-        var col = (c[0] + c[1] + c[2]) < 60 ? Color.FromRgb(0, 229, 255) : Color.FromRgb(c[0], c[1], c[2]);
+        var cyan = Color.FromRgb(0, 229, 255);
+        var col = (c[0] + c[1] + c[2]) < 60 ? cyan : Color.FromRgb(c[0], c[1], c[2]);
+        bool legend = IsLegend;
+        if (!legend && col == cyan) col = Color.FromRgb(0x4C, 0xC2, 0xFF);
         var res = Application.Current.Resources;
-        var lighter = Color.FromRgb((byte)((col.R + 255) / 2), (byte)((col.G + 255) / 2), (byte)((col.B + 255) / 2));
-        var darker = Color.FromRgb((byte)(col.R * 0.55), (byte)(col.G * 0.55), (byte)(col.B * 0.55));
+        Color A(byte a) => Color.FromArgb(a, col.R, col.G, col.B);
         res["AccentBrush"] = Freeze(new SolidColorBrush(col));
-        var grad = new LinearGradientBrush(col, lighter == col ? darker : (col.R + col.G + col.B > 600 ? darker : lighter), 0);
-        res["AccentGradient"] = Freeze(grad);
-        var chk = new LinearGradientBrush(Color.FromArgb(0x33, col.R, col.G, col.B), Color.FromArgb(0x10, col.R, col.G, col.B), 90);
-        res["CyanChecked"] = Freeze(chk);
+        res["AccentBorder"] = Freeze(new SolidColorBrush(A(0x80)));
+        res["AccentFaint"] = Freeze(new SolidColorBrush(A(0x2E)));
+        res["AccentGlow"] = Freeze(new SolidColorBrush(A(0x55)));
+        res["AccentCheckedBg"] = legend
+            ? Freeze(new LinearGradientBrush(A(0x17), A(0x05), 90))
+            : Freeze(new SolidColorBrush(Color.FromArgb(0x16, 255, 255, 255)));
+        var top = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
+        top.GradientStops.Add(new GradientStop(A(0), 0));
+        top.GradientStops.Add(new GradientStop(col, 0.18));
+        top.GradientStops.Add(new GradientStop(col, 0.5));
+        top.GradientStops.Add(new GradientStop(Color.FromRgb(0x7C, 0x4D, 0xFF), 0.82));
+        top.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0x7C, 0x4D, 0xFF), 1));
+        res["TopLineBrush"] = Freeze(top);
         try { Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(col, Wpf.Ui.Appearance.ApplicationTheme.Dark); } catch { }
     }
 
+    // ---------- theme ----------
+
+    private readonly System.Collections.Generic.Dictionary<TextBlock, (string Fluent, string Legend)> _hints = new();
+
+    /// <summary>Header hints: Legend shows them in caps (or its own short form), Fluent as written.</summary>
+    private void SetHint(TextBlock tb, string text, string? legend = null)
+    {
+        _hints[tb] = (text, legend ?? text.ToUpperInvariant());
+        tb.Text = IsLegend ? _hints[tb].Legend : text;
+    }
+
+    private void Theme_Click(object sender, RoutedEventArgs e)
+    {
+        string name = sender == ThemeFluent ? "Fluent" : "Legend";
+        if (name == _settings.Theme) return;
+        _settings.Theme = name;
+        _settings.Save();
+        App.ApplyTheme(name);   // swaps the one theme dictionary in App.Resources
+        ApplyAccent(_lastColor);
+        foreach (var (tb, t) in _hints) tb.Text = IsLegend ? t.Legend : t.Fluent;
+        Dispatcher.BeginInvoke(new Action(SnapToCorner), DispatcherPriority.Loaded);
+    }
+
+    private void Settings_Click(object sender, RoutedEventArgs e) => SettingsPopup.IsOpen = !SettingsPopup.IsOpen;
+
+    private void SelectSwatch(byte[] c)
+    {
+        string tag = string.Join(",", c);
+        RadioButton? match = null;
+        foreach (var rb in FindSwatches()) if ((rb.Tag as string) == tag) match = rb;
+        if (match is not null) match.IsChecked = true;
+        else if (c.All(v => v == 0)) foreach (var rb in FindSwatches()) rb.IsChecked = false;
+        else CustomSwatch.IsChecked = true;
+    }
+
+    private System.Collections.Generic.IEnumerable<RadioButton> FindSwatches() =>
+        ((Panel)CustomSwatch.Parent).Children.OfType<RadioButton>();
+
     private static T Freeze<T>(T f) where T : Freezable { f.Freeze(); return f; }
 
-    private static int TagInt(object sender) => int.Parse((string)((FrameworkElement)sender).Tag);
 
     private void Report(CliResult r)
     {
@@ -558,7 +654,11 @@ public partial class MainWindow : Window
         Status(last);
     }
 
-    private void Status(string text) => StatusText.Text = text;
+    private void Status(string text)
+    {
+        StatusText.Text = text;
+        StatusText.Visibility = string.IsNullOrWhiteSpace(text) ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     // ---------- RAM clean (click = quick, right-click = deep) ----------
 
@@ -566,160 +666,160 @@ public partial class MainWindow : Window
     private void RamCard_LeftClick(object sender, MouseButtonEventArgs e) => _ = CleanRamAsync(deep: false);
     private void RamCard_RightClick(object sender, MouseButtonEventArgs e) { e.Handled = true; _ = CleanRamAsync(deep: true); }
 
+    private string Cased(string s) => IsLegend ? s.ToUpperInvariant() : s;
+
     private async Task CleanRamAsync(bool deep)
     {
         if (_cleaning) return;
         _cleaning = true;
-        RamLabel.Text = deep ? "RAM  ·  deep cleaning…" : "RAM  ·  cleaning…";
+        CleanText.Text = Cased(deep ? "Deep cleaning…" : "Cleaning…");
         try
         {
             var (freed, error) = await MemoryCleaner.CleanAsync(deep);
             if (error is not null) Status(error);
-            RamLabel.Text = error is not null ? "RAM  ·  clean failed" : $"RAM  ·  freed {freed:0.0} GB";
+            CleanText.Text = Cased(error is not null ? "Clean failed" : $"Freed {freed:0.0} GB");
             if (SystemStats.Ram() is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
             await Task.Delay(4000);
         }
         finally
         {
-            RamLabel.Text = "RAM  ·  click to clean";
+            CleanText.SetResourceReference(TextBlock.TextProperty, "Str.Clean");
             _cleaning = false;
         }
     }
 
-    // ---------- GPU mode ----------
+    // ---------- GPU mode (v0.8: preview only, the buttons don't switch anything yet) ----------
 
-    private bool _gpuBusy;
-    private bool _ultimateAvailable;
-    private GpuModeKind _gpuMode = GpuModeKind.Unknown;
-    private bool _restartPending;
-
-    private async Task RefreshGpuAsync()
+    /// <summary>Hint = detected mode (read-only). The buttons stay on Optimus until they're wired up.</summary>
+    private async Task RefreshGpuHintAsync()
     {
-        var (mode, attr) = await Task.Run(() => (GpuMode.Current(GpuMode.Adapters()), GpuMode.FindGraphicsAttribute()));
-        _gpuMode = mode;
-        _ultimateAvailable = attr is not null || mode == GpuModeKind.Ultimate;
-        GpuUltimate.IsEnabled = _ultimateAvailable;
-        GpuUltimate.ToolTip = _ultimateAvailable
-            ? "MUX: RTX drives the screen. Needs a restart."
-            : "Your BIOS doesn't expose the MUX switch to Windows. Click the hint on the right to copy a report.";
-        bool canEco = mode != GpuModeKind.Ultimate;
-        GpuEco.IsEnabled = canEco;
-        GpuOptimized.IsEnabled = canEco;
-
-        GpuEco.IsChecked = !_settings.GpuOptimized && mode == GpuModeKind.Eco;
-        GpuStandard.IsChecked = !_settings.GpuOptimized && mode == GpuModeKind.Standard;
-        GpuUltimate.IsChecked = mode == GpuModeKind.Ultimate;
-        GpuOptimized.IsChecked = _settings.GpuOptimized && mode != GpuModeKind.Ultimate;
-
-        GpuHint.Text = _restartPending ? "Restart to apply"
-            : mode switch
-            {
-                GpuModeKind.Eco => _settings.GpuOptimized ? "Optimized · RTX off (battery)" : "RTX off",
-                GpuModeKind.Standard => _settings.GpuOptimized ? "Optimized · hybrid (plugged in)" : "Hybrid",
-                GpuModeKind.Ultimate => "RTX only (MUX)",
-                _ => "GPU not detected"
-            };
-    }
-
-    private static bool OnBattery() =>
-        System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Offline;
-
-    /// <summary>Optimized: Eco on battery, Standard on AC. Skips Eco while apps use the RTX.</summary>
-    private async Task ApplyOptimizedAsync()
-    {
-        if (!_settings.GpuOptimized || _gpuBusy) return;
         var mode = await Task.Run(() => GpuMode.Current(GpuMode.Adapters()));
-        if (mode == GpuModeKind.Ultimate || mode == GpuModeKind.Unknown) return;
-        bool wantEco = OnBattery();
-        if (wantEco == (mode == GpuModeKind.Eco)) { await RefreshGpuAsync(); return; }
-        _gpuBusy = true;
+        var (fluent, legend) = mode switch
+        {
+            GpuModeKind.IGpuOnly => ("iGPU only · RTX off", "iGPU ONLY · RTX off"),
+            GpuModeKind.Optimus => ("Optimus · RTX 3070 Ti", "OPTIMUS · 3070 Ti"),
+            GpuModeKind.DGpuOnly => ("dGPU only · RTX 3070 Ti", "dGPU ONLY · 3070 Ti"),
+            GpuModeKind.Ultimate => ("Ultimate · RTX 3070 Ti", "ULTIMATE · 3070 Ti"),
+            _ => ("RTX 3070 Ti", "3070 Ti")
+        };
+        SetHint(GpuHint, fluent, legend);
+    }
+
+    private void GpuPreview_Click(object sender, RoutedEventArgs e)
+    {
+        GpuOptimus.IsChecked = true;   // visual only for now
+        Status("GPU mode switching is coming soon. Nothing was changed.");
+    }
+
+    /// <summary>"Check Ultimate support": GPU / BIOS WMI report, shown and copied to the clipboard.</summary>
+    private async void GpuCheck_Click(object sender, RoutedEventArgs e)
+    {
+        GpuCheckButton.IsEnabled = false;
         try
         {
-            if (wantEco)
-            {
-                var apps = await Task.Run(GpuMode.AppsUsingDgpu);
-                if (apps.Count > 0)
-                {
-                    Status($"Optimized: RTX kept on, in use by {string.Join(", ", apps.Take(4))}.");
-                    return;
-                }
-            }
-            var err = await GpuMode.SetDgpuEnabledAsync(!wantEco);
-            Status(err ?? (wantEco ? "On battery: RTX turned off (Eco)." : "Plugged in: RTX back on (Standard)."));
+            var report = await Task.Run(GpuMode.Report);
+            bool copied = false;
+            try { Clipboard.SetText(report); copied = true; } catch { }
+            Status(copied ? "GPU report copied. Paste it to me." : "Couldn't copy the GPU report.");
+            MessageBox.Show(report + (copied ? "\n(Copied to the clipboard.)" : ""), "Alien Controls · Ultimate support",
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
-        finally { _gpuBusy = false; await RefreshGpuAsync(); }
+        finally { GpuCheckButton.IsEnabled = true; }
     }
 
-    private async void Gpu_Click(object sender, RoutedEventArgs e)
+    // ---------- refresh rate (read on window show and after a change; never polled) ----------
+
+    private void RefreshDisplayRate()
     {
-        if (_gpuBusy) { await RefreshGpuAsync(); return; }
-        _gpuBusy = true;
-        try
+        var s = DisplayRefresh.Read();
+        if (s is null)
         {
-            var mode = await Task.Run(() => GpuMode.Current(GpuMode.Adapters()));
-            if (sender == GpuOptimized)
-            {
-                _settings.GpuOptimized = true; _settings.Save();
-                _gpuBusy = false;
-                await ApplyOptimizedAsync();
-                return;
-            }
-            _settings.GpuOptimized = false; _settings.Save();
-
-            if (sender == GpuEco)
-            {
-                if (mode == GpuModeKind.Eco) return;
-                var apps = await Task.Run(GpuMode.AppsUsingDgpu);
-                string msg = "Turn the RTX off (Eco)?\n\nA monitor on the HDMI or USB-C port wired to the RTX will go dark.";
-                if (apps.Count > 0) msg += "\n\nThese apps are using the RTX and may crash or lose their window:\n" + string.Join(", ", apps);
-                if (MessageBox.Show(msg, "Alien Controls", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-                var err = await GpuMode.SetDgpuEnabledAsync(false);
-                Status(err ?? "Eco: RTX turned off.");
-            }
-            else if (sender == GpuStandard)
-            {
-                if (mode == GpuModeKind.Ultimate)
-                {
-                    var err = await Task.Run(() => GpuMode.SetUltimate(false));
-                    if (err is null) AskRestart("Hybrid (Standard) is set in BIOS.");
-                    else Status(err);
-                }
-                else
-                {
-                    var err = await GpuMode.SetDgpuEnabledAsync(true);
-                    Status(err ?? "Standard: hybrid graphics.");
-                }
-            }
-            else if (sender == GpuUltimate)
-            {
-                if (mode == GpuModeKind.Ultimate) return;
-                if (MessageBox.Show("Switch to Ultimate (RTX only, through the MUX)?\n\nThis changes a BIOS setting and needs a restart. Battery life will be shorter.",
-                        "Alien Controls", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-                if (mode == GpuModeKind.Eco) await GpuMode.SetDgpuEnabledAsync(true);
-                var err = await Task.Run(() => GpuMode.SetUltimate(true));
-                if (err is null) AskRestart("Ultimate is set in BIOS.");
-                else Status(err);
-            }
+            Hz60.IsEnabled = Hz240.IsEnabled = false;
+            SetHint(RefreshHint, "Unknown");
+            return;
         }
-        finally
+        Hz60.IsEnabled = DisplayRefresh.Match(s, 60) is not null;
+        Hz240.IsEnabled = DisplayRefresh.Match(s, 240) is not null;
+        Hz60.IsChecked = DisplayRefresh.IsActive(s, 60);
+        Hz240.IsChecked = DisplayRefresh.IsActive(s, 240);
+        SetHint(RefreshHint, $"{s.CurrentHz} Hz", $"{s.CurrentHz} Hz");
+        Hz60.ToolTip = Hz60.IsEnabled ? null : $"60 Hz isn't offered at {s.Width}x{s.Height}";
+        Hz240.ToolTip = Hz240.IsEnabled ? null : $"240 Hz isn't offered at {s.Width}x{s.Height}";
+    }
+
+    private async void Refresh_Click(object sender, RoutedEventArgs e)
+    {
+        int hz = sender == Hz60 ? 60 : 240;
+        var err = await Task.Run(() => DisplayRefresh.Set(hz));
+        Status(err ?? $"Display set to {hz} Hz.");
+        RefreshDisplayRate();
+        UpdateProfileFromState();
+    }
+
+    // ---------- tray profiles (power mode + refresh rate; never GPU mode, never Ultimate) ----------
+
+    public async Task ApplyProfileAsync(TrayProfile p)
+    {
+        SetProfile(p);
+        if (p == TrayProfile.Custom) return;
+        if (Profiles.PowerIndex(p, _settings) is { } idx)
         {
-            _gpuBusy = false;
-            await RefreshGpuAsync();
+            if (_gmodeOn || await _fan.GetGModeAsync() == true) { await _fan.SetGModeAsync(false); _gmodeOn = false; }
+            Report(await _fan.SetPowerAsync(idx));
+            _lastPowerIndex = idx;
+        }
+        if (Profiles.RefreshHz(p) is { } hz)
+        {
+            var err = await Task.Run(() => DisplayRefresh.Set(hz));
+            if (err is not null) Status(err);
+        }
+        if (IsVisible) { RefreshDisplayRate(); await RefreshStateAsync(); }
+        await SyncIndicatorsAsync();
+    }
+
+    private void SetProfile(TrayProfile p)
+    {
+        if (_settings.Profile != p.ToString()) { _settings.Profile = p.ToString(); _settings.Save(); }
+        ProfileChanged?.Invoke(p);
+    }
+
+    /// <summary>After a manual change: the profile that matches mode + refresh rate, otherwise Custom.</summary>
+    private void UpdateProfileFromState()
+    {
+        var match = TrayProfile.Custom;
+        if (!_gmodeOn)
+        {
+            var rate = DisplayRefresh.Read();
+            foreach (TrayProfile p in new[] { TrayProfile.Battery, TrayProfile.Quiet, TrayProfile.Balanced, TrayProfile.Performance })
+                if (Profiles.PowerIndex(p, _settings) == _lastPowerIndex && rate is not null && DisplayRefresh.IsActive(rate, Profiles.RefreshHz(p)!.Value))
+                { match = p; break; }
+        }
+        SetProfile(match);
+    }
+
+    // ---------- experimental ExpressCharge (Dell BIOS WMI) ----------
+
+    private DellBios.Attr? _express;
+
+    private async Task RefreshExpressAsync()
+    {
+        _express = await Task.Run(DellBios.FindExpressCharge);
+        ExpressRow.Visibility = _express is null ? Visibility.Collapsed : Visibility.Visible;
+        if (_express is not null)
+        {
+            ExpressToggle.IsChecked = DellBios.IsExpressOn(_express);
+            ExpressText.Text = $"Experimental · Dell ExpressCharge ({_express.Name} = {_express.Current})";
         }
     }
 
-    private void AskRestart(string what)
+    private async void Express_Click(object sender, RoutedEventArgs e)
     {
-        _restartPending = true;
-        if (MessageBox.Show(what + "\n\nRestart now?", "Alien Controls", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("shutdown.exe", "/r /t 0") { CreateNoWindow = true, UseShellExecute = false });
-        else Status(what + " Restart Windows to apply it.");
-    }
-
-    private async void GpuHint_Click(object sender, MouseButtonEventArgs e)
-    {
-        var report = await Task.Run(GpuMode.Report);
-        try { Clipboard.SetText(report); Status("GPU report copied. Paste it to me."); }
-        catch { Status("Couldn't copy the GPU report."); }
+        if (_express is null) return;
+        bool on = ExpressToggle.IsChecked == true;
+        if (on && !DellBios.IsExpressOn(_express)) { _settings.ChargeModeBeforeExpress = _express.Current; _settings.Save(); }
+        var attr = _express;
+        var err = await Task.Run(() => DellBios.SetExpressCharge(attr, on, _settings.ChargeModeBeforeExpress));
+        Status(err ?? (on ? "Faster charging on (ExpressCharge)." : "Faster charging off."));
+        await RefreshExpressAsync();
     }
 }
