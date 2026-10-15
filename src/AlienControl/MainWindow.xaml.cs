@@ -131,6 +131,7 @@ public partial class MainWindow : Window
     {
         if (!_fx.IsAvailable) return;
         _gmodeOn = await _fan.GetGModeAsync() == true;
+        await _fx.ResetHardwareDimAsync();
         ReadIndicatorStates();
         // Reapply the user's color after boot (firmware resets to its default); otherwise leave firmware lighting alone.
         if (_settings.LastColor is { Length: 3 } c)
@@ -350,10 +351,10 @@ public partial class MainWindow : Window
 
     // APIv5 keyboard effects in the last picked color: 2 = Breathing, 3 = Single-color wave.
     private async void Breathe_Click(object sender, RoutedEventArgs e) =>
-        Report(await _fx.SetKeyboardEffectAsync(2, _lastColor[0], _lastColor[1], _lastColor[2]));
+        Report(await _fx.SetKeyboardEffectAsync(2, AlienFx.Dim(_lastColor, _settings.Brightness)[0], AlienFx.Dim(_lastColor, _settings.Brightness)[1], AlienFx.Dim(_lastColor, _settings.Brightness)[2]));
 
     private async void Wave_Click(object sender, RoutedEventArgs e) =>
-        Report(await _fx.SetKeyboardEffectAsync(3, _lastColor[0], _lastColor[1], _lastColor[2]));
+        Report(await _fx.SetKeyboardEffectAsync(3, AlienFx.Dim(_lastColor, _settings.Brightness)[0], AlienFx.Dim(_lastColor, _settings.Brightness)[1], AlienFx.Dim(_lastColor, _settings.Brightness)[2]));
 
     private async void LightsOff_Click(object sender, RoutedEventArgs e)
     {
@@ -371,7 +372,8 @@ public partial class MainWindow : Window
         int level = (int)Math.Round(BrightnessSlider.Value * 255 / 100);
         _settings.Brightness = level;
         _settings.Save();
-        Report(await _fx.SetBrightnessAsync(level));
+        // Software brightness: repaint with scaled colors (only once the app manages the lights).
+        if (_lightsManaged) await ApplyColorAsync(_lastColor);
     }
 
     private void Startup_Click(object sender, RoutedEventArgs e)
