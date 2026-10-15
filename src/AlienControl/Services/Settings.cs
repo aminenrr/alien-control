@@ -40,6 +40,9 @@ public sealed class Settings
     public int SpeakerMuteKey { get; set; } = 16;
     public int MicMuteKey { get; set; } = 19;
     public int WinLockKey { get; set; } = 109;      // right Windows key (state not readable yet)
+    /// <summary>Hardware brightness 0..255, re-sent after every keyboard frame (a frame resets it).</summary>
+    public int Brightness { get; set; } = 204;
+
     public byte[] IndicatorOnColor { get; set; } = { 255, 255, 255 };
 
     /// <summary>Last static color picked; reapplied at app start. Null = leave firmware lighting alone.</summary>
