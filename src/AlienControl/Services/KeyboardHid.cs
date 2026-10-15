@@ -12,7 +12,7 @@ namespace AlienControl.Services;
 /// Why: the firmware keeps a status key (F1, F12, mutes, Win-lock) lit only if it was written in the
 /// most recent color frame. alienfx-cli makes one frame per setone, so only the last status key
 /// survived (tested 2026-10-15). Here all 136 keys go out in ONE frame, each with its own color.
-/// The frame also resets hardware brightness, so brightness is re-sent after it.
+/// Brightness is done in software (colors scaled) by AlienFx.
 /// </summary>
 public sealed class KeyboardHid
 {
@@ -22,8 +22,8 @@ public sealed class KeyboardHid
 
     public KeyboardHid(ushort pid = 0xcabc) => _pid = pid;
 
-    /// <summary>Sends every key's color in one frame, then the brightness (0..255).</summary>
-    public bool SetKeys(IReadOnlyList<(byte id, byte r, byte g, byte b)> keys, int brightness)
+    /// <summary>Sends every key's color in one frame.</summary>
+    public bool SetKeys(IReadOnlyList<(byte id, byte r, byte g, byte b)> keys)
     {
         using var dev = Open(out int len);
         if (dev is null) return false;
@@ -44,7 +44,6 @@ public sealed class KeyboardHid
         if (pos > 4) ok &= HidD_SetFeature(dev, buf, len);
         ok &= Send(dev, len, new byte[] { 0x8c, 0x13 });           // loop
         ok &= Send(dev, len, new byte[] { 0x8b, 0x01, 0xff });     // update: commit the frame
-        ok &= SetBrightness(dev, len, brightness);
         return ok;
     }
 
