@@ -21,49 +21,60 @@ public sealed class AlienFx
 
     private readonly KeyboardHid _hid = new();
 
+    /// <summary>Scales a color by brightness 0..255 (software dimming).</summary>
+    public static byte[] Dim(byte[] c, int brightness) =>
+        c.Select(v => (byte)(v * System.Math.Clamp(brightness, 0, 255) / 255)).ToArray();
+
     /// <summary>
-    /// Static color on every keyboard key and the chassis lights. Status keys that are on get the
-    /// indicator color. The keyboard goes out as ONE HID frame (see KeyboardHid for why);
-    /// alienfx-cli is only the fallback.
+    /// Static color on every keyboard key and the chassis lights (status keys that are on get the
+    /// indicator color). Brightness is applied in SOFTWARE by scaling the colors: hardware setdim
+    /// on the chassis also dims the power button (which must stay firmware-controlled) and can't
+    /// reach 0, and on the keyboard every color frame resets it (tested 2026-10-15).
+    /// The keyboard goes out as ONE HID frame (see KeyboardHid); alienfx-cli is only the fallback.
     /// </summary>
     public async Task<CliResult> SetAllAsync(byte r, byte g, byte b, IReadOnlyDictionary<int, bool>? indicatorsOn, int brightness)
     {
+        var c = Dim(new[] { r, g, b }, brightness);
+        var w = Dim(_s.IndicatorOnColor, brightness);
         var chassis = string.Join(" ", _s.ChassisLights.Where(i => i != Settings.PowerButtonLight)
-            .Select(i => $"setone={_s.ChassisDevice},{i},{r},{g},{b}"));
-        var res = await _cli.RunAsync($"setglobal={_s.KeyboardDevice},0,1 {chassis} setdim={_s.ChassisDevice},{brightness}");
+            .Select(i => $"setone={_s.ChassisDevice},{i},{c[0]},{c[1]},{c[2]}"));
+        var res = await _cli.RunAsync($"setglobal={_s.KeyboardDevice},0,1 {chassis}");
         if (await SetKeyboardAsync(new[] { r, g, b }, indicatorsOn, brightness)) return res;
 
         // Fallback: per-key CLI (only the last status key will stay lit).
-        var w = _s.IndicatorOnColor;
         var cmds = Enumerable.Range(0, _s.KeyboardLightCount).Select(i =>
             indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on
                 ? $"setone={_s.KeyboardDevice},{i},{w[0]},{w[1]},{w[2]}"
-                : $"setone={_s.KeyboardDevice},{i},{r},{g},{b}");
-        return await _cli.RunAsync(string.Join(" ", cmds) + $" setdim={_s.KeyboardDevice},{brightness}");
+                : $"setone={_s.KeyboardDevice},{i},{c[0]},{c[1]},{c[2]}");
+        return await _cli.RunAsync(string.Join(" ", cmds));
     }
 
-    /// <summary>All keyboard keys in one frame: base color, white for active status keys. False if the HID path failed.</summary>
+    /// <summary>All keyboard keys in one frame, colors scaled by brightness. False if the HID path failed.</summary>
     public Task<bool> SetKeyboardAsync(byte[] baseColor, IReadOnlyDictionary<int, bool>? indicatorsOn, int brightness)
     {
-        var w = _s.IndicatorOnColor;
+        var w = Dim(_s.IndicatorOnColor, brightness);
+        var bc = Dim(baseColor, brightness);
         var keys = Enumerable.Range(0, _s.KeyboardLightCount).Select(i =>
         {
-            var c = indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on ? w : baseColor;
+            var c = indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on ? w : bc;
             return ((byte)i, c[0], c[1], c[2]);
         }).ToList();
-        return Task.Run(() => { try { return _hid.SetKeys(keys, brightness); } catch { return false; } });
+        return Task.Run(() => { try { return _hid.SetKeys(keys); } catch { return false; } });
+    }
+
+    /// <summary>
+    /// Undoes old hardware dimming from v0.5.x: full hardware brightness on both devices, so the
+    /// power button is back at its firmware level. Software dimming takes over from here.
+    /// </summary>
+    public async Task ResetHardwareDimAsync()
+    {
+        await Task.Run(() => { try { _hid.SetBrightness(255); } catch { } });
+        await _cli.RunAsync($"setdim={_s.ChassisDevice},255");
     }
 
     /// <summary>One keyboard key.</summary>
     public Task<CliResult> SetKeyAsync(int id, byte r, byte g, byte b) =>
         _cli.RunAsync($"setone={_s.KeyboardDevice},{id},{r},{g},{b}");
-
-    /// <summary>Hardware brightness 0..255 on keyboard and chassis.</summary>
-    public async Task<CliResult> SetBrightnessAsync(int level)
-    {
-        bool hid = await Task.Run(() => { try { return _hid.SetBrightness(level); } catch { return false; } });
-        return await _cli.RunAsync(hid ? $"setdim={_s.ChassisDevice},{level}" : $"setdim={_s.KeyboardDevice},{level} setdim={_s.ChassisDevice},{level}");
-    }
 
     /// <summary>
     /// APIv5 keyboard effect. Types: 0 Color, 2 Breathing, 3 Single-color wave, 4 Dual-color wave,
