@@ -19,8 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-Third-party: the bundled alienfan-cli / alienfx-cli binaries are from
-alienfx-tools by T-Troll and contributors, MIT license
-(https://github.com/T-Troll/alienfx-tools). Icons: Tabler Icons, Fluent System
-Icons (via WPF-UI) and Phosphor, all MIT.
