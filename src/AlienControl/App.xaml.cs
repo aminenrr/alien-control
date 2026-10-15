@@ -99,6 +99,15 @@ public partial class App : Application
         };
     }
 
+    /// <summary>v0.9.16 F3: open the window; open and focused = slide back to the tray; open behind a game = bring it up.</summary>
+    public void ToggleMain()
+    {
+        if (_window is null) return;
+        if (_window.IsShownOpen && _window.IsActive) _window.HideToTray();
+        else if (_window.IsShownOpen) { _window.Activate(); ForceForeground(); }
+        else ShowMain();
+    }
+
     /// <summary>v0.8.7: restyles the tray menu for the theme and accent (called by MainWindow on every change).</summary>
     public void UpdateTrayMenu(bool legend, System.Windows.Media.Color accent)
     {
@@ -167,7 +176,29 @@ public partial class App : Application
         _window.SnapToCorner();
         _window.Topmost = true;
         _window.Activate();
+        ForceForeground();
     }
+
+    /// <summary>v0.9.16: F3 fires while a game owns the foreground, and Windows blocks plain SetForegroundWindow from a
+    /// background app. Briefly attaching to the foreground thread's input lets the window take focus.</summary>
+    private void ForceForeground()
+    {
+        if (_window is null) return;
+        var h = new System.Windows.Interop.WindowInteropHelper(_window).Handle;
+        var fg = GetForegroundWindow();
+        if (h == IntPtr.Zero || fg == h) return;
+        uint fgThread = GetWindowThreadProcessId(fg, out _), me = GetCurrentThreadId();
+        bool attached = fgThread != 0 && fgThread != me && AttachThreadInput(me, fgThread, true);
+        try { SetForegroundWindow(h); BringWindowToTop(h); }
+        finally { if (attached) AttachThreadInput(me, fgThread, false); }
+    }
+
+    [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+    [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] private static extern bool AttachThreadInput(uint a, uint b, bool attach);
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("user32.dll")] private static extern bool BringWindowToTop(IntPtr h);
 
     public void Quit()
     {

@@ -2,6 +2,11 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.16 (2026-10-15), untested
+- **F3 opens the app** (Macro B, media mode, raw HID 02-52): opens the window, press again to hide it. If the window
+  is open behind a game, F3 brings it to the front with focus. Gear toggle, on by default. No key color.
+- Over borderless / windowed games the window shows on top; fullscreen-exclusive games will usually minimize (like Alt+Tab).
+
 ## v0.9.15 (2026-10-15), untested
 - **Reset settings** (gear menu): confirm, then GPU OC back to +0, CPU boost restored, settings.json deleted and the
   app restarts with defaults. Run on startup, the BIOS and the GPU mode are left alone.

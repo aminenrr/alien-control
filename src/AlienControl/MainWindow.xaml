@@ -561,6 +561,19 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
+                                        <TextBlock Text="F3 opens the app" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Press again to hide it. Works over borderless games" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="F3OpensToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="F3Opens_Click" ToolTip="F3 (media mode, no Fn) opens / hides Alien Controls" />
+                                </Grid>
+
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
                                         <TextBlock Text="Auto preset" Style="{DynamicResource FooterText}" />
                                         <TextBlock Text="Battery when unplugged, your last preset when plugged back in" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                     </StackPanel>

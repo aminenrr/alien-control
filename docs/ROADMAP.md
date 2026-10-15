@@ -4,6 +4,7 @@
 - [x] v0.9.13 idle trim: event-driven status keys, memory trim in the tray (~20 MB open, a few MB in the tray, 0% CPU).
 - [x] v0.9.14 single-file ReadyToRun exe (no trimming, no compression).
 - [ ] v0.9.15 polish: Reset settings, About line, plainer error messages, docs cleanup.
+- [ ] v0.9.16 F3 opens / hides the app.
 - [ ] 1.0.0-rc1: full regression pass on the m15 R7 (every feature, both themes, AC / battery, Optimus / Ultimate).
 - [ ] 1.0.0: real screenshots, changelog summary, tag `v1.0.0`, GitHub Release zip.
 
@@ -11,7 +12,7 @@
 - Direct WMI sensor reads instead of spawning alienfan-cli in the sensor loop (biggest CPU win while the window is open).
 - Faster charging (Dell ExpressCharge via `PrimaryBattChargeCfg`), removed from the UI in v0.8.5.
 - Keyboard backlight timeout when idle; effect speed; map keyboard columns for the rainbow wave.
-- Maybe: bind F3 / F4 (Macro B / C, codes 02-52 / 02-53).
+- Maybe: bind F4..F6 (Macro C..E, codes 02-53 .. 02-55).
 - Maybe: toasts over fullscreen-exclusive games (they may not show there today).
 
 ## Not planned

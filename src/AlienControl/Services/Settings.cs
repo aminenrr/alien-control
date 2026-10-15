@@ -89,6 +89,9 @@ public sealed class Settings
     /// <summary>v0.9.10: F2's light id on the keyboard (guessed 2, verify on the laptop).</summary>
     public int F2Key { get; set; } = 2;
 
+    /// <summary>v0.9.16: F3 (Macro B, media mode) opens / hides the window, like a handheld's quick menu. Default on.</summary>
+    public bool F3Opens { get; set; } = true;
+
     /// <summary>v0.9.11: unplug -> Battery, plug in -> AcPreset (Amine: on by default).</summary>
     public bool AutoPreset { get; set; } = true;
     /// <summary>v0.9.11: preset to bring back on plug-in (Quiet / Balanced / Performance).</summary>

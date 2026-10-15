@@ -12,6 +12,7 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 
 ## Features
 
+- **F3** opens / hides the app from anywhere, games included (borderless).
 - Presets from the tray, the window or **F2**: Battery, Quiet, Balanced, Performance (power mode, CPU boost, refresh rate), plus Custom.
 - **F1 G-Mode**: fans max, Aggressive CPU boost, optional GPU overclock (core / memory offsets, AC only, keep-or-revert test).
 - **Auto preset**: Battery when unplugged, your last preset when plugged back in.
@@ -145,6 +146,7 @@ v0.9.12: toast size fix, unplug toast survives the display change.
 v0.9.13: idle trim (event-driven status keys, memory trim in the tray), tested: ~20 MB open, a few MB in the tray.
 v0.9.14: single ReadyToRun exe for faster start, tested.
 v0.9.15: Reset settings, About line, plainer error messages, docs cleanup.
+v0.9.16: F3 opens / hides the app (handheld-style quick menu).
 v0.8.10: icons take a new accent on the first click; "Performance" fits in Legend.
 v0.8.9: profiles set CPU boost, minimize slides into the screen edge.
 v0.8.8: window open/close slide moves the window itself (native), fixing the slide that never showed.

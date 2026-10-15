@@ -68,7 +68,12 @@ public partial class MainWindow : Window
         _gkey.Install();
         UpdateGKeyText();
         F2PresetsToggle.IsChecked = _settings.F2Presets;
-        _macro.Pressed += k => { if (k == 0) Dispatcher.BeginInvoke(new Action(async () => await CyclePresetAsync())); };
+        F3OpensToggle.IsChecked = _settings.F3Opens;
+        _macro.Pressed += k =>
+        {
+            if (k == 0) Dispatcher.BeginInvoke(new Action(async () => await CyclePresetAsync()));
+            else if (k == 1 && _settings.F3Opens) Dispatcher.BeginInvoke(new Action(() => ((App)Application.Current).ToggleMain()));   // v0.9.16
+        };
         _macro.Install();
         SetHint(FanHint, "BIOS controlled", "BIOS");
         SetHint(GpuHint, "Optimus · RTX 3070 Ti", "OPTIMUS · 3070 Ti");
@@ -1344,6 +1349,12 @@ public partial class MainWindow : Window
         var had = _fx.KeyOverrides.TryGetValue(key, out var old) ? old : null;
         if (c is null) _fx.KeyOverrides.Remove(key); else _fx.KeyOverrides[key] = c;
         if (!(had ?? Array.Empty<byte>()).AsSpan().SequenceEqual(c ?? Array.Empty<byte>())) _f2Dirty = true;
+    }
+
+    private void F3Opens_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.F3Opens = F3OpensToggle.IsChecked == true;
+        _settings.Save();
     }
 
     private async void F2Presets_Click(object sender, RoutedEventArgs e)
