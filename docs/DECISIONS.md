@@ -36,6 +36,14 @@ Why things are the way they are. Newest decisions win.
 - XMP dropped: stock RAM has no XMP profile.
 - WinMemoryCleaner and G-Helper are GPL-3.0: their ideas are reimplemented, no code copied.
 
+## v0.8.0 hardware test outcome (2026-10-15)
+- Only the Battery preset drops to 60 Hz; the others stay at 240 Hz (Amine).
+- Total power is shown on AC too, as an estimate: imperfect but better than nothing (Amine). Instead of a fixed +20-30 W,
+  the rest-of-laptop draw is learned on battery where the total is real.
+- Power readout refreshes every 1 s (Amine asked for faster).
+- Faster charging removed for now, kept as a long-term goal.
+- Big changes get a detailed written plan first, approved before any code (Amine, standing rule).
+
 ## GPU modes (2026-10-15)
 - Row: **iGPU only / Optimus / dGPU only / Ultimate**. "Optimized" and the old Eco/Standard names were dropped.
   - iGPU only: disable the NVIDIA adapter (`pnputil`). Safe and reversible; external HDMI/USB-C outputs wired to the RTX go dark.
