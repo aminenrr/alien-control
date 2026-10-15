@@ -560,6 +560,45 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Auto preset" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Battery when unplugged, your last preset when plugged back in" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="AutoPresetToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="AutoPreset_Click" ToolTip="Unplug: Battery. Plug in: back to Quiet / Balanced / Performance (never G-Mode)" />
+                                </Grid>
+
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Notifications" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Top-right toast for F1, F2 and plug / unplug" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="ToastsToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="Toasts_Click" ToolTip="Window and tray clicks never show one" />
+                                </Grid>
+
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Notification sound" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Soft tick with those events" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="ToastSoundToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="ToastSound_Click" ToolTip="Plays even with notifications off" />
+                                </Grid>
+
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="GKeyText" Text="G-key (F1) toggles G-Mode" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Margin="0,0,8,0" />
                                     <Button Grid.Column="1" Style="{DynamicResource GhostButton}" Content="Detect key" Click="GKeyDetect_Click" />
                                 </Grid>

@@ -71,7 +71,12 @@ public partial class App : Application
         }
         menu.Items.Add(new WinForms.ToolStripSeparator());
         Add("Quit", (_, _) => Quit());
-        menu.Opening += (_, _) => _menuStyle.ApplyCorners(menu.Handle);
+        menu.Opening += (_, _) =>
+        {
+            _menuStyle.ApplyCorners(menu.Handle);
+            // v0.9.11: Battery comes on by itself on unplug (Auto preset), so it's greyed on AC
+            if (_window is not null && _profileItems.TryGetValue(TrayProfile.Battery, out var bat)) bat.Enabled = !_window.BatteryLocked;
+        };
         _menu = menu;
         if (_window is not null) UpdateTrayMenu(_window.IsLegendTheme, _window.AccentColor);
 

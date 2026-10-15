@@ -89,6 +89,15 @@ public sealed class Settings
     /// <summary>v0.9.10: F2's light id on the keyboard (guessed 2, verify on the laptop).</summary>
     public int F2Key { get; set; } = 2;
 
+    /// <summary>v0.9.11: unplug -> Battery, plug in -> AcPreset (Amine: on by default).</summary>
+    public bool AutoPreset { get; set; } = true;
+    /// <summary>v0.9.11: preset to bring back on plug-in (Quiet / Balanced / Performance).</summary>
+    public string AcPreset { get; set; } = "Balanced";
+    /// <summary>v0.9.11: top-right toast for F1, F2 and plug / unplug.</summary>
+    public bool Toasts { get; set; } = true;
+    /// <summary>v0.9.11: soft sound with those events (own toggle).</summary>
+    public bool ToastSound { get; set; } = true;
+
     /// <summary>v0.8.5: learned "rest of the laptop" power (W) for the AC total estimate. No migration needed.</summary>
     public double RestOfSystemW { get; set; } = 15;
 

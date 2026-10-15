@@ -10,7 +10,8 @@
   so Ultimate = set `Disabled` + restart, Optimus = `Enabled` + restart. Wired together with the GPU row.
 - **Preset key**: done in v0.9.10 as F2 (Macro A, media mode): Quiet → Balanced → Performance, F2 tinted green / cyan /
   red. Battery is out of the cycle (later: only on battery power). Toast postponed.
-- Postponed (Amine, 2026-10-15): preset toast; automatic Battery on unplug.
+- Done in v0.9.11: auto preset on AC / battery, toasts + sound for F1 / F2 / plug / unplug (Battery joins the F2
+  cycle on battery only).
 - Maybe later: bind F3 / F4 (Macro B / C, codes 02-52 / 02-53).
 
 ## Waiting on hardware tests
@@ -18,6 +19,7 @@
 - v0.8.8 native window slide (open/close actually animates).
 - v0.8.9 profile CPU boost, minimize slide.
 - v0.8.10 accent icon fix.
+- v0.9.11 auto preset, toasts, sounds.
 - v0.9.0 GPU row (iGPU only, NVIDIA display mode hand-off, Ultimate via BIOS + restart).
 - v0.8.6 animations (Quick Settings slide, timings to tune by eye).
 - v0.8.0 to v0.8.2 (themes, gear menu, profiles, power readout, chip, animations) not yet run on the laptop.

@@ -2,7 +2,19 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
-## v0.9.10 (2026-10-15), untested
+## v0.9.11 (2026-10-15), untested
+- **Auto preset** (on by default): unplug → Battery (leaves G-Mode first, OC back to +0) and remembers the AC preset;
+  plug in → that preset again (Quiet / Balanced / Performance; after G-Mode or Custom it's Balanced, never G-Mode).
+  Only if you're still on Battery; nothing changes at startup. Battery is greyed on AC (window + tray) while it's on.
+- On battery F2 cycles Quiet → Balanced → Performance → Battery → Quiet; on AC Battery stays out.
+- **Notifications**: small toast top-right (16 px in, ~1.6 s, no focus, click-through) with the mode icon, for F1
+  (G-Mode on: fans max + OC; off: back to the preset), F2 (next preset + cycle pills) and plug / unplug. Window and
+  tray clicks stay silent. Created per show, nothing running when idle.
+- **Notification sound**: soft ticks (F2 tick, G-Mode up / down, unplug two notes down, plug in two notes up),
+  embedded WAVs. Own toggle, works with toasts off.
+- Gear menu: Auto preset, Notifications, Notification sound toggles (all on).
+
+## v0.9.10 (2026-10-15), confirmed
 - **F2 cycles presets**: F2 in media mode (Macro A, no Fn) goes Quiet → Balanced → Performance → Quiet; from
   Battery or Custom it starts at Quiet; in G-Mode it does nothing (F1 owns G-Mode). Read as raw HID from the keyboard
   (0D62:CABC report 02-51), so no AWCC, no admin, no polling, and Fn+F2 (plain F2) is untouched.

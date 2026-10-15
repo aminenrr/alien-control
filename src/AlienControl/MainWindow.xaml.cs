@@ -148,6 +148,7 @@ public partial class MainWindow : Window
         VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1");
         StartupToggle.IsChecked = Startup.IsEnabled();
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
+        InitAuto(); // v0.9.11 auto preset + toasts
 
         if (!_fan.IsAvailable || !_fx.IsAvailable)
             Status("Put alienfan-cli.exe and alienfx-cli.exe in the tools folder next to AlienControl.exe.");
@@ -537,6 +538,12 @@ public partial class MainWindow : Window
         UpdateProfileFromState();
         await SyncOcAsync();
         await SyncIndicatorsAsync();
+        // v0.9.11 toast (F1 only)
+        if (_gmodeOn)
+            Notify(TrayProfile.GMode, "F1 · fans max" + (_settings.OcOn && OcAllowed && _ocApplied is { } oc && (oc.Core | oc.Mem) != 0
+                ? $" · OC +{oc.Core} / +{oc.Mem}" : ""), Sounds.Kind.GModeOn);
+        else
+            Notify(CurrentProfile, $"F1 · G-Mode off · back to {Profiles.Label(CurrentProfile)}", Sounds.Kind.GModeOff);
     }
 
     private void GKeyDetect_Click(object sender, RoutedEventArgs e)
@@ -1231,18 +1238,23 @@ public partial class MainWindow : Window
 
     // ---------- v0.9.10 F2 preset key ----------
 
-    /// <summary>F2 press: Quiet > Balanced > Performance > Quiet. Battery/Custom start at Quiet. G-Mode: F1 owns it, do nothing.</summary>
+    /// <summary>F2 press: Quiet > Balanced > Performance > Quiet (v0.9.11: on battery Performance > Battery > Quiet).
+    /// Battery/Custom start at Quiet. G-Mode: F1 owns it, do nothing.</summary>
     private async Task CyclePresetAsync()
     {
         if (!_settings.F2Presets || _gmodeOn) return;
-        var next = CurrentProfile switch
-        {
-            TrayProfile.Quiet => TrayProfile.Balanced,
-            TrayProfile.Balanced => TrayProfile.Performance,
-            _ => TrayProfile.Quiet,
-        };
+        var next = NextPreset(CurrentProfile);
         await ApplyProfileAsync(next);
+        Notify(next, $"F2 · next: {Profiles.Label(NextPreset(next))}", Sounds.Kind.Tick, cycle: next != TrayProfile.Battery);
     }
+
+    private static TrayProfile NextPreset(TrayProfile p) => p switch
+    {
+        TrayProfile.Quiet => TrayProfile.Balanced,
+        TrayProfile.Balanced => TrayProfile.Performance,
+        TrayProfile.Performance => OnAc ? TrayProfile.Quiet : TrayProfile.Battery,
+        _ => TrayProfile.Quiet,
+    };
 
     /// <summary>F2 key color for the shown preset; none (normal key color) in G-Mode, Battery, Custom or when off.</summary>
     private void UpdateF2Tint(TrayProfile p)

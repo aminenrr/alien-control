@@ -10,7 +10,7 @@
     <AssemblyName>AlienControl</AssemblyName>
     <RootNamespace>AlienControl</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.9.10</Version>
+    <Version>0.9.11</Version>
     <Product>Alien Controls</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
@@ -19,6 +19,7 @@
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\logo.png" />
+    <Resource Include="Assets\snd-*.wav" />
   </ItemGroup>
 
   <ItemGroup>
