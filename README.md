@@ -291,6 +291,16 @@ debug the code, the theme generator, the docs and the design mockups. The README
 plug / unplug toasts, which were recreated from a real toast. I tested every feature myself on my own laptop
 (see [docs/RC-CHECKLIST.md](docs/RC-CHECKLIST.md)).
 
+The AI (LLM) tools were used responsibly:
+
+- **Verified on real hardware.** No hardware value was guessed: power modes, light IDs, key codes and OC limits were
+  measured with probe scripts on the laptop before any code used them.
+- **Reviewed, not blindly pasted.** Every change was read, built and tested by me before it was committed.
+- **Small, safe steps.** Each feature shipped as its own small version and was tested before moving on, with risky
+  parts (GPU mode, overclocking) behind confirmations and safe limits.
+- **No reverse engineering of private code.** Only public interfaces and the open-source alienfx-tools were used.
+- **Credited and open.** All code is public under MIT so anyone can check it, and third-party work is credited.
+
 AI written code can contain mistakes, so please read the code before running it, especially because the app runs as
 administrator and talks to the BIOS, the fans and the GPU.
 
