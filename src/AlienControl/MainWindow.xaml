@@ -277,7 +277,7 @@
                         <ui:ToggleSwitch x:Name="StartupToggle" Click="Startup_Click" />
                         <TextBlock Text="Run on startup" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#C9D2DC" FontSize="13" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.6.2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <TextBlock x:Name="VersionText" Text="v0.6.3" HorizontalAlignment="Center" VerticalAlignment="Center"
                                Foreground="{StaticResource MutedText}" FontSize="12" />
                     <Button Style="{StaticResource CardButton}" Padding="18,7" Margin="0" Content="Quit" HorizontalAlignment="Right" Click="Quit_Click" />
                 </Grid>
