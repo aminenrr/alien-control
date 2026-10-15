@@ -40,6 +40,9 @@ public partial class MainWindow : Window
     public TrayProfile CurrentProfile =>
         Enum.TryParse<TrayProfile>(_settings.Profile, out var p) ? p : TrayProfile.Custom;
 
+    /// <summary>v0.9.8: what the chip shows: G-Mode while it's on, else the saved preset.</summary>
+    private TrayProfile ShownProfile => _gmodeOn ? TrayProfile.GMode : CurrentProfile;
+
     private bool IsLegend => _settings.Theme != "Fluent";
 
     public MainWindow()
@@ -86,7 +89,7 @@ public partial class MainWindow : Window
             {
                 PlayOpen();   // v0.8.8 native Quick Settings style slide (instant with Reduce motion)
                 int gen = _showGen;
-                UpdateProfileChip(CurrentProfile);
+                UpdateProfileChip(ShownProfile);
                 // v0.8.6: the hardware reads wait until the slide has played, so they can't stall its frames
                 // (v0.8.5 log: a 160 ms open took 1004 ms because this work ran on the UI thread first).
                 if (Motion.Enabled) await Task.Delay(OpenMs + 40);
@@ -136,7 +139,7 @@ public partial class MainWindow : Window
             if (a.PropertyName == nameof(SystemParameters.WorkArea)) Dispatcher.BeginInvoke(new Action(SnapToCorner));
         };
 
-        UpdateProfileChip(CurrentProfile);
+        UpdateProfileChip(ShownProfile);
         VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1");
         StartupToggle.IsChecked = Startup.IsEnabled();
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
@@ -315,7 +318,7 @@ public partial class MainWindow : Window
         Hide();
     }
 
-    public void AllowClose() { ResetOcOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
+    public void AllowClose() { ResetOcOnExit(); RestoreCapOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
 
     // ---------- status keys ----------
 
@@ -553,7 +556,8 @@ public partial class MainWindow : Window
         // AC level from the button; battery stays on "efficient" (3).
         int level = int.Parse((string)((RadioButton)sender).CommandParameter);
         Report(await _fan.SetCpuBoostAsync(level, 3));
-        if (await CpuFreq.ApplyAsync(level, 3) is { } err) Status(err);   // v0.9.4: Efficient = 3.4 GHz cap
+        if (await CpuFreq.ApplyAsync(level, 3) is { } err) Status(err);   // v0.9.4: Efficient = 3.0 GHz cap (v0.9.5)
+        _capLifted = false;   // v0.9.8: an explicit pick wins, even inside G-Mode
     }
 
     private async void Fan_Click(object sender, RoutedEventArgs e)
@@ -843,7 +847,7 @@ public partial class MainWindow : Window
         App.ApplyTheme(name);   // swaps the one theme dictionary in App.Resources
         ApplyAccent(_lastColor);
         foreach (var (tb, t) in _hints) tb.Text = IsLegend ? t.Legend : t.Fluent;
-        UpdateProfileChip(CurrentProfile);   // Legend caps vs Fluent title case
+        UpdateProfileChip(ShownProfile);   // Legend caps vs Fluent title case
         UpdateOcUi();
         Dispatcher.BeginInvoke(new Action(SnapToCorner), DispatcherPriority.Loaded);
     }
@@ -1213,7 +1217,7 @@ public partial class MainWindow : Window
 
     private void SetProfile(TrayProfile p)
     {
-        if (_settings.Profile != p.ToString()) { _settings.Profile = p.ToString(); _settings.Save(); }
+        if (p != TrayProfile.GMode && _settings.Profile != p.ToString()) { _settings.Profile = p.ToString(); _settings.Save(); }
         UpdateProfileChip(p);
         ProfileChanged?.Invoke(p);
     }
@@ -1244,8 +1248,8 @@ public partial class MainWindow : Window
     /// <summary>After a manual change: the profile that matches mode + refresh rate, otherwise Custom.</summary>
     private void UpdateProfileFromState()
     {
+        if (_gmodeOn) { SetProfile(TrayProfile.GMode); return; }   // v0.9.8: was Custom
         var match = TrayProfile.Custom;
-        if (!_gmodeOn)
         {
             var rate = DisplayRefresh.Read();
             foreach (TrayProfile p in new[] { TrayProfile.Battery, TrayProfile.Quiet, TrayProfile.Balanced, TrayProfile.Performance })

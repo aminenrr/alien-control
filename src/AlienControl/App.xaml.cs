@@ -62,6 +62,7 @@ public partial class App : Application
         menu.Items.Add(new WinForms.ToolStripSeparator());
         foreach (TrayProfile p in Enum.GetValues(typeof(TrayProfile)))
         {
+            if (p == TrayProfile.GMode) continue;   // v0.9.8: display-only, G-Mode lives on F1 / the window
             var profile = p;
             var item = Add(Profiles.Label(p), async (_, _) => { if (_window is not null) await _window.ApplyProfileAsync(profile); },
                            TrayMenuRenderer.Dot(Profiles.Tint(p)));

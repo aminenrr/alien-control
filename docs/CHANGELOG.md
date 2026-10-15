@@ -2,6 +2,15 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.8 (2026-10-15), untested
+- Header chip + tray icon show **G-Mode** (violet) while it's on, instead of CUSTOM. Display only: the saved preset
+  isn't touched, isn't in the tray menu, and comes back when G-Mode ends.
+- G-Mode lifts Quiet's 3.0 GHz Efficient cap while it's on (boost mode itself unchanged) and puts it back after,
+  also on Quit. Picking a CPU boost by hand inside G-Mode wins.
+- Fluent is shorter: tighter cards, headers and buttons (Legend unchanged). Fluent button labels now really use
+  their own font size (an empty TextBlock style in the templates blocks WPF-UI's 14 px default), which also fixes
+  "Performance" being cut off.
+
 ## v0.9.7 (2026-10-15), tested: +200 / +200 gives 1665 / 7201 MHz in Control, back to stock outside G-Mode
 - New **GPU Overclock** section (03, under GPU Mode): Core and Memory sliders side by side, +0 to +300 MHz in 25 MHz
   steps, default +200 / +200. AWCC-style values; memory is sent to NVML x2 (calibrated in Control).

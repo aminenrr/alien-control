@@ -829,7 +829,7 @@ def fluent():
             </Setter.Value>
         </Setter>
     </Style>
-    <Thickness x:Key="BodyMargin">12,2,12,10</Thickness>
+    <Thickness x:Key="BodyMargin">12,2,12,8</Thickness>
 
     <!-- ===== stats ===== -->
     <Style x:Key="StatsCard" TargetType="Border">
@@ -837,7 +837,7 @@ def fluent():
         <Setter Property="BorderBrush" Value="#11FFFFFF" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="12" />
+        <Setter Property="Padding" Value="11,10" />
         <Setter Property="Margin" Value="0,6,0,0" />
     </Style>
     <Style x:Key="StatsGrid" TargetType="Border" />
@@ -850,8 +850,8 @@ def fluent():
         <Setter Property="Padding" Value="2,0,8,0" />
     </Style>
     <Style x:Key="MemRow" TargetType="Border">
-        <Setter Property="Margin" Value="0,12,0,0" />
-        <Setter Property="Padding" Value="0,11,0,0" />
+        <Setter Property="Margin" Value="0,9,0,0" />
+        <Setter Property="Padding" Value="0,8,0,0" />
         <Setter Property="BorderBrush" Value="#12FFFFFF" />
         <Setter Property="BorderThickness" Value="0,1,0,0" />
     </Style>
@@ -888,8 +888,8 @@ def fluent():
         </Setter>
     </Style>
     <Style x:Key="PwrRow" TargetType="Border">
-        <Setter Property="Margin" Value="0,11,0,0" />
-        <Setter Property="Padding" Value="0,9,0,0" />
+        <Setter Property="Margin" Value="0,8,0,0" />
+        <Setter Property="Padding" Value="0,7,0,0" />
         <Setter Property="BorderBrush" Value="#12FFFFFF" />
         <Setter Property="BorderThickness" Value="0,1,0,0" />
     </Style>
@@ -908,8 +908,8 @@ def fluent():
 
     <!-- ===== sections (cards) ===== -->
     <Style x:Key="SectionPanel" TargetType="Border">
-        <Setter Property="Margin" Value="0,6,0,0" />
-        <Setter Property="Padding" Value="12" />
+        <Setter Property="Margin" Value="0,5,0,0" />
+        <Setter Property="Padding" Value="11,9,11,10" />
         <Setter Property="Background" Value="#0BFFFFFF" />
         <Setter Property="BorderBrush" Value="#11FFFFFF" />
         <Setter Property="BorderThickness" Value="1" />
@@ -917,17 +917,17 @@ def fluent():
     </Style>
     <!-- CPU Boost + Fans share one card -->
     <Style x:Key="SectionPanelTop" TargetType="Border" BasedOn="{{StaticResource SectionPanel}}">
-        <Setter Property="Padding" Value="12,12,12,0" />
+        <Setter Property="Padding" Value="11,9,11,0" />
         <Setter Property="BorderThickness" Value="1,1,1,0" />
         <Setter Property="CornerRadius" Value="8,8,0,0" />
     </Style>
     <Style x:Key="SectionPanelBottom" TargetType="Border" BasedOn="{{StaticResource SectionPanel}}">
         <Setter Property="Margin" Value="0" />
-        <Setter Property="Padding" Value="12,14,12,12" />
+        <Setter Property="Padding" Value="11,10,11,10" />
         <Setter Property="BorderThickness" Value="1,0,1,1" />
         <Setter Property="CornerRadius" Value="0,0,8,8" />
     </Style>
-    <Style x:Key="SectionHeader" TargetType="Grid"><Setter Property="Margin" Value="0,0,0,10" /></Style>
+    <Style x:Key="SectionHeader" TargetType="Grid"><Setter Property="Margin" Value="0,0,0,7" /></Style>
     <Style x:Key="SectionNum" TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed" /></Style>
     <Style x:Key="SectionIcon" TargetType="ContentControl">
         <Setter Property="Width" Value="18" />
@@ -961,9 +961,9 @@ def fluent():
     <!-- ===== buttons (segmented) ===== -->
     <Style x:Key="SegButton" TargetType="RadioButton">
         <Setter Property="Foreground" Value="#C7FFFFFF" />
-        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="FontSize" Value="12" />
         <Setter Property="Margin" Value="1" />
-        <Setter Property="Padding" Value="1,7" />
+        <Setter Property="Padding" Value="1,5,1,6" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
         <Setter Property="fx:Motion.Interactive" Value="True" />
@@ -975,9 +975,9 @@ def fluent():
                         <Border x:Name="HoverFx" CornerRadius="5" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <Border Padding="{{TemplateBinding Padding}}">
                             <StackPanel HorizontalAlignment="Center">
-                                <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="20" Height="20" Margin="0,0,0,4"
+                                <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="18" Height="18" Margin="0,0,0,3"
                                                   TextElement.Foreground="#B8FFFFFF" />
-                                <ContentPresenter HorizontalAlignment="Center" />
+                                <ContentPresenter HorizontalAlignment="Center"><ContentPresenter.Resources><Style TargetType="TextBlock" /></ContentPresenter.Resources></ContentPresenter>
                             </StackPanel>
                         </Border>
                         <Border x:Name="Ul" Width="16" Height="3" CornerRadius="1.5" VerticalAlignment="Bottom" Margin="0,0,0,2" RenderTransformOrigin="0.5,0.5"
@@ -1003,8 +1003,8 @@ def fluent():
         </Setter>
     </Style>
     <Style x:Key="ModeButton" TargetType="RadioButton" BasedOn="{{StaticResource SegButton}}">
-        <Setter Property="FontSize" Value="10.5" />
-        <Setter Property="Padding" Value="0,9,0,10" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Padding" Value="0,6,0,7" />
     </Style>
     <Style x:Key="GModeButton" TargetType="RadioButton" BasedOn="{{StaticResource ModeButton}}">
         <Setter Property="Template">
@@ -1015,9 +1015,9 @@ def fluent():
                         <Border x:Name="HoverFx" CornerRadius="5" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <Border Padding="{{TemplateBinding Padding}}">
                             <StackPanel HorizontalAlignment="Center">
-                                <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="20" Height="20" Margin="0,0,0,4"
+                                <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="18" Height="18" Margin="0,0,0,3"
                                                   TextElement.Foreground="#B8FFFFFF" />
-                                <ContentPresenter HorizontalAlignment="Center" />
+                                <ContentPresenter HorizontalAlignment="Center"><ContentPresenter.Resources><Style TargetType="TextBlock" /></ContentPresenter.Resources></ContentPresenter>
                             </StackPanel>
                         </Border>
                         <Border x:Name="Ul" Width="16" Height="3" CornerRadius="1.5" VerticalAlignment="Bottom" Margin="0,0,0,2" RenderTransformOrigin="0.5,0.5"
@@ -1039,7 +1039,7 @@ def fluent():
     <Style x:Key="GhostButton" TargetType="Button">
         <Setter Property="Foreground" Value="White" />
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Padding" Value="11,5" />
+        <Setter Property="Padding" Value="11,4" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
         <Setter Property="fx:Motion.Interactive" Value="True" />
@@ -1050,7 +1050,7 @@ def fluent():
                         <Border x:Name="Bd" Background="#0FFFFFFF" BorderBrush="#12FFFFFF" BorderThickness="1" CornerRadius="5" />
                         <Border x:Name="HoverFx" Margin="1" CornerRadius="4" Background="{{DynamicResource HoverFxBrush}}" Opacity="0" IsHitTestVisible="False" />
                         <Border BorderThickness="1" Padding="{{TemplateBinding Padding}}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{{TemplateBinding Foreground}}" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{{TemplateBinding Foreground}}"><ContentPresenter.Resources><Style TargetType="TextBlock" /></ContentPresenter.Resources></ContentPresenter>
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>

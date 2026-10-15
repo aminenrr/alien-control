@@ -70,10 +70,39 @@ public partial class MainWindow
         await SyncOcAsync();
     }
 
+    private bool _capLifted;
+
+    /// <summary>v0.9.8: G-Mode side effects that follow every G-Mode change (same hook as OC). The header chip and tray
+    /// icon show G-Mode; Quiet's 3.0 GHz Efficient cap is lifted while G-Mode is on and put back when it ends.</summary>
+    private async Task SyncGModeAsync()
+    {
+        if (_gmodeOn && _chipProfile != TrayProfile.GMode) SetProfile(TrayProfile.GMode);
+        else if (!_gmodeOn && _chipProfile == TrayProfile.GMode) SetProfile(CurrentProfile);
+
+        if (_gmodeOn && !_capLifted && CpuEfficient.IsChecked == true)
+        {
+            _capLifted = true;
+            if (await CpuFreq.ApplyAsync(1, 1) is { } err) Status(err);   // cap 0 = none; boost mode itself untouched
+        }
+        else if (!_gmodeOn && _capLifted)
+        {
+            _capLifted = false;
+            if (CpuEfficient.IsChecked == true && await CpuFreq.ApplyAsync(3, 3) is { } err) Status(err);
+        }
+    }
+
+    /// <summary>Synchronous cap restore for Quit when G-Mode lifted it.</summary>
+    private void RestoreCapOnExit()
+    {
+        if (!_capLifted) return;
+        try { Task.Run(() => CpuFreq.ApplyAsync(3, 3)).Wait(3000); } catch { /* exiting anyway */ }
+    }
+
     /// <summary>Brings the driver in line with G-Mode + AC + the kept offsets. Cheap when nothing changes.</summary>
     private async Task SyncOcAsync()
     {
         if (!Dispatcher.CheckAccess()) { await Dispatcher.InvokeAsync(SyncOcAsync).Task.Unwrap(); return; }
+        await SyncGModeAsync();
         if (_ocTesting)
         {
             if (!OcAllowed) await EndOcTestAsync(keep: false);
