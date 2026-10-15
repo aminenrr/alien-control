@@ -26,13 +26,13 @@ public partial class App : Application
     private void CreateTray()
     {
         var menu = new WinForms.ContextMenuStrip();
-        menu.Items.Add("Open Alien Control", null, (_, _) => ShowMain());
+        menu.Items.Add("Open Alien Controls", null, (_, _) => ShowMain());
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Quit());
 
         _tray = new WinForms.NotifyIcon
         {
-            Text = "Alien Control",
+            Text = "Alien Controls",
             Icon = LoadTrayIcon(),
             ContextMenuStrip = menu,
             Visible = true
