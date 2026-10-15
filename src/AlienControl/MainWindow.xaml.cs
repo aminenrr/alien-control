@@ -73,6 +73,14 @@ public partial class MainWindow : Window
         VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1");
         StartupToggle.IsChecked = Startup.IsEnabled();
 
+        // GPU: show the current mode, and run Optimized (Eco on battery / Standard on AC) on power changes.
+        Microsoft.Win32.SystemEvents.PowerModeChanged += (_, a) =>
+        {
+            if (a.Mode == Microsoft.Win32.PowerModes.StatusChange)
+                Dispatcher.BeginInvoke(new Action(async () => await ApplyOptimizedAsync()));
+        };
+        Dispatcher.BeginInvoke(new Action(async () => { await ApplyOptimizedAsync(); await RefreshGpuAsync(); }));
+
         if (!_fan.IsAvailable || !_fx.IsAvailable)
             Status("Put alienfan-cli.exe and alienfx-cli.exe in the tools folder next to AlienControl.exe.");
     }
@@ -551,4 +559,167 @@ public partial class MainWindow : Window
     }
 
     private void Status(string text) => StatusText.Text = text;
+
+    // ---------- RAM clean (click = quick, right-click = deep) ----------
+
+    private bool _cleaning;
+    private void RamCard_LeftClick(object sender, MouseButtonEventArgs e) => _ = CleanRamAsync(deep: false);
+    private void RamCard_RightClick(object sender, MouseButtonEventArgs e) { e.Handled = true; _ = CleanRamAsync(deep: true); }
+
+    private async Task CleanRamAsync(bool deep)
+    {
+        if (_cleaning) return;
+        _cleaning = true;
+        RamLabel.Text = deep ? "RAM  ·  deep cleaning…" : "RAM  ·  cleaning…";
+        try
+        {
+            var (freed, error) = await MemoryCleaner.CleanAsync(deep);
+            if (error is not null) Status(error);
+            RamLabel.Text = error is not null ? "RAM  ·  clean failed" : $"RAM  ·  freed {freed:0.0} GB";
+            if (SystemStats.Ram() is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
+            await Task.Delay(4000);
+        }
+        finally
+        {
+            RamLabel.Text = "RAM  ·  click to clean";
+            _cleaning = false;
+        }
+    }
+
+    // ---------- GPU mode ----------
+
+    private bool _gpuBusy;
+    private bool _ultimateAvailable;
+    private GpuModeKind _gpuMode = GpuModeKind.Unknown;
+    private bool _restartPending;
+
+    private async Task RefreshGpuAsync()
+    {
+        var (mode, attr) = await Task.Run(() => (GpuMode.Current(GpuMode.Adapters()), GpuMode.FindGraphicsAttribute()));
+        _gpuMode = mode;
+        _ultimateAvailable = attr is not null || mode == GpuModeKind.Ultimate;
+        GpuUltimate.IsEnabled = _ultimateAvailable;
+        GpuUltimate.ToolTip = _ultimateAvailable
+            ? "MUX: RTX drives the screen. Needs a restart."
+            : "Your BIOS doesn't expose the MUX switch to Windows. Click the hint on the right to copy a report.";
+        bool canEco = mode != GpuModeKind.Ultimate;
+        GpuEco.IsEnabled = canEco;
+        GpuOptimized.IsEnabled = canEco;
+
+        GpuEco.IsChecked = !_settings.GpuOptimized && mode == GpuModeKind.Eco;
+        GpuStandard.IsChecked = !_settings.GpuOptimized && mode == GpuModeKind.Standard;
+        GpuUltimate.IsChecked = mode == GpuModeKind.Ultimate;
+        GpuOptimized.IsChecked = _settings.GpuOptimized && mode != GpuModeKind.Ultimate;
+
+        GpuHint.Text = _restartPending ? "Restart to apply"
+            : mode switch
+            {
+                GpuModeKind.Eco => _settings.GpuOptimized ? "Optimized · RTX off (battery)" : "RTX off",
+                GpuModeKind.Standard => _settings.GpuOptimized ? "Optimized · hybrid (plugged in)" : "Hybrid",
+                GpuModeKind.Ultimate => "RTX only (MUX)",
+                _ => "GPU not detected"
+            };
+    }
+
+    private static bool OnBattery() =>
+        System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Offline;
+
+    /// <summary>Optimized: Eco on battery, Standard on AC. Skips Eco while apps use the RTX.</summary>
+    private async Task ApplyOptimizedAsync()
+    {
+        if (!_settings.GpuOptimized || _gpuBusy) return;
+        var mode = await Task.Run(() => GpuMode.Current(GpuMode.Adapters()));
+        if (mode == GpuModeKind.Ultimate || mode == GpuModeKind.Unknown) return;
+        bool wantEco = OnBattery();
+        if (wantEco == (mode == GpuModeKind.Eco)) { await RefreshGpuAsync(); return; }
+        _gpuBusy = true;
+        try
+        {
+            if (wantEco)
+            {
+                var apps = await Task.Run(GpuMode.AppsUsingDgpu);
+                if (apps.Count > 0)
+                {
+                    Status($"Optimized: RTX kept on, in use by {string.Join(", ", apps.Take(4))}.");
+                    return;
+                }
+            }
+            var err = await GpuMode.SetDgpuEnabledAsync(!wantEco);
+            Status(err ?? (wantEco ? "On battery: RTX turned off (Eco)." : "Plugged in: RTX back on (Standard)."));
+        }
+        finally { _gpuBusy = false; await RefreshGpuAsync(); }
+    }
+
+    private async void Gpu_Click(object sender, RoutedEventArgs e)
+    {
+        if (_gpuBusy) { await RefreshGpuAsync(); return; }
+        _gpuBusy = true;
+        try
+        {
+            var mode = await Task.Run(() => GpuMode.Current(GpuMode.Adapters()));
+            if (sender == GpuOptimized)
+            {
+                _settings.GpuOptimized = true; _settings.Save();
+                _gpuBusy = false;
+                await ApplyOptimizedAsync();
+                return;
+            }
+            _settings.GpuOptimized = false; _settings.Save();
+
+            if (sender == GpuEco)
+            {
+                if (mode == GpuModeKind.Eco) return;
+                var apps = await Task.Run(GpuMode.AppsUsingDgpu);
+                string msg = "Turn the RTX off (Eco)?\n\nA monitor on the HDMI or USB-C port wired to the RTX will go dark.";
+                if (apps.Count > 0) msg += "\n\nThese apps are using the RTX and may crash or lose their window:\n" + string.Join(", ", apps);
+                if (MessageBox.Show(msg, "Alien Controls", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                var err = await GpuMode.SetDgpuEnabledAsync(false);
+                Status(err ?? "Eco: RTX turned off.");
+            }
+            else if (sender == GpuStandard)
+            {
+                if (mode == GpuModeKind.Ultimate)
+                {
+                    var err = await Task.Run(() => GpuMode.SetUltimate(false));
+                    if (err is null) AskRestart("Hybrid (Standard) is set in BIOS.");
+                    else Status(err);
+                }
+                else
+                {
+                    var err = await GpuMode.SetDgpuEnabledAsync(true);
+                    Status(err ?? "Standard: hybrid graphics.");
+                }
+            }
+            else if (sender == GpuUltimate)
+            {
+                if (mode == GpuModeKind.Ultimate) return;
+                if (MessageBox.Show("Switch to Ultimate (RTX only, through the MUX)?\n\nThis changes a BIOS setting and needs a restart. Battery life will be shorter.",
+                        "Alien Controls", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                if (mode == GpuModeKind.Eco) await GpuMode.SetDgpuEnabledAsync(true);
+                var err = await Task.Run(() => GpuMode.SetUltimate(true));
+                if (err is null) AskRestart("Ultimate is set in BIOS.");
+                else Status(err);
+            }
+        }
+        finally
+        {
+            _gpuBusy = false;
+            await RefreshGpuAsync();
+        }
+    }
+
+    private void AskRestart(string what)
+    {
+        _restartPending = true;
+        if (MessageBox.Show(what + "\n\nRestart now?", "Alien Controls", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("shutdown.exe", "/r /t 0") { CreateNoWindow = true, UseShellExecute = false });
+        else Status(what + " Restart Windows to apply it.");
+    }
+
+    private async void GpuHint_Click(object sender, MouseButtonEventArgs e)
+    {
+        var report = await Task.Run(GpuMode.Report);
+        try { Clipboard.SetText(report); Status("GPU report copied. Paste it to me."); }
+        catch { Status("Couldn't copy the GPU report."); }
+    }
 }
