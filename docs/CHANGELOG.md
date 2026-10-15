@@ -3,6 +3,7 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
 ## v1.0.0-rc1 (2026-10-15), untested
+- F2 no longer lights up in the preset color (too distracting); it stays the keyboard color.
 - Release candidate: no new features. Version shows as `1.0.0-rc1` in the footer and the About line.
 - Full hardware regression pass (checklist in docs/RC-CHECKLIST.md) before 1.0.0.
 

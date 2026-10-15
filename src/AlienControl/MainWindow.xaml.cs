@@ -1340,13 +1340,9 @@ public partial class MainWindow : Window
     /// <summary>F2 key color for the shown preset; none (normal key color) in G-Mode, Battery, Custom or when off.</summary>
     private void UpdateF2Tint(TrayProfile p)
     {
-        byte[]? c = !_settings.F2Presets ? null : p switch
-        {
-            TrayProfile.Quiet => new byte[] { 0, 255, 0 },
-            TrayProfile.Balanced => new byte[] { 0, 229, 255 },
-            TrayProfile.Performance => new byte[] { 255, 0, 0 },
-            _ => null,
-        };
+        // v1.0.0-rc1: F2 tint removed (Amine: disorienting). F2 always follows the keyboard color; this only
+        // clears a tint left from an older build.
+        byte[]? c = null;
         var key = _settings.F2Key;
         var had = _fx.KeyOverrides.TryGetValue(key, out var old) ? old : null;
         if (c is null) _fx.KeyOverrides.Remove(key); else _fx.KeyOverrides[key] = c;

@@ -549,7 +549,7 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
                                         <TextBlock Text="F2 cycles presets" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Quiet, Balanced, Performance. F2 lights up in the preset color" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                        <TextBlock Text="Quiet, Balanced, Performance" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <CheckBox x:Name="F2PresetsToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
                                               Click="F2Presets_Click" ToolTip="F2 (media mode, no Fn) cycles Quiet / Balanced / Performance" />

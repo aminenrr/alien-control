@@ -14,7 +14,7 @@ Tick every line on the laptop. Any ✗ goes back as a fix before 1.0.0.
 - [ ] Balanced: 240 Hz, boost On
 - [ ] Performance: 240 Hz, Aggressive
 - [ ] Custom changes nothing; profile chip follows every change
-- [ ] F2 cycles Q → B → P on AC (F2 key tinted), P → Battery → Q on battery; F2 does nothing in G-Mode
+- [ ] F2 cycles Q → B → P on AC (F2 key stays the keyboard color), P → Battery → Q on battery; F2 does nothing in G-Mode
 - [ ] No preset ever changes the GPU mode
 
 ## 3. G-Mode + OC
