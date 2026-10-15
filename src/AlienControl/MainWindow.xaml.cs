@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -44,7 +45,9 @@ public partial class MainWindow : Window
     {
         // Only the active theme dictionary is loaded; it must be there before the XAML resolves its keys.
         App.ApplyTheme(_settings.Theme);
+        Motion.Enabled = !_settings.ReduceMotion;   // v0.8.2: Reduce motion = no animations at all
         InitializeComponent();
+        ReduceMotionToggle.IsChecked = _settings.ReduceMotion;
         ThemeLegend.IsChecked = IsLegend;
         ThemeFluent.IsChecked = !IsLegend;
         _fx = new AlienFx(_settings);
@@ -78,14 +81,29 @@ public partial class MainWindow : Window
         {
             if (IsVisible)
             {
+                PlayOpen(fromCurrent: false);   // v0.8.2 fade + rise (instant with Reduce motion)
                 UpdateProfileChip(CurrentProfile);
                 RefreshDisplayRate();          // read once on show, no timer
                 _ = RefreshGpuHintAsync();
                 await RefreshStateAsync();
                 _poll.Start();
             }
-            else _poll.Stop();
+            else { _poll.Stop(); CloseSettings(instant: true); }
         };
+
+        // v0.8.2 gear flyout (StaysOpen=True so it can animate out): close on outside click / deactivate / minimize.
+        PreviewMouseDown += (_, e) =>
+        {
+            // Clicks inside the flyout also route here (Popup is in the window's logical tree), so skip those.
+            var src = e.OriginalSource as DependencyObject;
+            if (SettingsPopup.IsOpen && !_settingsPinned && !IsWithin(src, SettingsButton) && !IsWithin(src, SettingsPanel))
+                CloseSettings();
+        };
+        Deactivated += (_, _) =>
+        {
+            if (SettingsPopup.IsOpen && !_settingsPinned && !SettingsPanel.IsMouseOver) CloseSettings();
+        };
+        StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) CloseSettings(instant: true); };
 
         SizeChanged += (_, _) => SnapToCorner();
         SystemParameters.StaticPropertyChanged += (_, a) =>
@@ -149,7 +167,71 @@ public partial class MainWindow : Window
 
     private void Header_MouseDown(object sender, MouseButtonEventArgs e) { /* pinned; no dragging */ }
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-    private void Close_Click(object sender, RoutedEventArgs e) => Hide();
+    private void Close_Click(object sender, RoutedEventArgs e) => HideToTray();
+
+    // ---------- v0.8.2 window open / hide animation (Opacity + TranslateY on the card, one-shot, 60 fps) ----------
+
+    private int _showGen;     // bumps on every show/hide so a stale hide never fires after a re-show
+    private bool _hiding;
+
+    /// <summary>Fade 0 -> 1 and rise +12 -> 0 over 160 ms. fromCurrent: resume from a hide that was interrupted.</summary>
+    private void PlayOpen(bool fromCurrent)
+    {
+        _showGen++;
+        _hiding = false;
+        if (!Motion.Enabled) { ResetCard(); return; }
+        var shift = Motion.Translate(RootCard);
+        Motion.Play(null,
+            (RootCard, OpacityProperty, Motion.Tween(fromCurrent ? null : 0, 1, 160, Motion.Cubic)),
+            (shift, TranslateTransform.YProperty, Motion.Tween(fromCurrent ? null : 12, 0, 160, Motion.Cubic)));
+    }
+
+    /// <summary>App.ShowMain calls this before Show(): a show during the hide animation cancels the hide.</summary>
+    public void PrepareShow()
+    {
+        if (_hiding) PlayOpen(fromCurrent: true);
+    }
+
+    /// <summary>Fade to 0 and drop +8 over 120 ms, THEN Hide(). Falls back to an instant Hide() whenever the
+    /// animation can't run (Reduce motion, minimized, a second request, an exception) and, as a safety net,
+    /// if the storyboard hasn't completed 400 ms later (one-shot check, nothing repeats).</summary>
+    public void HideToTray()
+    {
+        CloseSettings(instant: true);
+        if (!IsVisible) return;
+        if (!Motion.Enabled || WindowState == WindowState.Minimized || _hiding) { HideNow(); return; }
+        _hiding = true;
+        int gen = ++_showGen;
+        try
+        {
+            var shift = Motion.Translate(RootCard);
+            Motion.Play(() => { if (gen == _showGen && _hiding) HideNow(); },
+                (RootCard, OpacityProperty, Motion.Tween(null, 0, 120, Motion.Quad)),
+                (shift, TranslateTransform.YProperty, Motion.Tween(null, 8, 120, Motion.Quad)));
+        }
+        catch { HideNow(); return; }
+        _ = HideSafetyNetAsync(gen);
+    }
+
+    private async Task HideSafetyNetAsync(int gen)
+    {
+        await Task.Delay(400);
+        if (gen == _showGen && _hiding) HideNow();
+    }
+
+    private void HideNow()
+    {
+        _hiding = false;
+        _showGen++;
+        Hide();
+        ResetCard();   // back to fully visible while hidden, so the next show never starts transparent by accident
+    }
+
+    private void ResetCard()
+    {
+        Motion.Set(RootCard, OpacityProperty, 1);
+        Motion.Set(Motion.Translate(RootCard), TranslateTransform.YProperty, 0);
+    }
 
     public void AllowClose() { StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
 
@@ -206,7 +288,7 @@ public partial class MainWindow : Window
     protected override void OnClosing(CancelEventArgs e)
     {
         // The X button hides to tray; Quit really exits.
-        if (!_allowClose) { e.Cancel = true; Hide(); }
+        if (!_allowClose) { e.Cancel = true; HideToTray(); }
         base.OnClosing(e);
     }
 
@@ -353,14 +435,14 @@ public partial class MainWindow : Window
     private void GKeyDetect_Click(object sender, RoutedEventArgs e)
     {
         GKeyText.Text = "Press the G-key (F1) now…";
-        SettingsPopup.StaysOpen = true;
+        _settingsPinned = true;
         _gkey.LearnNext = (vk, scan) => Dispatcher.BeginInvoke(new Action(() =>
         {
             _settings.GKeyVk = _gkey.Vk = vk;
             _settings.GKeyScan = _gkey.Scan = scan;
             _settings.Save();
             UpdateGKeyText();
-            SettingsPopup.StaysOpen = false;
+            _settingsPinned = false;
             Status($"G-key set to key 0x{vk:X2} (scan 0x{scan:X2}).");
         }));
     }
@@ -632,7 +714,67 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(new Action(SnapToCorner), DispatcherPriority.Loaded);
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e) => SettingsPopup.IsOpen = !SettingsPopup.IsOpen;
+    // ---------- gear flyout (v0.8.2: fade + 6 DIP slide, 120 ms; instant with Reduce motion) ----------
+
+    private bool _settingsPinned;   // "Detect key" keeps the flyout open while it waits for the G-key
+    private int _flyGen;
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        if (SettingsPopup.IsOpen) CloseSettings();
+        else OpenSettings();
+    }
+
+    private void OpenSettings()
+    {
+        _flyGen++;
+        SettingsPopup.IsOpen = true;
+        var shift = Motion.Translate(SettingsPanel);
+        if (!Motion.Enabled) { ResetFlyout(); return; }
+        Motion.Play(null,
+            (SettingsPanel, OpacityProperty, Motion.Tween(0, 1, 120, Motion.Cubic)),
+            (shift, TranslateTransform.YProperty, Motion.Tween(6, 0, 120, Motion.Cubic)));
+    }
+
+    private void CloseSettings(bool instant = false)
+    {
+        if (!SettingsPopup.IsOpen) return;
+        int gen = ++_flyGen;
+        if (instant || !Motion.Enabled || !IsVisible)
+        {
+            SettingsPopup.IsOpen = false;
+            ResetFlyout();
+            return;
+        }
+        try
+        {
+            Motion.Play(() => { if (gen == _flyGen) { SettingsPopup.IsOpen = false; ResetFlyout(); } },
+                (SettingsPanel, OpacityProperty, Motion.Tween(null, 0, 120, Motion.Quad)),
+                (Motion.Translate(SettingsPanel), TranslateTransform.YProperty, Motion.Tween(null, 6, 120, Motion.Quad)));
+        }
+        catch { SettingsPopup.IsOpen = false; ResetFlyout(); }
+    }
+
+    private void ResetFlyout()
+    {
+        Motion.Set(SettingsPanel, OpacityProperty, 1);
+        Motion.Set(Motion.Translate(SettingsPanel), TranslateTransform.YProperty, 0);
+    }
+
+    private static bool IsWithin(DependencyObject? d, DependencyObject ancestor)
+    {
+        for (var x = d; x is not null; x = x is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(x) : LogicalTreeHelper.GetParent(x))
+            if (x == ancestor) return true;
+        return false;
+    }
+
+    private void ReduceMotion_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.ReduceMotion = ReduceMotionToggle.IsChecked == true;
+        Motion.Enabled = !_settings.ReduceMotion;
+        _settings.Save();
+        if (_settings.ReduceMotion) { ResetCard(); ResetFlyout(); Motion.Set(ProfileChip, OpacityProperty, 1); }
+    }
 
     private void SelectSwatch(byte[] c)
     {
@@ -787,6 +929,8 @@ public partial class MainWindow : Window
         ProfileChanged?.Invoke(p);
     }
 
+    private TrayProfile? _chipProfile;
+
     /// <summary>Header chip: dot + profile name, tinted like the tray icon. Read-only; event driven (no timer).</summary>
     private void UpdateProfileChip(TrayProfile p)
     {
@@ -795,6 +939,11 @@ public partial class MainWindow : Window
         var col = Color.FromRgb(t.R, t.G, t.B);
         SolidColorBrush B(byte a) { var b = new SolidColorBrush(Color.FromArgb(a, col.R, col.G, col.B)); b.Freeze(); return b; }
         var label = Profiles.Label(p);
+        // v0.8.2: the new colour fades in (Opacity 0.3 -> 1, 150 ms) when the profile actually changes on screen.
+        bool changed = _chipProfile is { } prev && prev != p;
+        _chipProfile = p;
+        if (changed && Motion.Enabled && ProfileChip.IsVisible)
+            Motion.Play(null, (ProfileChip, OpacityProperty, Motion.Tween(0.3, 1, 150, Motion.Quad)));
         ProfileChipText.Text = IsLegend ? label.ToUpperInvariant() : label;
         ProfileChipText.Foreground = B(255);
         ProfileChipDot.Fill = B(255);
