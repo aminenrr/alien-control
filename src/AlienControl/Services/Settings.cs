@@ -71,6 +71,9 @@ public sealed class Settings
     /// <summary>v0.8.2: true = skip every UI animation (instant, like v0.8.1). Default off.</summary>
     public bool ReduceMotion { get; set; } = false;
 
+    /// <summary>v0.8.5: learned "rest of the laptop" power (W) for the AC total estimate. No migration needed.</summary>
+    public double RestOfSystemW { get; set; } = 15;
+
     private static string FilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl", "settings.json");
 
