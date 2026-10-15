@@ -271,13 +271,8 @@
     <Style x:Key="SectionPanelTop" TargetType="Border" BasedOn="{StaticResource SectionPanel}" />
     <Style x:Key="SectionPanelBottom" TargetType="Border" BasedOn="{StaticResource SectionPanel}" />
     <Style x:Key="SectionHeader" TargetType="Grid"><Setter Property="Margin" Value="0,0,0,7" /></Style>
-    <Style x:Key="SectionNum" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
-        <Setter Property="FontSize" Value="10" />
-        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-        <Setter Property="Margin" Value="0,0,8,0" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-    </Style>
+    <!-- v0.8.4: section numbers (01-06) removed at Amine's request; the icon alone names the section, like Fluent. -->
+    <Style x:Key="SectionNum" TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed" /></Style>
     <Style x:Key="SectionIcon" TargetType="ContentControl">
         <Setter Property="Width" Value="14" />
         <Setter Property="Height" Value="14" />
