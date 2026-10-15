@@ -68,6 +68,9 @@ public sealed class Settings
     /// <summary>Charge mode in use before Express charging was turned on (restored when it's turned off).</summary>
     public string? ChargeModeBeforeExpress { get; set; }
 
+    /// <summary>v0.8.2: true = skip every UI animation (instant, like v0.8.1). Default off.</summary>
+    public bool ReduceMotion { get; set; } = false;
+
     private static string FilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl", "settings.json");
 
@@ -89,6 +92,8 @@ public sealed class Settings
                     // ignored when read), Battery mode = index 3, theme defaults to Legend.
                     if (s.BatteryPowerIndex <= 0) s.BatteryPowerIndex = 3;
                     if (s.Theme is not ("Legend" or "Fluent")) s.Theme = "Legend";
+                    // v6 (app v0.8.2): adds ReduceMotion; older files have no key, so it reads as false (animations on).
+                    if (s.SettingsVersion < 6) s.ReduceMotion = false;
                     s.SettingsVersion = CurrentVersion;
                     s.Save();
                     return s;
@@ -102,7 +107,7 @@ public sealed class Settings
         return d;
     }
 
-    private const int CurrentVersion = 5;
+    private const int CurrentVersion = 6;
     public int SettingsVersion { get; set; } = CurrentVersion;
 
     public void Save()
