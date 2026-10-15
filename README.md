@@ -31,8 +31,7 @@ Alien Control is GUI only. Every button runs one of T-Troll's command-line tools
 | Lighting (per-key keyboard + chassis) | alienfx-cli | `setone` on every light ID, `setdim`, `setglobal` |
 | G-key (F1) | app | global keyboard hook (always on), toggles `setgmode` |
 | Refresh rate 60 / 240 Hz | app | `EnumDisplaySettings` / `ChangeDisplaySettingsEx` on the primary display (resolution kept) |
-| Power readout | app | CPU: `\EsifDeviceInformation(*)\RAPL Power` (Intel DTT) · GPU: NVIDIA NVML (`nvml.dll`, plugged in only) · Total: battery discharge rate (on battery only) |
-| Faster charging (experimental) | app | Dell BIOS WMI ExpressCharge attribute (gear menu, hidden if not exposed) |
+| Power readout (every 1 s) | app | CPU: `\EsifDeviceInformation(*)\RAPL Power` (Intel DTT) · GPU: NVIDIA NVML (`nvml.dll`, plugged in only) · Total: battery discharge rate on battery; on AC an estimate `~N W` = CPU + GPU + rest of the laptop (learned on battery) |
 | GPU mode report | app | "Check Ultimate support": adapters, internal-panel GPU and Dell BIOS WMI attributes |
 
 Sensors are polled only while the window is open; closed, it idles in the tray.
@@ -81,12 +80,12 @@ underline and pulses once, the profile chip fades to its new color, and the gear
 only opacity and scale/position, are capped at 60 fps, never loop and never run while the window is hidden.
 **Reduce motion** in the gear menu turns all of them off (saved in settings, off by default).
 
-The gear menu also holds **Detect key** for the G-key, **Reduce motion** and the experimental **Faster charging** toggle.
+The gear menu also holds **Detect key** for the G-key and **Reduce motion**.
 
 ### Tray profiles
 
 Right-click the tray icon: Battery (amber), Quiet (green), Balanced (cyan), Performance (red), Custom (white).
-A profile sets the power mode and refresh rate (Battery/Quiet 60 Hz, Balanced/Performance 240 Hz; Custom changes
+A profile sets the power mode and refresh rate (Battery 60 Hz, Quiet/Balanced/Performance 240 Hz; Custom changes
 nothing). Profiles never touch the GPU mode and never use Ultimate.
 The header shows the current profile as a small read-only chip next to the model badge ("● BALANCED" in Legend,
 "● Balanced" in Fluent), tinted like the tray icon. It follows tray picks, mode buttons and refresh rate changes.
@@ -121,6 +120,7 @@ RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemor
 
 ## Status
 
+v0.8.5: Quiet preset at 240 Hz, power readout every 1 s with an AC total estimate, Faster charging removed, BIOS report fixes, temporary animation log.
 v0.8.4: Legend drops the section numbers (icons only), Fluent shows brightness once.
 v0.8.3: sharper rendering (shadow moved off the card, ClearType, layout rounding) and a neutral Fluent background.
 v0.8.2: subtle animations with a Reduce motion switch.
