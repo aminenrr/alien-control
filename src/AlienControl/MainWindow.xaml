@@ -99,9 +99,11 @@
                     </Border>
                 </UniformGrid>
                 <UniformGrid Columns="2" Margin="0,0,0,10">
-                    <Border Style="{StaticResource StatCard}">
+                    <Border x:Name="RamCard" Style="{StaticResource StatCard}" Cursor="Hand"
+                            MouseLeftButtonUp="RamCard_LeftClick" MouseRightButtonUp="RamCard_RightClick"
+                            ToolTip="Click: quick RAM clean · Right-click: deep clean (also clears the file cache)">
                         <StackPanel>
-                            <TextBlock Text="RAM" Style="{StaticResource StatLabel}" />
+                            <TextBlock x:Name="RamLabel" Text="RAM  ·  click to clean" Style="{StaticResource StatLabel}" />
                             <TextBlock Margin="0,2,0,0">
                                 <Run x:Name="RamText" Text="--" FontSize="22" FontWeight="SemiBold" Foreground="#F2F5F8" />
                                 <Run x:Name="RamTextUnit" Text="/ -- GB" FontSize="12" Foreground="{StaticResource MutedText}" />
@@ -149,6 +151,23 @@
                     <ui:ToggleSwitch x:Name="GKeyToggle" Grid.Column="1" Margin="0,0,10,0" Click="GKeyToggle_Click" />
                     <Button Grid.Column="2" Style="{StaticResource CardButton}" Padding="12,6" Content="Detect key" Click="GKeyDetect_Click" />
                 </Grid>
+
+                <!-- GPU mode -->
+                <Grid Margin="4,0,4,6">
+                    <TextBlock Text="🎮  GPU Mode" Style="{StaticResource SectionTitle}" />
+                    <TextBlock x:Name="GpuHint" Text="" Style="{StaticResource SectionHint}" Cursor="Hand"
+                               MouseLeftButtonUp="GpuHint_Click" ToolTip="Click to copy a GPU/BIOS report" />
+                </Grid>
+                <UniformGrid Columns="4" Margin="0,0,0,10">
+                    <RadioButton x:Name="GpuEco" GroupName="Gpu" Style="{StaticResource ModeButton}" Click="Gpu_Click"
+                                 Tag="&#xEC0A;" Content="Eco" ToolTip="RTX off, Intel only. Best battery." />
+                    <RadioButton x:Name="GpuStandard" GroupName="Gpu" Style="{StaticResource ModeButton}" Click="Gpu_Click"
+                                 Tag="&#xE7F4;" Content="Standard" ToolTip="Hybrid: Intel drives the screen, RTX wakes when needed." />
+                    <RadioButton x:Name="GpuUltimate" GroupName="Gpu" Style="{StaticResource ModeButton}" Click="Gpu_Click"
+                                 Tag="&#xE945;" Content="Ultimate" ToolTip="MUX: RTX drives the screen. Needs a restart." />
+                    <RadioButton x:Name="GpuOptimized" GroupName="Gpu" Style="{StaticResource ModeButton}" Click="Gpu_Click"
+                                 Tag="&#xE83E;" Content="Optimized" ToolTip="Eco on battery, Standard when plugged in." />
+                </UniformGrid>
 
                 <!-- CPU boost (AC) -->
                 <Grid Margin="4,0,4,6">
@@ -277,7 +296,7 @@
                         <ui:ToggleSwitch x:Name="StartupToggle" Click="Startup_Click" />
                         <TextBlock Text="Run on startup" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#C9D2DC" FontSize="13" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.6.3" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <TextBlock x:Name="VersionText" Text="v0.7.0" HorizontalAlignment="Center" VerticalAlignment="Center"
                                Foreground="{StaticResource MutedText}" FontSize="12" />
                     <Button Style="{StaticResource CardButton}" Padding="18,7" Margin="0" Content="Quit" HorizontalAlignment="Right" Click="Quit_Click" />
                 </Grid>
