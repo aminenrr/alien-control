@@ -572,7 +572,14 @@ public partial class MainWindow : Window
     /// <summary>G-key press: toggle G-Mode; turning it off returns to the last power mode.</summary>
     private async Task ToggleGModeAsync()
     {
-        var current = await _fan.GetGModeAsync() ?? _gmodeOn;
+        // v1.0.0-rc1: toast + sound right on the key press (they used to wait for the CLI calls, ~1 s).
+        // _gmodeOn is kept in sync by every read, so no extra getgmode call before acting.
+        var current = _gmodeOn;
+        if (!current)
+            Notify(TrayProfile.GMode, "F1 · fans max" + (_settings.OcOn && OnAc && (_settings.OcCore | _settings.OcMem) != 0
+                ? $" · OC +{_settings.OcCore} / +{_settings.OcMem}" : ""), Sounds.Kind.GModeOn);
+        else
+            Notify(CurrentProfile, $"F1 · G-Mode off · back to {Profiles.Label(CurrentProfile)}", Sounds.Kind.GModeOff);
         if (current)
         {
             await _fan.SetGModeAsync(false);
@@ -588,12 +595,6 @@ public partial class MainWindow : Window
         UpdateProfileFromState();
         await SyncOcAsync();
         await SyncIndicatorsAsync();
-        // v0.9.11 toast (F1 only)
-        if (_gmodeOn)
-            Notify(TrayProfile.GMode, "F1 · fans max" + (_settings.OcOn && OcAllowed && _ocApplied is { } oc && (oc.Core | oc.Mem) != 0
-                ? $" · OC +{oc.Core} / +{oc.Mem}" : ""), Sounds.Kind.GModeOn);
-        else
-            Notify(CurrentProfile, $"F1 · G-Mode off · back to {Profiles.Label(CurrentProfile)}", Sounds.Kind.GModeOff);
     }
 
     private void GKeyDetect_Click(object sender, RoutedEventArgs e)
@@ -1324,9 +1325,15 @@ public partial class MainWindow : Window
     private async Task CyclePresetAsync()
     {
         if (!_settings.F2Presets || _gmodeOn) return;
-        var next = NextPreset(CurrentProfile);
+        var cur = CurrentProfile;
+        var next = NextPreset(cur);
+        // v1.0.0-rc1: toast first, then apply (no ~1 s wait). Into / out of Battery changes the refresh rate,
+        // which blanks the screen, so those still toast after the switch (Notify waits for the screen).
+        bool rate = cur == TrayProfile.Battery || next == TrayProfile.Battery;
+        void Show() => Notify(next, $"F2 · next: {Profiles.Label(NextPreset(next))}", Sounds.Kind.Tick, cycle: next != TrayProfile.Battery);
+        if (!rate) Show();
         await ApplyProfileAsync(next);
-        Notify(next, $"F2 · next: {Profiles.Label(NextPreset(next))}", Sounds.Kind.Tick, cycle: next != TrayProfile.Battery);
+        if (rate) Show();
     }
 
     private static TrayProfile NextPreset(TrayProfile p) => p switch

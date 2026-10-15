@@ -4,6 +4,8 @@ Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Unt
 
 ## v1.0.0-rc1 (2026-10-15), untested
 - F2 no longer lights up in the preset color (too distracting); it stays the keyboard color.
+- F1 / F2 toast and sound fire right on the key press instead of after the CLI calls (~1 s sooner). F2 into or out of
+  Battery still waits for the refresh-rate change. No extra CPU or RAM.
 - Release candidate: no new features. Version shows as `1.0.0-rc1` in the footer and the About line.
 - Full hardware regression pass (checklist in docs/RC-CHECKLIST.md) before 1.0.0.
 
