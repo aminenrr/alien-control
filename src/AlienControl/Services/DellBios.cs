@@ -23,12 +23,40 @@ public static class DellBios
             using var s = new ManagementObjectSearcher(Namespace, "SELECT * FROM EnumerationAttribute");
             foreach (ManagementObject o in s.Get())
                 using (o)
-                    list.Add(new Attr(o["AttributeName"]?.ToString() ?? "",
-                        (o["CurrentValue"] as string[])?.FirstOrDefault() ?? "",
+                    list.Add(new Attr(o["AttributeName"]?.ToString() ?? "", First(o["CurrentValue"]),
                         (o["PossibleValue"] as string[]) ?? Array.Empty<string>()));
         }
         catch { }
         return list;
+    }
+
+    /// <summary>CurrentValue comes back as a string on some BIOSes and as string[] on others (v0.8.5 fix:
+    /// the v0.8.0 report showed it empty because only string[] was read).</summary>
+    public static string First(object? v) => v switch
+    {
+        string[] a => a.FirstOrDefault() ?? "",
+        string s => s,
+        null => "",
+        _ => v.ToString() ?? ""
+    };
+
+    /// <summary>Whether a BIOS Admin / System password is set (root\dcim\sysman\wmisecurity PasswordObject).
+    /// Writes need it when set. Returns "Admin: no, System: no" style text, or null if the class isn't there.</summary>
+    public static string? PasswordState()
+    {
+        try
+        {
+            using var s = new ManagementObjectSearcher(@"root\dcim\sysman\wmisecurity", "SELECT * FROM PasswordObject");
+            var parts = new List<string>();
+            foreach (ManagementObject o in s.Get())
+                using (o)
+                {
+                    var set = Convert.ToUInt32(o["IsPasswordSet"] ?? 0u) != 0;
+                    parts.Add($"{o["NameId"]}: {(set ? "SET" : "no")}");
+                }
+            return parts.Count == 0 ? null : string.Join(", ", parts);
+        }
+        catch { return null; }
     }
 
     /// <summary>Sets a BIOS attribute. Returns null on success or an error message.</summary>
