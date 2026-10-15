@@ -169,7 +169,7 @@ public partial class MainWindow : Window
         var ver = (System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(MainWindow).Assembly)?.InformationalVersion
                    ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1").Split('+')[0];
         VersionText.Text = "v" + ver;
-        AboutText.Text = $"Alien Controls {ver}. Fans, power and lighting by alienfx-tools (T-Troll, MIT). Not made by Dell or Alienware.";
+        AboutText.Text = $"Alien Controls {ver}. Fans, power and lighting by alienfx-tools (T-Troll, MIT). Not made by Dell or Alienware. Personal project built with AI help, use at your own risk.";
         StartupToggle.IsChecked = Startup.IsEnabled();
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
         InitAuto(); // v0.9.11 auto preset + toasts

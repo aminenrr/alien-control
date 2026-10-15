@@ -189,31 +189,11 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-v0.9.7: GPU overclock (core / memory offsets, G-Mode on AC only, 20 s keep-or-revert), tested.
-v0.9.8: G-Mode chip / tray tint, compact Fluent.
-v0.9.9: white G-Mode, violet Custom, G-Mode = Aggressive CPU boost.
-v0.9.10: F2 (media mode) cycles Quiet / Balanced / Performance, F2 lit in the preset color.
-v0.9.11: auto preset on AC / battery, top-right toasts with sound for F1, F2 and plug / unplug.
-v0.9.12: toast size fix, unplug toast survives the display change.
-v0.9.13: idle trim (event-driven status keys, memory trim in the tray), tested: ~20 MB open, a few MB in the tray.
-v0.9.14: single ReadyToRun exe for faster start, tested.
-v0.9.15: Reset settings, About line, plainer error messages, docs cleanup.
-v0.9.16: F3 opens / hides the app (handheld-style quick menu), tested.
-v1.0.0-rc1: release candidate, full regression pass; F2 no longer tinted.
-**v1.0.0: first stable release.** Download it from the Releases page.
-v0.8.10: icons take a new accent on the first click; "Performance" fits in Legend.
-v0.8.9: profiles set CPU boost, minimize slides into the screen edge.
-v0.8.8: window open/close slide moves the window itself (native), fixing the slide that never showed.
-v0.8.7: tray left click toggles the window, tray menu follows the theme with accent text.
-v0.8.6: animation fix (Quick Settings style window slide, visible hover/press/selection), temporary animation log removed.
-v0.8.5: Quiet preset at 240 Hz, power readout every 1 s with an AC total estimate, Faster charging removed, BIOS report fixes, temporary animation log.
-v0.8.4: Legend drops the section numbers (icons only), Fluent shows brightness once.
-v0.8.3: sharper rendering (shadow moved off the card, ClearType, layout rounding) and a neutral Fluent background.
-v0.8.2: subtle animations with a Reduce motion switch.
-v0.8.1: read-only current-profile chip in the header, tinted like the tray icon.
-v0.8: redesign with Legend and Fluent themes, gear settings menu, G-key always on, Battery power mode, refresh rate 60/240 Hz,
-power readout, tray profiles with tinted icon, experimental Faster charging, GPU row renamed (preview only) with the Ultimate support check.
-v0.7: click the RAM card for a quick clean, right-click for a deep clean. GPU modes Eco / Standard / Ultimate (MUX via Dell BIOS WMI when exposed) / Optimized.
-v0.6: effect dropdown, Spectrum and Rainbow wave, custom RGB picker.
-v0.3: status keys (G-Mode, mutes, touchpad lock) lit by the app, last color reapplied at start.
-v0.2: verified power mode map, G-key support, per-key lighting fix, Breathe/Wave effects, GPU limit removed.
+**v1.0.0: first stable release**, tested on my m15 R7. Download it from the
+[Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the
+[CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md).
+
+## Issues and support
+
+There is no support for other models, and issues or requests may go unanswered: this is a personal project.
+Bug reports for the m15 R7 are welcome. Forks and pull requests that take the idea further are even more welcome.

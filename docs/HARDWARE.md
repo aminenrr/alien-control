@@ -50,7 +50,7 @@ There is **no** MUX/GPU-switch method in the AWCC WMI, so MUX (Ultimate) has to 
 - `HybridGraphics` [Disabled/Enabled]: the MUX. Disabled = RTX drives the panel (Ultimate), Enabled = Optimus. Restart needed.
 - `PrimaryBattChargeCfg` [Adaptive/Standard/Express/PrimAcUse/Custom], `AdvBatteryChargeCfg`, `AWThermalManagement`
   [Balanced/Battery/Quiet/Performance], `SpeedShift`, plus the usual boot/security/device toggles.
-- No BIOS password is set on this laptop, so WMI writes need no credentials.
+- WMI writes to the BIOS graphics switch need no credentials when no BIOS admin password is set.
 - RAPL counter instances: `..._20_0` reads the package power (e.g. 131 = 13.1 W) and is the one the app picks.
 
 ### XMP
