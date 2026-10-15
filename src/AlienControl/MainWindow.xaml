@@ -8,18 +8,27 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="True"
         FontFamily="{DynamicResource UiFont}"
-        TextOptions.TextFormattingMode="Display">
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+        RenderOptions.ClearTypeHint="Enabled">
 
     <!-- Every look comes from the active theme dictionary (Themes/Legend.xaml or Themes/Fluent.xaml):
          this file only references keys. No blur. v0.8.2 micro-animations (window open/hide, hover, press,
          selection, flyout, profile chip) are one-shot Opacity / RenderTransform storyboards in Motion.cs and
          MainWindow.xaml.cs; "Reduce motion" in the gear menu skips all of them. -->
 
-    <!-- 420 DIP card + 10 DIP margin for the shadow -->
-    <Border x:Name="RootCard" Margin="10" Style="{DynamicResource WindowCard}">
+    <!-- 420 DIP card + 10 DIP margin for the shadow.
+         v0.8.3 sharpness fix: the shadow lives on its OWN empty Border behind the card. An Effect on the card itself
+         renders all text and icons through an offscreen bitmap (soft, grayscale, blurry at 125%). The card has an
+         opaque background, so ClearTypeHint lets text use ClearType even in this transparent window.
+         RootCard (the Grid) is what the open/hide animations move and fade. -->
+    <Grid x:Name="RootCard" Margin="10">
+    <Border x:Name="CardShadow" Style="{DynamicResource WindowCard}" IsHitTestVisible="False">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="18" ShadowDepth="0" Opacity="0.55" Color="Black" />
+            <DropShadowEffect BlurRadius="18" ShadowDepth="0" Opacity="0.55" Color="Black" RenderingBias="Performance" />
         </Border.Effect>
+    </Border>
+    <Border x:Name="CardBody" Style="{DynamicResource WindowCard}" RenderOptions.ClearTypeHint="Enabled">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -331,7 +340,7 @@
                                         </RadioButton>
                                         <Popup x:Name="CustomPopup" PlacementTarget="{Binding ElementName=CustomSwatch}" Placement="Top"
                                                StaysOpen="False" AllowsTransparency="True" VerticalOffset="-6">
-                                            <Border Style="{DynamicResource PopupPanel}" Width="280">
+                                            <Border Style="{DynamicResource PopupPanel}" Width="280" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display" RenderOptions.ClearTypeHint="Enabled">
                                                 <StackPanel>
                                                     <Grid Margin="0,0,0,10">
                                                         <TextBlock Text="Custom color" Style="{DynamicResource PopupTitle}" />
@@ -424,7 +433,7 @@
                         <CheckBox x:Name="StartupToggle" Style="{DynamicResource ToggleBox}" Click="Startup_Click" VerticalAlignment="Center" />
                         <TextBlock Text="Run on startup" Margin="9,0,0,0" Style="{DynamicResource FooterText}" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.8.2" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
+                    <TextBlock x:Name="VersionText" Text="v0.8.3" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="SettingsButton" Style="{DynamicResource GhostButton}" Padding="7,5" Margin="0,0,6,0" Click="Settings_Click" ToolTip="Settings">
                             <ContentControl Style="{DynamicResource ButtonIcon}" Margin="0" Content="{DynamicResource Icon.Settings}" />
@@ -442,7 +451,7 @@
                            StaysOpen="True" AllowsTransparency="True" VerticalOffset="-8" HorizontalOffset="-230">
                         <!-- v0.8.2: StaysOpen=True so closing can fade/slide out; MainWindow closes it on an outside click,
                              on deactivate, on hide and on minimize. -->
-                        <Border x:Name="SettingsPanel" Style="{DynamicResource PopupPanel}" Width="290">
+                        <Border x:Name="SettingsPanel" Style="{DynamicResource PopupPanel}" Width="290" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display" RenderOptions.ClearTypeHint="Enabled">
                             <StackPanel>
                                 <TextBlock Text="{DynamicResource Str.Settings}" Style="{DynamicResource PopupTitle}" Margin="0,0,0,12" />
 
@@ -494,4 +503,5 @@
             </Border>
         </Grid>
     </Border>
+    </Grid>
 </Window>
