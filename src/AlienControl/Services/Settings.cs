@@ -11,6 +11,7 @@ public sealed class Settings
     // setpower takes an index; getpower reports the raw BIOS value.
     // Verified on the m15 R7 (System ID 83886594):
     //   1 = a0 Balanced, 2 = a1 Balanced-Performance, 3 = a5 Battery Saver, 4 = a3 Quiet, 5 = a4 Performance
+    public int BatteryPowerIndex { get; set; } = 3;     // a5 Low Power / Battery Saver
     public int QuietPowerIndex { get; set; } = 4;
     public int BalancedPowerIndex { get; set; } = 1;
     public int PerformancePowerIndex { get; set; } = 2; // a1; index 5 (a4) is the G-Mode table
@@ -51,16 +52,21 @@ public sealed class Settings
     /// <summary>APIv5 effect type: 0 Static, 2 Breathing, 3 Wave, 4 Dual wave, 8 Pulse, 9 Mixed pulse, 10 Night Rider, 11 Laser.</summary>
     public int LastEffect { get; set; } = 0;
 
-    // G-key (F1 G-Mode key). AWCC used to handle it; the app now listens for it.
-    // Virtual-key code; 0x80 = F17, the usual Dell G-key. Use "Detect" in the app to learn yours.
-    public bool GKeyEnabled { get; set; } = true;
+    // G-key (F1 G-Mode key). AWCC used to handle it; the app now listens for it. Always on since v0.8.
+    // Virtual-key code; 0x80 = F17, the usual Dell G-key. Use "Detect key" (gear menu) to learn yours.
     public int GKeyVk { get; set; } = 0x80;
     public int GKeyScan { get; set; } = 0; // 0 = match any scan code
 
     public int PollSeconds { get; set; } = 2;
 
-    /// <summary>GPU "Optimized": Eco on battery, Standard on AC.</summary>
-    public bool GpuOptimized { get; set; } = false;
+    /// <summary>UI theme: "Legend" (default) or "Fluent".</summary>
+    public string Theme { get; set; } = "Legend";
+
+    /// <summary>Tray profile: Battery, Quiet, Balanced, Performance or Custom.</summary>
+    public string Profile { get; set; } = "Custom";
+
+    /// <summary>Charge mode in use before Express charging was turned on (restored when it's turned off).</summary>
+    public string? ChargeModeBeforeExpress { get; set; }
 
     private static string FilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl", "settings.json");
@@ -73,12 +79,16 @@ public sealed class Settings
             {
                 var s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath));
                 if (s is not null && s.SettingsVersion >= CurrentVersion) return s;
-                if (s is not null && s.SettingsVersion is 2 or 3)
+                if (s is not null && s.SettingsVersion is >= 2 and < CurrentVersion)
                 {
                     // v2 sent the power button (ID 2) and missed half the ring (ID 1).
                     if (s.SettingsVersion == 2) s.ChassisLights = new[] { 0, 1, 3 };
                     // v3 mapped Performance to index 5 (a4), which is the G-Mode table.
                     if (s.PerformancePowerIndex == 5) s.PerformancePowerIndex = 2;
+                    // v5 (app v0.8): the G-key is always on (GKeyEnabled and GpuOptimized are dropped and
+                    // ignored when read), Battery mode = index 3, theme defaults to Legend.
+                    if (s.BatteryPowerIndex <= 0) s.BatteryPowerIndex = 3;
+                    if (s.Theme is not ("Legend" or "Fluent")) s.Theme = "Legend";
                     s.SettingsVersion = CurrentVersion;
                     s.Save();
                     return s;
@@ -92,7 +102,7 @@ public sealed class Settings
         return d;
     }
 
-    private const int CurrentVersion = 4;
+    private const int CurrentVersion = 5;
     public int SettingsVersion { get; set; } = CurrentVersion;
 
     public void Save()
