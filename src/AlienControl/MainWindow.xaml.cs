@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private bool _lightsManaged;   // true once the app has set a color (keyboard left firmware mode)
     private bool _indicatorBusy;
     private readonly DispatcherTimer _poll = new();
+    private readonly DispatcherTimer _powerTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool _polling;
     private bool _allowClose;
     private int _fanCount = 2;
@@ -46,6 +47,7 @@ public partial class MainWindow : Window
         // Only the active theme dictionary is loaded; it must be there before the XAML resolves its keys.
         App.ApplyTheme(_settings.Theme);
         Motion.Enabled = !_settings.ReduceMotion;   // v0.8.2: Reduce motion = no animations at all
+        MotionLog.Start(Motion.Enabled);            // TEMPORARY v0.8.5 diagnostics, remove with MotionLog.cs
         InitializeComponent();
         ReduceMotionToggle.IsChecked = _settings.ReduceMotion;
         ThemeLegend.IsChecked = IsLegend;
@@ -75,6 +77,8 @@ public partial class MainWindow : Window
 
         _poll.Interval = TimeSpan.FromSeconds(Math.Max(1, _settings.PollSeconds));
         _poll.Tick += async (_, _) => await RefreshSensorsAsync();
+        _powerTimer.Tick += async (_, _) => await RefreshPowerAsync();
+        _power.RestW = _settings.RestOfSystemW;
 
         // Poll sensors only while the window is visible; idle in the tray.
         IsVisibleChanged += async (_, _) =>
@@ -87,8 +91,14 @@ public partial class MainWindow : Window
                 _ = RefreshGpuHintAsync();
                 await RefreshStateAsync();
                 _poll.Start();
+                _powerTimer.Start();
             }
-            else { _poll.Stop(); CloseSettings(instant: true); }
+            else
+            {
+                _poll.Stop(); _powerTimer.Stop(); CloseSettings(instant: true);
+                // Keep the learned rest-of-laptop power for the AC estimate (saved only when it moved).
+                if (Math.Abs(_settings.RestOfSystemW - _power.RestW) >= 1) { _settings.RestOfSystemW = Math.Round(_power.RestW, 1); _settings.Save(); }
+            }
         };
 
         // v0.8.2 gear flyout (StaysOpen=True so it can animate out): close on outside click / deactivate / minimize.
@@ -114,9 +124,6 @@ public partial class MainWindow : Window
         UpdateProfileChip(CurrentProfile);
         VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1");
         StartupToggle.IsChecked = Startup.IsEnabled();
-
-        // Experimental ExpressCharge: one BIOS WMI read at start; the row stays hidden if not exposed.
-        Dispatcher.BeginInvoke(new Action(async () => await RefreshExpressAsync()));
 
         if (!_fan.IsAvailable || !_fx.IsAvailable)
             Status("Put alienfan-cli.exe and alienfx-cli.exe in the tools folder next to AlienControl.exe.");
@@ -179,7 +186,8 @@ public partial class MainWindow : Window
     {
         _showGen++;
         _hiding = false;
-        if (!Motion.Enabled) { ResetCard(); return; }
+        if (!Motion.Enabled) { MotionLog.Write("open: skipped (Motion.Enabled=false)"); ResetCard(); return; }
+        MotionLog.Write($"open: fromCurrent={fromCurrent} Opacity={RootCard.Opacity} WindowState={WindowState}");
         var shift = Motion.Translate(RootCard);
         int gen = _showGen;
         // On completion drop the held animation values, so the card ends at exact Opacity 1 / Y 0 (ClearType, crisp text).
@@ -201,7 +209,8 @@ public partial class MainWindow : Window
     {
         CloseSettings(instant: true);
         if (!IsVisible) return;
-        if (!Motion.Enabled || WindowState == WindowState.Minimized || _hiding) { HideNow(); return; }
+        if (!Motion.Enabled || WindowState == WindowState.Minimized || _hiding)
+        { MotionLog.Write($"hide: instant (Enabled={Motion.Enabled} State={WindowState} hiding={_hiding})"); HideNow(); return; }
         _hiding = true;
         int gen = ++_showGen;
         try
@@ -211,14 +220,14 @@ public partial class MainWindow : Window
                 (RootCard, OpacityProperty, Motion.Tween(null, 0, 120, Motion.Quad)),
                 (shift, TranslateTransform.YProperty, Motion.Tween(null, 8, 120, Motion.Quad)));
         }
-        catch { HideNow(); return; }
+        catch (Exception ex) { MotionLog.Write($"hide: exception {ex.GetType().Name}: {ex.Message}"); HideNow(); return; }
         _ = HideSafetyNetAsync(gen);
     }
 
     private async Task HideSafetyNetAsync(int gen)
     {
         await Task.Delay(400);
-        if (gen == _showGen && _hiding) HideNow();
+        if (gen == _showGen && _hiding) { MotionLog.Write("hide: safety net fired (storyboard never completed)"); HideNow(); }
     }
 
     private void HideNow()
@@ -345,9 +354,19 @@ public partial class MainWindow : Window
             if (SystemStats.Ram() is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
             if (_stats.Vram() is { } vram) SetMem(VramText, VramTextUnit, VramBar, vram.Used, vram.Total);
 
-            ShowPower(await Task.Run(_power.Sample));
         }
         finally { _polling = false; }
+    }
+
+    // v0.8.5: power has its own 1 s timer (perf counter + NVML are cheap; the 2 s sensor poll spawns alienfan-cli).
+    private bool _powerBusy;
+    private async Task RefreshPowerAsync()
+    {
+        if (_powerBusy) return;
+        _powerBusy = true;
+        try { ShowPower(await Task.Run(_power.Sample)); }
+        catch { }
+        finally { _powerBusy = false; }
     }
 
     /// <summary>One power line; parts without a source are hidden, the line hides when none answers.</summary>
@@ -358,7 +377,10 @@ public partial class MainWindow : Window
         PwrTotal.Visibility = r.TotalW is null ? Visibility.Collapsed : Visibility.Visible;
         PwrCpuValue.Text = $"{r.CpuW} W";
         PwrGpuValue.Text = $"{r.GpuW} W";
-        PwrTotalValue.Text = $"{r.TotalW} W";
+        PwrTotalValue.Text = r.TotalEstimated ? $"~{r.TotalW} W" : $"{r.TotalW} W";
+        PwrTotal.ToolTip = r.TotalEstimated
+            ? "Estimate on AC: CPU + GPU + rest of the laptop (learned on battery)"
+            : "Measured: battery discharge rate";
         PwrDot1.Visibility = r.CpuW is not null && (r.GpuW is not null || r.TotalW is not null) ? Visibility.Visible : Visibility.Collapsed;
         PwrDot2.Visibility = r.GpuW is not null && r.TotalW is not null ? Visibility.Visible : Visibility.Collapsed;
         PwrRow.Visibility = r.CpuW is null && r.GpuW is null && r.TotalW is null ? Visibility.Collapsed : Visibility.Visible;
@@ -967,31 +989,5 @@ public partial class MainWindow : Window
                 { match = p; break; }
         }
         SetProfile(match);
-    }
-
-    // ---------- experimental ExpressCharge (Dell BIOS WMI) ----------
-
-    private DellBios.Attr? _express;
-
-    private async Task RefreshExpressAsync()
-    {
-        _express = await Task.Run(DellBios.FindExpressCharge);
-        ExpressRow.Visibility = _express is null ? Visibility.Collapsed : Visibility.Visible;
-        if (_express is not null)
-        {
-            ExpressToggle.IsChecked = DellBios.IsExpressOn(_express);
-            ExpressText.Text = $"Experimental · Dell ExpressCharge ({_express.Name} = {_express.Current})";
-        }
-    }
-
-    private async void Express_Click(object sender, RoutedEventArgs e)
-    {
-        if (_express is null) return;
-        bool on = ExpressToggle.IsChecked == true;
-        if (on && !DellBios.IsExpressOn(_express)) { _settings.ChargeModeBeforeExpress = _express.Current; _settings.Save(); }
-        var attr = _express;
-        var err = await Task.Run(() => DellBios.SetExpressCharge(attr, on, _settings.ChargeModeBeforeExpress));
-        Status(err ?? (on ? "Faster charging on (ExpressCharge)." : "Faster charging off."));
-        await RefreshExpressAsync();
     }
 }
