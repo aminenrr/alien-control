@@ -7,7 +7,7 @@ public class HidProbe : Form {
   [StructLayout(LayoutKind.Sequential)] struct RID { public ushort Page, Usage; public uint Flags; public IntPtr Target; }
   [StructLayout(LayoutKind.Sequential)] struct RIDL { public IntPtr h; public uint type; }
   [StructLayout(LayoutKind.Sequential)] struct HDR { public uint type, size; public IntPtr dev, w; }
-  [StructLayout(LayoutKind.Sequential)] struct INFO { public uint cb, type; public uint vid, pid, ver; public ushort page, usage; }
+  [StructLayout(LayoutKind.Sequential)] struct INFO { public uint cb, type; public uint vid, pid, ver; public ushort page, usage; public uint pad1, pad2; }
   [DllImport("user32.dll")] static extern bool RegisterRawInputDevices(RID[] r, uint n, uint cb);
   [DllImport("user32.dll")] static extern uint GetRawInputDeviceList([Out] RIDL[] l, ref uint n, uint cb);
   [DllImport("user32.dll")] static extern uint GetRawInputDeviceInfo(IntPtr h, uint cmd, ref INFO d, ref uint cb);
@@ -24,7 +24,7 @@ public class HidProbe : Form {
       GetRawInputDeviceInfo(d.h, 0x2000000b, ref i, ref cb);
       string s = string.Format("{0:X4}:{1:X4} page 0x{2:X4} usage 0x{3:X2}", i.vid, i.pid, i.page, i.usage);
       names[d.h] = s; Console.WriteLine("found  " + s);
-      if (i.page == 0x0D) continue;   // touchpad spam
+      if (i.page == 0x0D || (i.page == 1 && i.usage == 2)) continue;   // touchpad / mouse spam
       if (pairs.Add(((uint)i.page << 16) | i.usage)) regs.Add(new RID { Page = i.page, Usage = i.usage, Flags = 0x100, Target = Handle });
     }
     Console.WriteLine(RegisterRawInputDevices(regs.ToArray(), (uint)regs.Count, (uint)Marshal.SizeOf(typeof(RID)))
