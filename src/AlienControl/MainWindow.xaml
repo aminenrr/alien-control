@@ -433,7 +433,7 @@
                         <CheckBox x:Name="StartupToggle" Style="{DynamicResource ToggleBox}" Click="Startup_Click" VerticalAlignment="Center" />
                         <TextBlock Text="Run on startup" Margin="9,0,0,0" Style="{DynamicResource FooterText}" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.8.3" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
+                    <TextBlock x:Name="VersionText" Text="v0.8.4" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="SettingsButton" Style="{DynamicResource GhostButton}" Padding="7,5" Margin="0,0,6,0" Click="Settings_Click" ToolTip="Settings">
                             <ContentControl Style="{DynamicResource ButtonIcon}" Margin="0" Content="{DynamicResource Icon.Settings}" />
