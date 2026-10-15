@@ -11,13 +11,19 @@ namespace AlienControl.Services;
 /// Power readout without third-party drivers (no HWiNFO, LibreHardwareMonitor or WinRing0):
 ///   CPU   = \EsifDeviceInformation(*)\RAPL Power (Intel DTT driver, value / 10 = W)
 ///   GPU   = NVML nvmlDeviceGetPowerUsage (nvml.dll ships with the NVIDIA driver)
-///   Total = battery discharge rate (IOCTL_BATTERY_QUERY_STATUS), only on battery; on AC there's no wall meter.
-/// Each part is null when its source isn't available. Values are 3-sample averages in whole watts.
-/// Called from the sensor poll, so it only runs while the window is open.
+///   Total = battery discharge rate (IOCTL_BATTERY_QUERY_STATUS) on battery (real, whole laptop).
+///           On AC there's no wall meter, so Total is an ESTIMATE (v0.8.5): CPU + GPU + "rest of the laptop"
+///           (screen, RAM, SSD, fans...). The rest is learned on battery as discharge - CPU (the RTX sleeps there),
+///           smoothed, clamped 5..40 W, and starts at 15 W until the first battery session. Shown as "~N W".
+/// Each part is null when its source isn't available. Values are 2-sample averages in whole watts.
+/// Sampled every 1 s by its own timer, only while the window is open (v0.8.5; was 2 s x 3 samples).
 /// </summary>
 public sealed class PowerMeter : IDisposable
 {
-    public sealed record Reading(int? CpuW, int? GpuW, int? TotalW, bool OnBattery);
+    public sealed record Reading(int? CpuW, int? GpuW, int? TotalW, bool OnBattery, bool TotalEstimated);
+
+    /// <summary>Learned "rest of the laptop" power in W (persisted in settings as RestOfSystemW).</summary>
+    public double RestW { get; set; } = 15;
 
     private readonly Queue<double> _cpu = new(), _gpu = new(), _total = new();
 
@@ -173,7 +179,7 @@ public sealed class PowerMeter : IDisposable
     {
         if (v is null) { q.Clear(); return null; }
         q.Enqueue(v.Value);
-        while (q.Count > 3) q.Dequeue();
+        while (q.Count > 2) q.Dequeue();
         return (int)Math.Round(q.Average());
     }
 
@@ -187,8 +193,18 @@ public sealed class PowerMeter : IDisposable
         int? cpu = Avg(_cpu, ReadCpu());
         // On battery NVML is skipped: querying it can wake a sleeping RTX and cost battery. Total covers it there.
         int? gpu = Avg(_gpu, battery ? null : ReadGpu());
-        int? total = battery ? Avg(_total, ReadDischarge()) : Avg(_total, null);
-        return new Reading(cpu, gpu, total, battery);
+        if (battery)
+        {
+            double? discharge = ReadDischarge();
+            int? real = Avg(_total, discharge);
+            // Learn the rest-of-laptop draw (slow EMA so a single spike doesn't move it).
+            if (real is not null && cpu is not null)
+                RestW = Math.Clamp(RestW * 0.95 + Math.Clamp(real.Value - cpu.Value, 5, 40) * 0.05, 5, 40);
+            return new Reading(cpu, gpu, real, true, false);
+        }
+        _total.Clear();
+        int? est = cpu is null && gpu is null ? null : (int)Math.Round((cpu ?? 0) + (gpu ?? 0) + RestW);
+        return new Reading(cpu, gpu, est, false, est is not null);
     }
 
     /// <summary>RAPL instances and their values, for the diagnostic report.</summary>
