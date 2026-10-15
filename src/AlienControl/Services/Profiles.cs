@@ -24,7 +24,7 @@ public static class Profiles
         TrayProfile.Battery => Color.FromArgb(255, 176, 32),
         TrayProfile.Quiet => Color.FromArgb(60, 255, 122),
         TrayProfile.Balanced => Color.FromArgb(0, 229, 255),
-        TrayProfile.Performance => Color.FromArgb(255, 77, 94),
+        TrayProfile.Performance => Color.FromArgb(255, 77, 106),   // #FF4D6A (v0.8.1 mockup)
         _ => Color.White
     };
 
