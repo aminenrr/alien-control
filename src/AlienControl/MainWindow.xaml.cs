@@ -1027,14 +1027,15 @@ public partial class MainWindow : Window
 
         // v0.9.2: Advanced Optimus = NVIDIA's mode + the GPU driving the screen. Ultimate = just the RTX.
         bool rtx = k == GpuModeKind.DGpuOnly;
-        string fGpu = rtx ? "RTX 3070 Ti" : "Iris Xe", lGpu = rtx ? "3070 Ti" : "IRIS Xe";
+        // v0.9.5 (Amine): full GPU names in both themes, only the mode word follows the theme's casing
+        string gpu = rtx ? "RTX 3070 Ti" : "Intel Iris Xe";
         var (fluent, legend) = k switch
         {
-            GpuModeKind.Ultimate => ("RTX 3070 Ti", "3070 Ti"),
+            GpuModeKind.Ultimate => ("RTX 3070 Ti", "RTX 3070 Ti"),
             GpuModeKind.Unknown => ("", ""),
-            _ when _gpu.Auto => ($"Auto · {fGpu}", $"AUTO · {lGpu}"),
-            GpuModeKind.DGpuOnly => ("dGPU only · RTX 3070 Ti", "dGPU ONLY · 3070 Ti"),
-            _ => ("Optimus · Iris Xe", "OPTIMUS · IRIS Xe")
+            _ when _gpu.Auto => ($"Auto · {gpu}", $"AUTO · {gpu}"),
+            GpuModeKind.DGpuOnly => ($"dGPU only · {gpu}", $"dGPU ONLY · {gpu}"),
+            _ => ($"Optimus · {gpu}", $"OPTIMUS · {gpu}")
         };
         if (_gpu.PendingRestart)
             (fluent, legend) = _gpu.BiosUltimate == true

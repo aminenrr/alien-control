@@ -2,6 +2,10 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.5 (2026-10-15), untested
+- Efficient boost cap lowered to 3.0 GHz (Quiet is day to day: Discord, Vivaldi, Steam).
+- GPU hint uses full names: "RTX 3070 Ti" and "Intel Iris Xe" (e.g. OPTIMUS · Intel Iris Xe, Ultimate = RTX 3070 Ti).
+
 ## v0.9.4 (2026-10-15), untested
 - Efficient CPU boost (Quiet) is capped at 3.4 GHz through Windows "Maximum processor frequency" (PROCFREQMAX and
   PROCFREQMAX1, active plan, AC + battery). Any other boost level removes the cap. Services/CpuFreq.cs.
