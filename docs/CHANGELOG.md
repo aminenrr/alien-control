@@ -2,6 +2,15 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.8.5 (2026-10-15), untested
+- Presets: only Battery uses 60 Hz; Quiet, Balanced and Performance use 240 Hz.
+- Power readout every 1 s with a 2-sample average (was 2 s x 3), on its own timer, only while the window is open.
+- Total on AC: estimate `~N W` = CPU + GPU + rest of the laptop. The rest is learned on battery (discharge minus CPU),
+  starts at 15 W, saved as `RestOfSystemW` in settings. On battery the Total is still the real measured discharge.
+- Faster charging (ExpressCharge) toggle removed; now a long-term roadmap item.
+- GPU report: BIOS attribute current values were blank (WMI returns a string, not string[]); fixed. Also shows whether a BIOS password is set.
+- TEMPORARY: `%AppData%\AlienControl\motion.log` (50 lines max per launch) to find why animations don't play. Remove with the fix.
+
 ## v0.8.4 (2026-10-15), untested
 - Legend: section numbers 01-06 removed; the icon alone heads each section, like Fluent.
 - Fluent: brightness % shown once (beside the slider); the duplicate in the Lighting header is gone.
