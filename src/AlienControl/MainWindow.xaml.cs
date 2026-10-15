@@ -124,7 +124,7 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Hide();
 
-    public void AllowClose() { _allowClose = true; _stats.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
+    public void AllowClose() { StopAnimation(); _allowClose = true; _stats.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
 
     // ---------- status keys ----------
 
@@ -137,7 +137,8 @@ public partial class MainWindow : Window
         // Reapply the user's color after boot (firmware resets to its default); otherwise leave firmware lighting alone.
         if (_settings.LastColor is { Length: 3 } c)
         {
-            if (_settings.LastEffect == 0) await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, _settings.Brightness);
+            if (_settings.LastEffect >= 100) await ApplyLightingAsync(c);
+            else if (_settings.LastEffect == 0) await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, _settings.Brightness);
             else await _fx.SetEffectAsync(_settings.LastEffect, c, _settings.Brightness);
             _lightsManaged = true;
         }
@@ -354,6 +355,17 @@ public partial class MainWindow : Window
     /// <summary>Applies the saved effect (Static = per-key frame with status keys) in the given color.</summary>
     private async Task ApplyLightingAsync(byte[] c)
     {
+        StopAnimation();
+        if (_settings.LastEffect >= 100 && !c.All(v => v == 0))
+        {
+            Report(await _fx.SetChassisCycleAsync(_settings.LastEffect == 101));
+            StartAnimation(_settings.LastEffect == 101);
+            _lightsManaged = true;
+            ApplyAccent(c);
+            _settings.LastColor = c;
+            _settings.Save();
+            return;
+        }
         if (_settings.LastEffect == 0 || c.All(v => v == 0)) { await ApplyColorAsync(c); return; }
         Report(await _fx.SetEffectAsync(_settings.LastEffect, c, _settings.Brightness));
         _lightsManaged = true;
@@ -363,6 +375,43 @@ public partial class MainWindow : Window
     }
 
     private bool _effectBoxReady;
+
+    // ---------- software effects (APIv5 has no spectrum, so the app animates the keys itself) ----------
+
+    private System.Threading.CancellationTokenSource? _anim;
+
+    private void StopAnimation()
+    {
+        _anim?.Cancel();
+        _anim = null;
+    }
+
+    /// <summary>
+    /// Spectrum: all keys cycle through the hues together. Rainbow wave: hues spread across the keys
+    /// and scroll. Key IDs roughly follow rows, so the wave runs by ID until columns are mapped.
+    /// Status keys stay white when on, because every frame includes them.
+    /// </summary>
+    private void StartAnimation(bool wave)
+    {
+        var cts = new System.Threading.CancellationTokenSource();
+        _anim = cts;
+        var token = cts.Token;
+        Task.Run(async () =>
+        {
+            double t = 0;
+            while (!token.IsCancellationRequested)
+            {
+                var ind = new System.Collections.Generic.Dictionary<int, bool>(_indicators);
+                double hueBase = t;
+                _fx.SendFrame(i => HsvToRgb(wave ? hueBase + KeyColumn(i) * 15 : hueBase, 1), ind, _settings.Brightness);
+                t = (t + (wave ? 6 : 3)) % 360;
+                try { await Task.Delay(50, token); } catch { break; }
+            }
+        }, token);
+    }
+
+    /// <summary>Approximate column of a key: IDs run left to right in rows of about 23.</summary>
+    private static int KeyColumn(int id) => id % 23;
 
     private async void Effect_Changed(object sender, SelectionChangedEventArgs e)
     {
@@ -384,25 +433,47 @@ public partial class MainWindow : Window
 
     private void CustomSwatch_Click(object sender, RoutedEventArgs e)
     {
+        if (!_lastColor.All(v => v == 0)) _custom = (byte[])_lastColor.Clone();
         UpdateCustomPreview();
         CustomPopup.IsOpen = true;
     }
 
-    private void CustomColor_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateCustomPreview();
+    private bool _syncingRgb;
+    private byte[] _custom = { 0, 229, 255 };
 
-    private byte[] CustomColor() => HsvToRgb(HueSlider.Value, SatSlider.Value / 100.0);
+    // Sliders -> color and boxes.
+    private void CustomColor_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_syncingRgb || HueSlider is null || SatSlider is null) return;
+        _custom = HsvToRgb(HueSlider.Value, SatSlider.Value / 100.0);
+        UpdateCustomPreview();
+    }
+
+    // Typed R, G, B (0..255) -> color.
+    private void Rgb_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (_syncingRgb || RBox is null || GBox is null || BBox is null) return;
+        if (byte.TryParse(RBox.Text, out var r) && byte.TryParse(GBox.Text, out var g) && byte.TryParse(BBox.Text, out var b))
+        {
+            _custom = new[] { r, g, b };
+            if (CustomPreview is not null) CustomPreview.Background = new SolidColorBrush(Color.FromRgb(r, g, b));
+        }
+    }
 
     private void UpdateCustomPreview()
     {
-        if (CustomPreview is null || HueSlider is null || SatSlider is null) return;
-        var c = CustomColor();
+        if (CustomPreview is null || RBox is null) return;
+        var c = _custom;
         CustomPreview.Background = new SolidColorBrush(Color.FromRgb(c[0], c[1], c[2]));
+        _syncingRgb = true;
+        RBox.Text = c[0].ToString(); GBox.Text = c[1].ToString(); BBox.Text = c[2].ToString();
+        _syncingRgb = false;
     }
 
     private async void CustomApply_Click(object sender, RoutedEventArgs e)
     {
         CustomPopup.IsOpen = false;
-        _lastColor = CustomColor();
+        _lastColor = (byte[])_custom.Clone();
         await ApplyLightingAsync(_lastColor);
     }
 
@@ -420,6 +491,7 @@ public partial class MainWindow : Window
 
     private async void LightsOff_Click(object sender, RoutedEventArgs e)
     {
+        StopAnimation();
         _lastColor = new byte[] { 0, 0, 0 };
         await ApplyColorAsync(_lastColor);
     }
