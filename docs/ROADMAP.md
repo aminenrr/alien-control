@@ -3,9 +3,9 @@
 ## Road to 1.0
 - [x] v0.9.13 idle trim: event-driven status keys, memory trim in the tray (~20 MB open, a few MB in the tray, 0% CPU).
 - [x] v0.9.14 single-file ReadyToRun exe (no trimming, no compression).
-- [ ] v0.9.15 polish: Reset settings, About line, plainer error messages, docs cleanup.
-- [ ] v0.9.16 F3 opens / hides the app.
-- [ ] 1.0.0-rc1: full regression pass on the m15 R7 (every feature, both themes, AC / battery, Optimus / Ultimate).
+- [x] v0.9.15 polish: Reset settings, About line, plainer error messages, docs cleanup.
+- [x] v0.9.16 F3 opens / hides the app.
+- [ ] 1.0.0-rc1 (building): full regression pass on the m15 R7 (every feature, both themes, AC / battery, Optimus / Ultimate).
 - [ ] 1.0.0: real screenshots, changelog summary, tag `v1.0.0`, GitHub Release zip.
 
 ## After 1.0

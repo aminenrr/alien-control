@@ -165,7 +165,9 @@ public partial class MainWindow : Window
         };
 
         UpdateProfileChip(ShownProfile);
-        var ver = typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1";
+        // v1.0.0-rc1: informational version keeps the -rc suffix; drop the +commit the SDK appends.
+        var ver = (System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(MainWindow).Assembly)?.InformationalVersion
+                   ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1").Split('+')[0];
         VersionText.Text = "v" + ver;
         AboutText.Text = $"Alien Controls {ver}. Fans, power and lighting by alienfx-tools (T-Troll, MIT). Not made by Dell or Alienware.";
         StartupToggle.IsChecked = Startup.IsEnabled();
