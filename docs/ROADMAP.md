@@ -1,5 +1,15 @@
 # Roadmap
 
+## Bugs being fixed now
+- Animations (v0.8.2) don't play on the laptop with Reduce motion off. v0.8.5 logs every animation to `motion.log`;
+  fix after reading it, then delete `Services/MotionLog.cs` and its calls.
+
+## Next after the bugs
+- GPU modes: Procmon recordings (below), then wire the row.
+- Ultimate: the BIOS exposes `HybridGraphics = Disabled/Enabled` through Dell BIOS WMI (no BIOS password on this laptop),
+  so Ultimate = set `Disabled` + restart, Optimus = `Enabled` + restart. Wired together with the GPU row.
+- Talk about: notifications when a preset changes, and automatic preset on AC vs battery.
+
 ## Waiting on hardware tests
 - v0.8.0 to v0.8.2 (themes, gear menu, profiles, power readout, chip, animations) not yet run on the laptop.
 - "Check Ultimate support" report: gives the exact Dell BIOS attribute for MUX and the right RAPL counter instance.
@@ -16,6 +26,7 @@
 4. Ultimate via Dell BIOS WMI once the attribute is confirmed; restart prompt; never from a profile.
 
 ## Later
+- Long-term: Faster charging (Dell ExpressCharge via `PrimaryBattChargeCfg`), removed from the UI in v0.8.5.
 - Custom fan curve (alienfan `unlock` + boost per temperature; loop only while a curve is active).
 - Direct WMI sensor reads instead of spawning alienfan-cli in the sensor loop (biggest CPU win).
 - Mute/mic state from audio endpoint callbacks instead of polling.
