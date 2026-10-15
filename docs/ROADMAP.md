@@ -12,6 +12,7 @@
 - Direct WMI sensor reads instead of spawning alienfan-cli in the sensor loop (biggest CPU win while the window is open).
 - Faster charging (Dell ExpressCharge via `PrimaryBattChargeCfg`), removed from the UI in v0.8.5.
 - Keyboard backlight timeout when idle; effect speed; map keyboard columns for the rainbow wave.
+- Fluent theme: use the Windows 11 accent color (system blue by default) instead of the static gray accent, following accent changes live.
 - Maybe: bind F4..F6 (Macro C..E, codes 02-53 .. 02-55).
 - Maybe: toasts over fullscreen-exclusive games (they may not show there today).
 
