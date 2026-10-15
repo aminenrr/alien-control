@@ -20,7 +20,7 @@
 - "Check Ultimate support" report: gives the exact Dell BIOS attribute for MUX and the right RAPL counter instance.
 
 ## GPU switching (next big step)
-1. Amine records NVIDIA's own "Laptop display mode" switch with Sysinternals Process Monitor (filter: process name contains `nv`):
+1. Amine records NVIDIA's own "Laptop display mode" switch with Sysinternals Process Monitor (filter: write ops only (RegSetValue, RegCreateKey, RegDeleteValue, RegDeleteKey, WriteFile, DeviceIoControl, Process Create, Load Image), all processes, System exclude unticked):
    - `1-gpu-only.csv`: Optimus to NVIDIA GPU only
    - `2-auto.csv`: NVIDIA GPU only to Automatic Select
    - `3-optimus.csv`: Automatic Select to Optimus
