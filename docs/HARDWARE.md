@@ -150,3 +150,4 @@ CPU-Z Stress CPU (all 20 threads), read in HWiNFO, on AC. ThrottleStop closed (w
   - +200/+200: core 1665, memory 7101.
   - So **memory offset is in 2x units** (NVML +200 = +100 shown, the same scale AWCC uses: 7000 to 7300 for +300). Core is 1:1, but under load it can gain less than the full offset because it sits near the power wall.
   - The app shows AWCC-style MHz and sends memory x2 to NVML.
+  - v0.9.7 app check (Control, G-Mode, UI +200 / +200 = NVML +200 / +400): core 1665, memory 7201, 171 FPS (stock 161). Leaving G-Mode returns to stock.
