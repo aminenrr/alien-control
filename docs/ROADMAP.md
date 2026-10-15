@@ -33,7 +33,6 @@
 
 ## Later
 - Long-term: Faster charging (Dell ExpressCharge via `PrimaryBattChargeCfg`), removed from the UI in v0.8.5.
-- Custom fan curve (alienfan `unlock` + boost per temperature; loop only while a curve is active).
 - Direct WMI sensor reads instead of spawning alienfan-cli in the sensor loop (biggest CPU win).
 - Mute/mic state from audio endpoint callbacks instead of polling.
 - Keyboard backlight timeout when idle; effect speed; map keyboard columns for the rainbow wave.

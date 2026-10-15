@@ -292,10 +292,9 @@
                             <TextBlock x:Name="FanHint" Grid.Column="4" Style="{DynamicResource SectionHint}" />
                         </Grid>
                         <Border Style="{DynamicResource Track}">
-                            <UniformGrid Columns="3">
+                            <UniformGrid Columns="2">
                                 <RadioButton x:Name="FanAuto" GroupName="Fan" Tag="{x:Null}" Content="Auto" IsChecked="True" Style="{DynamicResource SegButton}" Click="Fan_Click" />
                                 <RadioButton x:Name="FanMax" GroupName="Fan" Tag="{x:Null}" Content="Max Boost" Style="{DynamicResource SegButton}" Click="Fan_Click" />
-                                <RadioButton x:Name="FanCurve" GroupName="Fan" Tag="{x:Null}" Content="Custom curve…" IsEnabled="False" Style="{DynamicResource SegButton}" ToolTip="Coming later" />
                             </UniformGrid>
                         </Border>
                     </StackPanel>

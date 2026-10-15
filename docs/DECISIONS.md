@@ -56,6 +56,10 @@ Why things are the way they are. Newest decisions win.
 - Faster charging removed for now, kept as a long-term goal.
 - Big changes get a detailed written plan first, approved before any code (Amine, standing rule).
 
+## Fans (2026-10-15)
+- Custom fan curve dropped (Amine, after the AlienFX Discord): the BIOS/EC owns the curve on this laptop and overrides
+  software; the app can only add boost on top. Fans row = Auto / Max Boost.
+
 ## GPU modes (2026-10-15)
 - Row: **iGPU only / Optimus / dGPU only / Ultimate**. "Optimized" and the old Eco/Standard names were dropped.
   - iGPU only: disable the NVIDIA adapter (`pnputil`). Safe and reversible; external HDMI/USB-C outputs wired to the RTX go dark.

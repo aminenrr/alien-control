@@ -2,6 +2,9 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.6 (2026-10-15), untested
+- Removed the disabled "Custom curve…" fan button. Fans row is Auto / Max Boost.
+
 ## v0.9.5 (2026-10-15), untested
 - Efficient boost cap lowered to 3.0 GHz (Quiet is day to day: Discord, Vivaldi, Steam).
 - GPU hint uses full names: "RTX 3070 Ti" and "Intel Iris Xe" (e.g. OPTIMUS · Intel Iris Xe, Ultimate = RTX 3070 Ti).
