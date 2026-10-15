@@ -2,6 +2,12 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.9 (2026-10-15), untested
+- G-Mode is **white**: the G-Mode button (both themes), the header chip and the tray icon. Custom is now violet (#B266FF).
+- G-Mode sets CPU boost to **Aggressive** (no cap) whatever it was, and puts the preset's level back when it ends
+  (Custom: the level shown before, battery Efficient), also on Quit. Picking a boost by hand inside G-Mode wins.
+  Replaces v0.9.8's cap-only lift.
+
 ## v0.9.8 (2026-10-15), untested
 - Header chip + tray icon show **G-Mode** (violet) while it's on, instead of CUSTOM. Display only: the saved preset
   isn't touched, isn't in the tray menu, and comes back when G-Mode ends.

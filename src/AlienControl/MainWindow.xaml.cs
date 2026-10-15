@@ -318,7 +318,7 @@ public partial class MainWindow : Window
         Hide();
     }
 
-    public void AllowClose() { ResetOcOnExit(); RestoreCapOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
+    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
 
     // ---------- status keys ----------
 
@@ -557,7 +557,7 @@ public partial class MainWindow : Window
         int level = int.Parse((string)((RadioButton)sender).CommandParameter);
         Report(await _fan.SetCpuBoostAsync(level, 3));
         if (await CpuFreq.ApplyAsync(level, 3) is { } err) Status(err);   // v0.9.4: Efficient = 3.0 GHz cap (v0.9.5)
-        _capLifted = false;   // v0.9.8: an explicit pick wins, even inside G-Mode
+        _boostForced = false;   // v0.9.9: an explicit pick wins, even inside G-Mode
     }
 
     private async void Fan_Click(object sender, RoutedEventArgs e)

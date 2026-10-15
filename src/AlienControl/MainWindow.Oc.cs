@@ -70,32 +70,56 @@ public partial class MainWindow
         await SyncOcAsync();
     }
 
-    private bool _capLifted;
+    private bool _boostForced;   // v0.9.9: G-Mode put CPU boost on Aggressive; undo when it ends
+    private int? _preGBoost;      // AC boost level shown before G-Mode, for Custom
 
-    /// <summary>v0.9.8: G-Mode side effects that follow every G-Mode change (same hook as OC). The header chip and tray
-    /// icon show G-Mode; Quiet's 3.0 GHz Efficient cap is lifted while G-Mode is on and put back when it ends.</summary>
+    private int? ShownBoost() =>
+        CpuOff.IsChecked == true ? 0 : CpuOn.IsChecked == true ? 1 : CpuAggressive.IsChecked == true ? 2 : CpuEfficient.IsChecked == true ? 3 : null;
+
+    /// <summary>v0.9.8/9: G-Mode side effects that follow every G-Mode change (same hook as OC). Header chip + tray icon
+    /// show G-Mode; CPU boost goes to Aggressive (no cap) while it's on, and back to the preset's level when it ends.</summary>
     private async Task SyncGModeAsync()
     {
         if (_gmodeOn && _chipProfile != TrayProfile.GMode) SetProfile(TrayProfile.GMode);
         else if (!_gmodeOn && _chipProfile == TrayProfile.GMode) SetProfile(CurrentProfile);
 
-        if (_gmodeOn && !_capLifted && CpuEfficient.IsChecked == true)
+        if (_gmodeOn && !_boostForced)
         {
-            _capLifted = true;
-            if (await CpuFreq.ApplyAsync(1, 1) is { } err) Status(err);   // cap 0 = none; boost mode itself untouched
+            _boostForced = true;
+            _preGBoost = ShownBoost();
+            Report(await _fan.SetCpuBoostAsync(2, 2));
+            if (await CpuFreq.ApplyAsync(2, 2) is { } err) Status(err);   // Aggressive = no cap
+            ShowCpuBoost(2);
         }
-        else if (!_gmodeOn && _capLifted)
+        else if (!_gmodeOn && _boostForced)
         {
-            _capLifted = false;
-            if (CpuEfficient.IsChecked == true && await CpuFreq.ApplyAsync(3, 3) is { } err) Status(err);
+            _boostForced = false;
+            await RestoreBoostAsync();
         }
     }
 
-    /// <summary>Synchronous cap restore for Quit when G-Mode lifted it.</summary>
-    private void RestoreCapOnExit()
+    /// <summary>The preset's boost (same on AC and battery), or for Custom the level shown before G-Mode (battery Efficient).</summary>
+    private (int Ac, int Dc)? RestoreLevels() =>
+        Profiles.CpuBoost(CurrentProfile) is { } b ? (b, b) : _preGBoost is { } pre ? (pre, 3) : null;
+
+    private async Task RestoreBoostAsync()
     {
-        if (!_capLifted) return;
-        try { Task.Run(() => CpuFreq.ApplyAsync(3, 3)).Wait(3000); } catch { /* exiting anyway */ }
+        if (RestoreLevels() is not { } lv) return;
+        var (ac, dc) = lv;
+        Report(await _fan.SetCpuBoostAsync(ac, dc));
+        if (await CpuFreq.ApplyAsync(ac, dc) is { } err) Status(err);
+        ShowCpuBoost(ac);
+    }
+
+    /// <summary>Synchronous boost restore for Quit when G-Mode forced Aggressive.</summary>
+    private void RestoreBoostOnExit()
+    {
+        if (!_boostForced) return;
+        _boostForced = false;
+        if (RestoreLevels() is not { } lv) return;
+        var (ac, dc) = lv;
+        try { Task.Run(async () => { await _fan.SetCpuBoostAsync(ac, dc); await CpuFreq.ApplyAsync(ac, dc); }).Wait(4000); }
+        catch { /* exiting anyway */ }
     }
 
     /// <summary>Brings the driver in line with G-Mode + AC + the kept offsets. Cheap when nothing changes.</summary>

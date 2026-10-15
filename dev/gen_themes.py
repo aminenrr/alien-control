@@ -531,22 +531,22 @@ def legend():
                         </Border>
                         <Grid VerticalAlignment="Bottom">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="22*" /><ColumnDefinition Width="56*" /><ColumnDefinition Width="22*" /></Grid.ColumnDefinitions>
-                            <Border x:Name="Glow" Grid.Column="1" Height="4" Margin="-3,0,-3,-2" CornerRadius="2" RenderTransformOrigin="0.5,0.5" Background="#55FF3B4E" Visibility="Collapsed" />
-                            <Border x:Name="Ul" Grid.Column="1" Height="2" RenderTransformOrigin="0.5,0.5" Background="#FF3B4E" Visibility="Collapsed" />
+                            <Border x:Name="Glow" Grid.Column="1" Height="4" Margin="-3,0,-3,-2" CornerRadius="2" RenderTransformOrigin="0.5,0.5" Background="#55FFFFFF" Visibility="Collapsed" />
+                            <Border x:Name="Ul" Grid.Column="1" Height="2" RenderTransformOrigin="0.5,0.5" Background="#FFFFFF" Visibility="Collapsed" />
                         </Grid>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="HoverFx" Property="Visibility" Value="Hidden" />
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="#8CFF3B4E" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#8CFFFFFF" />
                             <Setter TargetName="Bd" Property="Background">
                                 <Setter.Value>
                                     <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                        <GradientStop Color="#1FFF3B4E" Offset="0" /><GradientStop Color="#05FF3B4E" Offset="1" />
+                                        <GradientStop Color="#1FFFFFFF" Offset="0" /><GradientStop Color="#05FFFFFF" Offset="1" />
                                     </LinearGradientBrush>
                                 </Setter.Value>
                             </Setter>
-                            <Setter TargetName="Ic" Property="TextElement.Foreground" Value="#FF4D5E" />
+                            <Setter TargetName="Ic" Property="TextElement.Foreground" Value="#FFFFFF" />
                             <Setter TargetName="Ul" Property="Visibility" Value="Visible" />
                             <Setter TargetName="Glow" Property="Visibility" Value="Visible" />
                             <Setter Property="Foreground" Value="White" />
@@ -1021,13 +1021,13 @@ def fluent():
                             </StackPanel>
                         </Border>
                         <Border x:Name="Ul" Width="16" Height="3" CornerRadius="1.5" VerticalAlignment="Bottom" Margin="0,0,0,2" RenderTransformOrigin="0.5,0.5"
-                                Background="#FF6B7F" Visibility="Collapsed" />
+                                Background="White" Visibility="Collapsed" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="HoverFx" Property="Visibility" Value="Hidden" />
                             <Setter TargetName="Bd" Property="Background" Value="#16FFFFFF" />
-                            <Setter TargetName="Ic" Property="TextElement.Foreground" Value="#FF6B7F" />
+                            <Setter TargetName="Ic" Property="TextElement.Foreground" Value="White" />
                             <Setter TargetName="Ul" Property="Visibility" Value="Visible" />
                             <Setter Property="Foreground" Value="White" />
                         </Trigger>

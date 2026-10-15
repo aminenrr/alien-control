@@ -21,15 +21,15 @@ public static class Profiles
         _ => "Your own mix: nothing is changed"
     };
 
-    /// <summary>Tray icon tint: amber / green / cyan / red / white, violet for G-Mode.</summary>
+    /// <summary>Tray icon tint: amber / green / cyan / red / violet (Custom), white (G-Mode).</summary>
     public static Color Tint(TrayProfile p) => p switch
     {
         TrayProfile.Battery => Color.FromArgb(255, 176, 32),
         TrayProfile.Quiet => Color.FromArgb(60, 255, 122),
         TrayProfile.Balanced => Color.FromArgb(0, 229, 255),
         TrayProfile.Performance => Color.FromArgb(255, 77, 106),   // #FF4D6A (v0.8.1 mockup)
-        TrayProfile.GMode => Color.FromArgb(178, 102, 255),        // #B266FF (v0.9.8)
-        _ => Color.White
+        TrayProfile.GMode => Color.White,                          // v0.9.9: G-Mode is white (Amine)
+        _ => Color.FromArgb(178, 102, 255)                         // Custom: violet #B266FF (v0.9.9, was white)
     };
 
     /// <summary>Refresh rate a profile asks for, or null (Custom leaves it alone).</summary>
