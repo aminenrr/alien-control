@@ -798,8 +798,8 @@ public partial class MainWindow : Window
         ProfileChipText.Text = IsLegend ? label.ToUpperInvariant() : label;
         ProfileChipText.Foreground = B(255);
         ProfileChipDot.Fill = B(255);
-        ProfileChip.BorderBrush = B(0x8C);
-        ProfileChip.Background = B(0x14);
+        ProfileChip.BorderBrush = B(0x66);   // ~40%
+        ProfileChip.Background = B(0x17);    // ~9%
         ProfileChip.ToolTip = $"Profile: {label} ({Profiles.Describe(p)})";
     }
 
