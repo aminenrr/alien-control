@@ -148,6 +148,7 @@ v0.9.14: single ReadyToRun exe for faster start, tested.
 v0.9.15: Reset settings, About line, plainer error messages, docs cleanup.
 v0.9.16: F3 opens / hides the app (handheld-style quick menu), tested.
 v1.0.0-rc1: release candidate, full regression pass; F2 no longer tinted.
+**v1.0.0: first stable release.** Download it from the Releases page.
 v0.8.10: icons take a new accent on the first click; "Performance" fits in Legend.
 v0.8.9: profiles set CPU boost, minimize slides into the screen edge.
 v0.8.8: window open/close slide moves the window itself (native), fixing the slide that never showed.

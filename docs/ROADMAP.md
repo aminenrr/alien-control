@@ -5,8 +5,8 @@
 - [x] v0.9.14 single-file ReadyToRun exe (no trimming, no compression).
 - [x] v0.9.15 polish: Reset settings, About line, plainer error messages, docs cleanup.
 - [x] v0.9.16 F3 opens / hides the app.
-- [ ] 1.0.0-rc1 (building): full regression pass on the m15 R7 (every feature, both themes, AC / battery, Optimus / Ultimate).
-- [ ] 1.0.0: real screenshots, changelog summary, tag `v1.0.0`, GitHub Release zip.
+- [x] 1.0.0-rc1: full regression pass on the m15 R7 (every feature, both themes, AC / battery, Optimus / Ultimate).
+- [x] 1.0.0: changelog summary, tag `v1.0.0`, GitHub Release zip. (Real screenshots still to add.)
 
 ## After 1.0
 - Direct WMI sensor reads instead of spawning alienfan-cli in the sensor loop (biggest CPU win while the window is open).

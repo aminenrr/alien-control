@@ -1,8 +1,15 @@
 # Changelog
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
+From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.0.0-rc1 (2026-10-15), untested
+## v1.0.0 (2026-10-15)
+- First stable release, same code as rc1. Presets + F2, F1 G-Mode with GPU OC, F3 quick open, auto preset on AC /
+  battery, toasts + sounds, fans / sensors / power, per-key lighting and status keys, Optimus / Ultimate switch,
+  Legend + Fluent themes, Reset settings. Idle: 0% CPU, ~20 MB open, a few MB in the tray.
+- GitHub Release with `AlienControl-1.0.0-win-x64.zip` (built by `.github/workflows/release.yml` on the `v1.0.0` tag).
+
+## v1.0.0-rc1 (2026-10-15), confirmed
 - F2 no longer lights up in the preset color (too distracting); it stays the keyboard color.
 - F1 / F2 toast and sound fire right on the key press instead of after the CLI calls (~1 s sooner). F2 into or out of
   Battery still waits for the refresh-rate change. No extra CPU or RAM.

@@ -1,0 +1,32 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish
+        run: dotnet publish src/AlienControl/AlienControl.csproj -c Release -r win-x64 -o publish
+      - name: Zip
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          Copy-Item README.md publish/
+          Compress-Archive -Path publish/* -DestinationPath "AlienControl-$v-win-x64.zip"
+          "VER=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Alien Controls ${{ env.VER }}
+          body_path: docs/releases/${{ github.ref_name }}.md
+          files: AlienControl-${{ env.VER }}-win-x64.zip
+          prerelease: ${{ contains(github.ref_name, '-') }}
