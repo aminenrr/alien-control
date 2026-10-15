@@ -6,9 +6,16 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 
 | Legend theme | Fluent theme |
 |---|---|
-| ![Legend theme](docs/screenshots/legend.jpg) | ![Fluent theme](docs/screenshots/fluent.jpg) |
+| ![Legend theme](docs/screenshots/legend.png) | ![Fluent theme](docs/screenshots/fluent.png) |
 
-*Rendered design mockups (Balanced profile). Real screenshots from the laptop will replace them after hardware testing.*
+### Notifications (F1, F2, plug / unplug)
+
+| F2 cycle | F1 G-Mode | Auto preset |
+|---|---|---|
+| ![F2 Performance](docs/screenshots/toasts/performance.png) | ![G-Mode on](docs/screenshots/toasts/gmode-on.png) | ![Unplugged](docs/screenshots/toasts/unplug.png) |
+| ![F2 Balanced](docs/screenshots/toasts/balanced.png) | ![G-Mode off](docs/screenshots/toasts/gmode-off.png) | ![Plugged in](docs/screenshots/toasts/plug.png) |
+
+*Real screenshots from the m15 R7 (Legend theme). The plug / unplug toasts are recreated from a real toast with the same layout.*
 
 ## Features
 

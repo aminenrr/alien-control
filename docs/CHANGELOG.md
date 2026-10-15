@@ -7,6 +7,7 @@ From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 - First stable release, same code as rc1. Presets + F2, F1 G-Mode with GPU OC, F3 quick open, auto preset on AC /
   battery, toasts + sounds, fans / sensors / power, per-key lighting and status keys, Optimus / Ultimate switch,
   Legend + Fluent themes, Reset settings. Idle: 0% CPU, ~20 MB open, a few MB in the tray.
+- README: real screenshots of both themes and the toasts (replacing the mockups).
 - GitHub Release with `AlienControl-1.0.0-win-x64.zip` (built by `.github/workflows/release.yml` on the `v1.0.0` tag).
 
 ## v1.0.0-rc1 (2026-10-15), confirmed
