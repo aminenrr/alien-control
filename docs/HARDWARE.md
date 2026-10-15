@@ -105,5 +105,14 @@ is done in software (colors scaled by level/255) since v0.5.3. At startup the ap
 - NVIDIA Advanced Optimus "Laptop display mode" offers Automatic Select / NVIDIA GPU only / Optimus and switches the panel
   without a reboot (DDS). NVIDIA states there is **no public API** for it, so a Procmon recording of the switch is planned
   (see ROADMAP.md).
+- **Procmon result (2026-10-15, three captures):** the switch is NOT a registry write. `nvcontainer.exe` (NVIDIA Display
+  Container) asks the driver directly through a private call Procmon cannot see; the display path changes (dwm/CCD writes)
+  first, and NVIDIA only records the result afterwards under
+  `HKLM\SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\NvHybrid\Persistence\ACE`:
+  - `InternalMuxState` (DWORD): 2 = RTX drives the panel, 1 = Intel drives it.
+  - `InternalMuxIsAutomaticMode` (DWORD): 1 = Automatic Select, 0 = manual.
+  - Mode = Automatic if auto=1; else NVIDIA GPU only if state=2; else Optimus. Read-only use: writing these does not switch.
+  - Automatic -> Optimus while already on Intel only flips the auto flag (no panel switch).
+  - `ACESwitchedI2D` = 1 after an Intel->dGPU switch; `AutoSwitchInternalMux` touched when Automatic is chosen.
 - In Optimus the Intel iGPU already drives the internal panel and the RTX sleeps when unused.
 - The BIOS (and AWCC) also offer the MUX / hybrid graphics setting, which needs a restart.
