@@ -64,8 +64,11 @@ Stack: C# · .NET 8 · WPF · [WPF-UI](https://github.com/lepoco/wpfui) (Fluent 
 
 All hardware control is done by [alienfx-tools](https://github.com/T-Troll/alienfx-tools)
 by T-Troll and contributors (MIT license).
+RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemoryCleaner) and GPU modes from [G-Helper](https://github.com/seerge/g-helper). Both ideas are reimplemented here, and no code was copied.
 
 ## Status
 
+v0.7: click the RAM card for a quick clean, right-click for a deep clean. GPU modes Eco / Standard / Ultimate (MUX via Dell BIOS WMI when exposed) / Optimized.
+v0.6: effect dropdown, Spectrum and Rainbow wave, custom RGB picker.
 v0.3: status keys (G-Mode, mutes, touchpad lock) lit by the app, last color reapplied at start.
 v0.2: verified power mode map, G-key support, per-key lighting fix, Breathe/Wave effects, GPU limit removed.
