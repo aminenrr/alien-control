@@ -230,6 +230,19 @@
                                         <Slider x:Name="HueSlider" Minimum="0" Maximum="360" Value="186" IsMoveToPointEnabled="True" ValueChanged="CustomColor_Changed" />
                                         <TextBlock Text="Saturation" Foreground="#8B96A5" FontSize="11" Margin="0,6,0,0" />
                                         <Slider x:Name="SatSlider" Minimum="0" Maximum="100" Value="100" IsMoveToPointEnabled="True" ValueChanged="CustomColor_Changed" />
+                                        <Grid Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="R" Foreground="#8B96A5" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                            <TextBox x:Name="RBox" Grid.Column="1" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
+                                            <TextBlock Grid.Column="2" Text="G" Foreground="#8B96A5" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                            <TextBox x:Name="GBox" Grid.Column="3" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
+                                            <TextBlock Grid.Column="4" Text="B" Foreground="#8B96A5" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                            <TextBox x:Name="BBox" Grid.Column="5" MaxLength="3" TextChanged="Rgb_Changed" />
+                                        </Grid>
                                         <Button Content="Apply" HorizontalAlignment="Stretch" Margin="0,8,0,0" Click="CustomApply_Click" Style="{StaticResource CardButton}" />
                                     </StackPanel>
                                 </Border>
@@ -246,6 +259,8 @@
                         <ComboBoxItem Content="Mixed pulse" Tag="9" />
                         <ComboBoxItem Content="Night Rider" Tag="10" />
                         <ComboBoxItem Content="Laser" Tag="11" />
+                        <ComboBoxItem Content="Spectrum" Tag="100" />
+                        <ComboBoxItem Content="Rainbow wave" Tag="101" />
                     </ComboBox>
                     <Button Grid.Column="2" Style="{StaticResource CardButton}" Content="Off" Click="LightsOff_Click" />
                 </Grid>
@@ -262,7 +277,7 @@
                         <ui:ToggleSwitch x:Name="StartupToggle" Click="Startup_Click" />
                         <TextBlock Text="Run on startup" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#C9D2DC" FontSize="13" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.6" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <TextBlock x:Name="VersionText" Text="v0.6.2" HorizontalAlignment="Center" VerticalAlignment="Center"
                                Foreground="{StaticResource MutedText}" FontSize="12" />
                     <Button Style="{StaticResource CardButton}" Padding="18,7" Margin="0" Content="Quit" HorizontalAlignment="Right" Click="Quit_Click" />
                 </Grid>
