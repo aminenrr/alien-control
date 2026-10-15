@@ -12,7 +12,7 @@ public static class Profiles
     public static string Describe(TrayProfile p) => p switch
     {
         TrayProfile.Battery => "Battery Saver power mode, 60 Hz",
-        TrayProfile.Quiet => "Quiet power mode, 60 Hz",
+        TrayProfile.Quiet => "Quiet power mode, 240 Hz",
         TrayProfile.Balanced => "Balanced power mode, 240 Hz",
         TrayProfile.Performance => "Performance power mode, 240 Hz",
         _ => "Your own mix: nothing is changed"
@@ -31,8 +31,8 @@ public static class Profiles
     /// <summary>Refresh rate a profile asks for, or null (Custom leaves it alone).</summary>
     public static int? RefreshHz(TrayProfile p) => p switch
     {
-        TrayProfile.Battery or TrayProfile.Quiet => 60,
-        TrayProfile.Balanced or TrayProfile.Performance => 240,
+        TrayProfile.Battery => 60,                                                  // v0.8.5: only Battery drops to 60 Hz
+        TrayProfile.Quiet or TrayProfile.Balanced or TrayProfile.Performance => 240,
         _ => null
     };
 
