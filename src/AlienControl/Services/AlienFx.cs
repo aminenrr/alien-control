@@ -39,13 +39,18 @@ public sealed class AlienFx
     /// The five firmware status keys as their own command: white when on, the base color when off.
     /// Must run after SetAllAsync, whose 136-key batch leaves these keys dark.
     /// </summary>
-    public Task<CliResult> SetIndicatorsAsync(IReadOnlyDictionary<int, bool> states, byte[] baseColor)
+    public async Task<CliResult> SetIndicatorsAsync(IReadOnlyDictionary<int, bool> states, byte[] baseColor)
     {
+        // One CLI call per key: in a chained command only the last status key takes effect
+        // (v0.5 test: right Win lit, F1/F12/mutes stayed dark), while single calls always work.
         var w = _s.IndicatorOnColor;
-        var cmds = states.Select(kv => kv.Value
-            ? $"setone={_s.KeyboardDevice},{kv.Key},{w[0]},{w[1]},{w[2]}"
-            : $"setone={_s.KeyboardDevice},{kv.Key},{baseColor[0]},{baseColor[1]},{baseColor[2]}");
-        return _cli.RunAsync(string.Join(" ", cmds));
+        var last = new CliResult(true, "", "");
+        foreach (var kv in states)
+        {
+            var c = kv.Value ? w : baseColor;
+            last = await _cli.RunAsync($"setone={_s.KeyboardDevice},{kv.Key},{c[0]},{c[1]},{c[2]}");
+        }
+        return last;
     }
 
     /// <summary>One keyboard key.</summary>
