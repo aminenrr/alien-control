@@ -636,7 +636,7 @@ public partial class MainWindow : Window
     private void UpdateBrightnessText(int v)
     {
         if (BrightnessHint is null || BrightnessValue is null) return;
-        SetHint(BrightnessHint, $"Brightness {v}%", $"{v}%");
+        SetHint(BrightnessHint, "", $"{v}%");   // Fluent shows the % only beside the slider (v0.8.4)
         BrightnessValue.Text = $"{v}%";
     }
 
