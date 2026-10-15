@@ -141,3 +141,7 @@ CPU-Z Stress CPU (all 20 threads), read in HWiNFO, on AC. ThrottleStop closed (w
 ### GPU in Quiet (measured 2026-10-15)
 - `nvidia-smi -q -d POWER` reads Current/Default Power Limit 125 W, Max 150 W in Quiet too, but under FurMark (GL, 1440p) Quiet holds the GPU at ~52–53 W, core ~210 MHz, fans 0%.
 - `nvidia-smi -q -d PERFORMANCE` during that load: SW Power Cap **Active** and SW Thermal Slowdown **Active** (GPU only 52 °C), no HW slowdown/power brake. Dell's platform sets a software power cap plus a low temperature target in Quiet; it isn't reachable from alienfan-cli.
+
+## GPU clock offsets (probe 2026-10-15, driver 617.42)
+- Legacy NVML `nvmlDevice{Get,Set}{Gpc,Mem}ClkVfOffset`: **Not Supported** on this laptop.
+- New `nvmlDeviceGetClockOffsets` / `nvmlDeviceSetClockOffsets` (struct v1, P0, admin): **works**. Graphics range -1000..1000, memory range -2000..6000; writing the current value returns OK.
