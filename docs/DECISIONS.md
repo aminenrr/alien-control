@@ -1,0 +1,47 @@
+# Decisions log
+
+Why things are the way they are. Newest decisions win.
+
+## Scope and stack (2026-10-14)
+- **GUI only.** Every hardware action goes through T-Troll's alienfan-cli / alienfx-cli. The AlienFX core is never modified.
+- **No fork** of alienfx-tools. Its MIT binaries are shipped in `src/AlienControl/tools/` (gitignored) with credit.
+- C# .NET 8 + WPF + WPF-UI, tray icon, runs as admin. Goal: replace Alienware Command Center, whose services keep
+  WMI Provider Host busy. AWCC services must be disabled first.
+- Sensors are polled only while the window is open. The app idles in the tray.
+
+## Lighting (2026-10-14/15)
+- Never touch the power-button light (chassis ID 2). The firmware's AC blue / battery amber stays.
+- Rear ring driven as one light (IDs 0 + 1), like AWCC. No per-segment mapping.
+- Keyboard colors in one HID frame; brightness in software (see HARDWARE.md for why).
+- The app paints the status keys white itself when their feature is on (firmware behavior emulated).
+- Spectrum and Rainbow wave are software animations (~20 fps); the chassis uses its firmware spectrum.
+- Done with colors after v0.6 (Amine, 2026-10-15).
+
+## Naming and look
+- Display name **Alien Controls** (v0.5). The exe stays `AlienControl.exe` so the startup task keeps working.
+- Redesign (2026-10-15): three directions mocked (A Refined Nebula, B AWCC Terminal, C Fluent Mica). Amine liked B and C,
+  so both ship as themes: **Legend** (B, Alienware style, Tabler icons) and **Fluent** (C, Windows 11 style,
+  Fluent System Icons via WPF-UI + Phosphor fan). Switch in the gear menu. Only the active theme's dictionary is loaded.
+- Animations (v0.8.2) replace the earlier "fully static" rule, on condition they cost nothing at idle:
+  Opacity/RenderTransform only, one-shot, 60 fps, nothing while hidden. "Reduce motion" (off by default) makes it static.
+
+## Features
+- RAM clean: Quick (click) and Deep (right-click). No auto-clean.
+- G-key hook always on; its toggle was removed (Amine's choice).
+- Battery mode = power index 3 (a5). Performance = index 2 (a1).
+- Power readout from Windows/driver sources only (Intel DTT RAPL counter, NVIDIA NVML, battery discharge). No HWiNFO,
+  LibreHardwareMonitor or WinRing0. GPU power isn't read on battery so the RTX can sleep.
+- XMP dropped: stock RAM has no XMP profile.
+- WinMemoryCleaner and G-Helper are GPL-3.0: their ideas are reimplemented, no code copied.
+
+## GPU modes (2026-10-15)
+- Row: **iGPU only / Optimus / dGPU only / Ultimate**. "Optimized" and the old Eco/Standard names were dropped.
+  - iGPU only: disable the NVIDIA adapter (`pnputil`). Safe and reversible; external HDMI/USB-C outputs wired to the RTX go dark.
+    Warn first, listing apps holding RTX memory (`GpuMode.AppsUsingDgpu()`).
+  - Optimus: hybrid; the iGPU already drives the panel and the RTX sleeps when idle.
+  - dGPU only: NVIDIA Advanced Optimus "NVIDIA GPU only" display mode (no reboot).
+  - Ultimate: MUX through Dell BIOS WMI, manual only, restart prompt.
+- **Rule:** tray profiles never switch to Ultimate and never touch GPU mode automatically.
+- The GPU buttons stay **visual only** ("Coming soon") until Procmon recordings of NVIDIA's own switch show a safe path.
+- The "RTX in use" warning will be an in-window overlay styled per theme (Cancel / Refresh / Switch anyway),
+  not a plain Windows message box. Built when the buttons get wired.
