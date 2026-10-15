@@ -145,3 +145,8 @@ CPU-Z Stress CPU (all 20 threads), read in HWiNFO, on AC. ThrottleStop closed (w
 ## GPU clock offsets (probe 2026-10-15, driver 617.42)
 - Legacy NVML `nvmlDevice{Get,Set}{Gpc,Mem}ClkVfOffset`: **Not Supported** on this laptop.
 - New `nvmlDeviceGetClockOffsets` / `nvmlDeviceSetClockOffsets` (struct v1, P0, admin): **works**. Graphics range -1000..1000, memory range -2000..6000; writing the current value returns OK.
+- Calibrated in Control (G-Mode, same spot), overlay readings vs stock 1500 MHz core / 7001 MHz memory:
+  - +100/+100: core 1575, memory 7051.
+  - +200/+200: core 1665, memory 7101.
+  - So **memory offset is in 2x units** (NVML +200 = +100 shown, the same scale AWCC uses: 7000 to 7300 for +300). Core is 1:1, but under load it can gain less than the full offset because it sits near the power wall.
+  - The app shows AWCC-style MHz and sends memory x2 to NVML.
