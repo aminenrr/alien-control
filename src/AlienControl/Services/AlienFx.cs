@@ -19,38 +19,39 @@ public sealed class AlienFx
 
     public bool IsAvailable => _cli.IsAvailable;
 
-    /// <summary>
-    /// Static color on every keyboard key and the chassis lights. Status keys listed in
-    /// <paramref name="indicatorsOn"/> that are on get the indicator color instead.
-    /// </summary>
-    public Task<CliResult> SetAllAsync(byte r, byte g, byte b, IReadOnlyDictionary<int, bool>? indicatorsOn = null)
-    {
-        var w = _s.IndicatorOnColor;
-        var cmds = new List<string> { $"setglobal={_s.KeyboardDevice},0,1" }; // stop any keyboard effect
-        cmds.AddRange(Enumerable.Range(0, _s.KeyboardLightCount).Select(i =>
-            indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on
-                ? $"setone={_s.KeyboardDevice},{i},{w[0]},{w[1]},{w[2]}"
-                : $"setone={_s.KeyboardDevice},{i},{r},{g},{b}"));
-        cmds.AddRange(_s.ChassisLights.Where(i => i != Settings.PowerButtonLight).Select(i => $"setone={_s.ChassisDevice},{i},{r},{g},{b}"));
-        return _cli.RunAsync(string.Join(" ", cmds));
-    }
+    private readonly KeyboardHid _hid = new();
 
     /// <summary>
-    /// The five firmware status keys as their own command: white when on, the base color when off.
-    /// Must run after SetAllAsync, whose 136-key batch leaves these keys dark.
+    /// Static color on every keyboard key and the chassis lights. Status keys that are on get the
+    /// indicator color. The keyboard goes out as ONE HID frame (see KeyboardHid for why);
+    /// alienfx-cli is only the fallback.
     /// </summary>
-    public async Task<CliResult> SetIndicatorsAsync(IReadOnlyDictionary<int, bool> states, byte[] baseColor)
+    public async Task<CliResult> SetAllAsync(byte r, byte g, byte b, IReadOnlyDictionary<int, bool>? indicatorsOn, int brightness)
     {
-        // One CLI call per key: in a chained command only the last status key takes effect
-        // (v0.5 test: right Win lit, F1/F12/mutes stayed dark), while single calls always work.
+        var chassis = string.Join(" ", _s.ChassisLights.Where(i => i != Settings.PowerButtonLight)
+            .Select(i => $"setone={_s.ChassisDevice},{i},{r},{g},{b}"));
+        var res = await _cli.RunAsync($"setglobal={_s.KeyboardDevice},0,1 {chassis} setdim={_s.ChassisDevice},{brightness}");
+        if (await SetKeyboardAsync(new[] { r, g, b }, indicatorsOn, brightness)) return res;
+
+        // Fallback: per-key CLI (only the last status key will stay lit).
         var w = _s.IndicatorOnColor;
-        var last = new CliResult(true, "", "");
-        foreach (var kv in states)
+        var cmds = Enumerable.Range(0, _s.KeyboardLightCount).Select(i =>
+            indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on
+                ? $"setone={_s.KeyboardDevice},{i},{w[0]},{w[1]},{w[2]}"
+                : $"setone={_s.KeyboardDevice},{i},{r},{g},{b}");
+        return await _cli.RunAsync(string.Join(" ", cmds) + $" setdim={_s.KeyboardDevice},{brightness}");
+    }
+
+    /// <summary>All keyboard keys in one frame: base color, white for active status keys. False if the HID path failed.</summary>
+    public Task<bool> SetKeyboardAsync(byte[] baseColor, IReadOnlyDictionary<int, bool>? indicatorsOn, int brightness)
+    {
+        var w = _s.IndicatorOnColor;
+        var keys = Enumerable.Range(0, _s.KeyboardLightCount).Select(i =>
         {
-            var c = kv.Value ? w : baseColor;
-            last = await _cli.RunAsync($"setone={_s.KeyboardDevice},{kv.Key},{c[0]},{c[1]},{c[2]}");
-        }
-        return last;
+            var c = indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on ? w : baseColor;
+            return ((byte)i, c[0], c[1], c[2]);
+        }).ToList();
+        return Task.Run(() => { try { return _hid.SetKeys(keys, brightness); } catch { return false; } });
     }
 
     /// <summary>One keyboard key.</summary>
@@ -58,8 +59,11 @@ public sealed class AlienFx
         _cli.RunAsync($"setone={_s.KeyboardDevice},{id},{r},{g},{b}");
 
     /// <summary>Hardware brightness 0..255 on keyboard and chassis.</summary>
-    public Task<CliResult> SetBrightnessAsync(int level) =>
-        _cli.RunAsync($"setdim={_s.KeyboardDevice},{level} setdim={_s.ChassisDevice},{level}");
+    public async Task<CliResult> SetBrightnessAsync(int level)
+    {
+        bool hid = await Task.Run(() => { try { return _hid.SetBrightness(level); } catch { return false; } });
+        return await _cli.RunAsync(hid ? $"setdim={_s.ChassisDevice},{level}" : $"setdim={_s.KeyboardDevice},{level} setdim={_s.ChassisDevice},{level}");
+    }
 
     /// <summary>
     /// APIv5 keyboard effect. Types: 0 Color, 2 Breathing, 3 Single-color wave, 4 Dual-color wave,
