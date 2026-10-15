@@ -2,6 +2,10 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.8.4 (2026-10-15), untested
+- Legend: section numbers 01-06 removed; the icon alone heads each section, like Fluent.
+- Fluent: brightness % shown once (beside the slider); the duplicate in the Lighting header is gone.
+
 ## v0.8.3 (2026-10-15), untested
 - Sharper text and icons: the window shadow moved to its own layer behind the card. Before, the shadow effect sat on the
   card itself, so WPF drew every text and icon through an offscreen bitmap (soft, no ClearType, blurry at 125%).
