@@ -78,6 +78,7 @@ public partial class MainWindow : Window
         {
             if (IsVisible)
             {
+                UpdateProfileChip(CurrentProfile);
                 RefreshDisplayRate();          // read once on show, no timer
                 _ = RefreshGpuHintAsync();
                 await RefreshStateAsync();
@@ -92,6 +93,7 @@ public partial class MainWindow : Window
             if (a.PropertyName == nameof(SystemParameters.WorkArea)) Dispatcher.BeginInvoke(new Action(SnapToCorner));
         };
 
+        UpdateProfileChip(CurrentProfile);
         VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1");
         StartupToggle.IsChecked = Startup.IsEnabled();
 
@@ -626,6 +628,7 @@ public partial class MainWindow : Window
         App.ApplyTheme(name);   // swaps the one theme dictionary in App.Resources
         ApplyAccent(_lastColor);
         foreach (var (tb, t) in _hints) tb.Text = IsLegend ? t.Legend : t.Fluent;
+        UpdateProfileChip(CurrentProfile);   // Legend caps vs Fluent title case
         Dispatcher.BeginInvoke(new Action(SnapToCorner), DispatcherPriority.Loaded);
     }
 
@@ -780,7 +783,24 @@ public partial class MainWindow : Window
     private void SetProfile(TrayProfile p)
     {
         if (_settings.Profile != p.ToString()) { _settings.Profile = p.ToString(); _settings.Save(); }
+        UpdateProfileChip(p);
         ProfileChanged?.Invoke(p);
+    }
+
+    /// <summary>Header chip: dot + profile name, tinted like the tray icon. Read-only; event driven (no timer).</summary>
+    private void UpdateProfileChip(TrayProfile p)
+    {
+        if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(new Action(() => UpdateProfileChip(p))); return; }
+        var t = Profiles.Tint(p);
+        var col = Color.FromRgb(t.R, t.G, t.B);
+        SolidColorBrush B(byte a) { var b = new SolidColorBrush(Color.FromArgb(a, col.R, col.G, col.B)); b.Freeze(); return b; }
+        var label = Profiles.Label(p);
+        ProfileChipText.Text = IsLegend ? label.ToUpperInvariant() : label;
+        ProfileChipText.Foreground = B(255);
+        ProfileChipDot.Fill = B(255);
+        ProfileChip.BorderBrush = B(0x8C);
+        ProfileChip.Background = B(0x14);
+        ProfileChip.ToolTip = $"Profile: {label} ({Profiles.Describe(p)})";
     }
 
     /// <summary>After a manual change: the profile that matches mode + refresh rate, otherwise Custom.</summary>
