@@ -80,7 +80,6 @@
 
             <!-- Minimize / close glyphs in the header -->
             <Style x:Key="HeaderButton" TargetType="Button">
-                <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
                 <Setter Property="FontSize" Value="12" />
                 <Setter Property="Foreground" Value="#B8C2CC" />
                 <Setter Property="Width" Value="38" />
@@ -90,7 +89,9 @@
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
                             <Border x:Name="Bd" CornerRadius="8" Background="Transparent">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <!-- Icon font only on the glyph, so the tooltip keeps a normal font -->
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  TextElement.FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" />
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
