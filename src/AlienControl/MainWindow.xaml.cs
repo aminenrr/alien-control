@@ -1032,9 +1032,10 @@ public partial class MainWindow : Window
         string screen = k == GpuModeKind.DGpuOnly ? "RTX" : "Intel";
         var (fluent, legend) = k switch
         {
-            GpuModeKind.IGpuOnly => ("iGPU only · RTX off", "iGPU ONLY · RTX off"),
-            GpuModeKind.Optimus or GpuModeKind.DGpuOnly when _gpu.Auto => ($"Auto · screen on {screen}", $"AUTO · {screen.ToUpperInvariant()}"),
-            GpuModeKind.Optimus => ("Optimus · RTX 3070 Ti", "OPTIMUS · 3070 Ti"),
+            // v0.9.1: the hint names the GPU driving the screen (Optimus showed "3070 Ti" while Intel drove it)
+            GpuModeKind.IGpuOnly => ("iGPU only · Iris Xe, RTX off", "iGPU ONLY · IRIS Xe"),
+            GpuModeKind.Optimus or GpuModeKind.DGpuOnly when _gpu.Auto => (screen == "RTX" ? "Auto · on RTX 3070 Ti" : "Auto · on Iris Xe", screen == "RTX" ? "AUTO · 3070 Ti" : "AUTO · IRIS Xe"),
+            GpuModeKind.Optimus => ("Optimus · on Iris Xe", "OPTIMUS · IRIS Xe"),
             GpuModeKind.DGpuOnly => ("dGPU only · RTX 3070 Ti", "dGPU ONLY · 3070 Ti"),
             GpuModeKind.Ultimate => ("Ultimate · RTX 3070 Ti", "ULTIMATE · 3070 Ti"),
             _ => ("RTX 3070 Ti", "3070 Ti")

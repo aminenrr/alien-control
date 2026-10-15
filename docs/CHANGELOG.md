@@ -2,6 +2,9 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.1 (2026-10-15), untested
+- GPU hint names the GPU actually driving the screen: Optimus / Auto on Intel show "Iris Xe", not "3070 Ti".
+
 ## v0.9.0 (2026-10-15), untested
 - GPU row is live. It shows the real mode (which GPU drives the panel, live; NVIDIA's Auto flag from the registry),
   read on show, after a change and on display changes. No polling.
