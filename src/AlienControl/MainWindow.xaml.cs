@@ -49,6 +49,7 @@ public partial class MainWindow : Window
         if (_settings.LastColor is { Length: 3 } saved) _lastColor = saved;
         ApplyAccent(_lastColor);
         BrightnessSlider.Value = Math.Round(_settings.Brightness * 100 / 255.0);
+        SelectEffectInBox();
         // Status-key watcher: in-process reads only (no CLI) unless a state changes.
         _indicatorTimer.Tick += async (_, _) => await SyncIndicatorsAsync();
         Dispatcher.BeginInvoke(new Action(async () => await StartupLightingAsync()));
@@ -136,7 +137,8 @@ public partial class MainWindow : Window
         // Reapply the user's color after boot (firmware resets to its default); otherwise leave firmware lighting alone.
         if (_settings.LastColor is { Length: 3 } c)
         {
-            await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, _settings.Brightness);
+            if (_settings.LastEffect == 0) await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, _settings.Brightness);
+            else await _fx.SetEffectAsync(_settings.LastEffect, c, _settings.Brightness);
             _lightsManaged = true;
         }
         _indicatorTimer.Start();
@@ -166,7 +168,7 @@ public partial class MainWindow : Window
         try
         {
             var changed = ReadIndicatorStates();
-            if (!_lightsManaged) return;
+            if (!_lightsManaged || _settings.LastEffect != 0) return; // a static frame would stop the effect
             // One full frame: writing a single status key would blank the others.
             if (changed.Count > 0) await _fx.SetKeyboardAsync(_lastColor, _indicators, _settings.Brightness);
         }
@@ -336,7 +338,7 @@ public partial class MainWindow : Window
     private async void Color_Click(object sender, RoutedEventArgs e)
     {
         _lastColor = ((string)((FrameworkElement)sender).Tag).Split(',').Select(byte.Parse).ToArray();
-        await ApplyColorAsync(_lastColor);
+        await ApplyLightingAsync(_lastColor);
     }
 
     private async Task ApplyColorAsync(byte[] c)
@@ -349,12 +351,72 @@ public partial class MainWindow : Window
         _settings.Save();
     }
 
-    // APIv5 keyboard effects in the last picked color: 2 = Breathing, 3 = Single-color wave.
-    private async void Breathe_Click(object sender, RoutedEventArgs e) =>
-        Report(await _fx.SetKeyboardEffectAsync(2, AlienFx.Dim(_lastColor, _settings.Brightness)[0], AlienFx.Dim(_lastColor, _settings.Brightness)[1], AlienFx.Dim(_lastColor, _settings.Brightness)[2]));
+    /// <summary>Applies the saved effect (Static = per-key frame with status keys) in the given color.</summary>
+    private async Task ApplyLightingAsync(byte[] c)
+    {
+        if (_settings.LastEffect == 0 || c.All(v => v == 0)) { await ApplyColorAsync(c); return; }
+        Report(await _fx.SetEffectAsync(_settings.LastEffect, c, _settings.Brightness));
+        _lightsManaged = true;
+        ApplyAccent(c);
+        _settings.LastColor = c;
+        _settings.Save();
+    }
 
-    private async void Wave_Click(object sender, RoutedEventArgs e) =>
-        Report(await _fx.SetKeyboardEffectAsync(3, AlienFx.Dim(_lastColor, _settings.Brightness)[0], AlienFx.Dim(_lastColor, _settings.Brightness)[1], AlienFx.Dim(_lastColor, _settings.Brightness)[2]));
+    private bool _effectBoxReady;
+
+    private async void Effect_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_effectBoxReady || EffectBox.SelectedItem is not ComboBoxItem item) return;
+        _settings.LastEffect = int.Parse((string)item.Tag);
+        if (_lastColor.All(v => v == 0)) _lastColor = new byte[] { 0, 229, 255 };
+        await ApplyLightingAsync(_lastColor);
+    }
+
+    private void SelectEffectInBox()
+    {
+        foreach (ComboBoxItem it in EffectBox.Items)
+            if ((string)it.Tag == _settings.LastEffect.ToString()) { EffectBox.SelectedItem = it; break; }
+        if (EffectBox.SelectedItem is null) EffectBox.SelectedIndex = 0;
+        _effectBoxReady = true;
+    }
+
+    // ---------- custom color (hue + saturation at full value; brightness is the slider) ----------
+
+    private void CustomSwatch_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateCustomPreview();
+        CustomPopup.IsOpen = true;
+    }
+
+    private void CustomColor_Changed(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateCustomPreview();
+
+    private byte[] CustomColor() => HsvToRgb(HueSlider.Value, SatSlider.Value / 100.0);
+
+    private void UpdateCustomPreview()
+    {
+        if (CustomPreview is null || HueSlider is null || SatSlider is null) return;
+        var c = CustomColor();
+        CustomPreview.Background = new SolidColorBrush(Color.FromRgb(c[0], c[1], c[2]));
+    }
+
+    private async void CustomApply_Click(object sender, RoutedEventArgs e)
+    {
+        CustomPopup.IsOpen = false;
+        _lastColor = CustomColor();
+        await ApplyLightingAsync(_lastColor);
+    }
+
+    private static byte[] HsvToRgb(double h, double s)
+    {
+        h = (h % 360 + 360) % 360;
+        double c = s, x = c * (1 - Math.Abs(h / 60 % 2 - 1)), m = 1 - c;
+        (double r, double g, double b) = h switch
+        {
+            < 60 => (c, x, 0d), < 120 => (x, c, 0d), < 180 => (0d, c, x),
+            < 240 => (0d, x, c), < 300 => (x, 0d, c), _ => (c, 0d, x),
+        };
+        return new[] { (byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255) };
+    }
 
     private async void LightsOff_Click(object sender, RoutedEventArgs e)
     {
@@ -373,7 +435,7 @@ public partial class MainWindow : Window
         _settings.Brightness = level;
         _settings.Save();
         // Software brightness: repaint with scaled colors (only once the app manages the lights).
-        if (_lightsManaged) await ApplyColorAsync(_lastColor);
+        if (_lightsManaged) await ApplyLightingAsync(_lastColor);
     }
 
     private void Startup_Click(object sender, RoutedEventArgs e)
