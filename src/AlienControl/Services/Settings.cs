@@ -13,7 +13,7 @@ public sealed class Settings
     //   1 = a0 Balanced, 2 = a1 Balanced-Performance, 3 = a5 Battery Saver, 4 = a3 Quiet, 5 = a4 Performance
     public int QuietPowerIndex { get; set; } = 4;
     public int BalancedPowerIndex { get; set; } = 1;
-    public int PerformancePowerIndex { get; set; } = 5;
+    public int PerformancePowerIndex { get; set; } = 2; // a1; index 5 (a4) is the G-Mode table
 
     /// <summary>setpower index -> raw value reported by getpower.</summary>
     public Dictionary<int, int> PowerRawByIndex { get; set; } = new()
@@ -22,6 +22,7 @@ public sealed class Settings
     };
 
     public int MaxFanBoost { get; set; } = 100;
+    public int FanMaxRpm { get; set; } = 5000; // alienfan-cli maxrpm on the m15 R7
 
     // Lighting: device 0 = per-key keyboard (APIv5), device 1 = AW-ELC chassis (APIv4).
     public int KeyboardDevice { get; set; } = 0;
@@ -63,10 +64,12 @@ public sealed class Settings
             {
                 var s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath));
                 if (s is not null && s.SettingsVersion >= CurrentVersion) return s;
-                if (s is not null && s.SettingsVersion == 2)
+                if (s is not null && s.SettingsVersion is 2 or 3)
                 {
                     // v2 sent the power button (ID 2) and missed half the ring (ID 1).
-                    s.ChassisLights = new[] { 0, 1, 3 };
+                    if (s.SettingsVersion == 2) s.ChassisLights = new[] { 0, 1, 3 };
+                    // v3 mapped Performance to index 5 (a4), which is the G-Mode table.
+                    if (s.PerformancePowerIndex == 5) s.PerformancePowerIndex = 2;
                     s.SettingsVersion = CurrentVersion;
                     s.Save();
                     return s;
@@ -80,7 +83,7 @@ public sealed class Settings
         return d;
     }
 
-    private const int CurrentVersion = 3;
+    private const int CurrentVersion = 4;
     public int SettingsVersion { get; set; } = CurrentVersion;
 
     public void Save()
