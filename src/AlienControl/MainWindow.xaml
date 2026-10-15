@@ -602,6 +602,21 @@
                                     <TextBlock x:Name="GKeyText" Text="G-key (F1) toggles G-Mode" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Margin="0,0,8,0" />
                                     <Button Grid.Column="1" Style="{DynamicResource GhostButton}" Content="Detect key" Click="GKeyDetect_Click" />
                                 </Grid>
+
+                                <!-- v0.9.15: reset + about -->
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Reset settings" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Back to defaults, then the app restarts" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Style="{DynamicResource GhostButton}" Content="Reset" Click="ResetSettings_Click" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <TextBlock x:Name="AboutText" Style="{DynamicResource BodyText}" Margin="0,16,0,0" TextWrapping="Wrap" Opacity="0.75" />
                             </StackPanel>
                         </Border>
                     </Popup>

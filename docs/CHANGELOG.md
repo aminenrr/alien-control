@@ -2,7 +2,15 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
-## v0.9.14 (2026-10-15), untested
+## v0.9.15 (2026-10-15), untested
+- **Reset settings** (gear menu): confirm, then GPU OC back to +0, CPU boost restored, settings.json deleted and the
+  app restarts with defaults. Run on startup, the BIOS and the GPU mode are left alone.
+- About line in the gear menu: version and alienfx-tools credit.
+- Plainer errors: a CLI failure says which part failed (Fans / power or Lighting) and what to try (timed out, access
+  denied, device not found -> close AWCC). Missing CLI message names the missing exe; no tools folder needed.
+- Docs: README feature list and setup, ROADMAP rewritten as the road to 1.0.
+
+## v0.9.14 (2026-10-15), confirmed (RAM still ~20 MB open, feels faster)
 - **One exe**: the artifact is a single `AlienControl.exe` (framework-dependent, still needs the .NET 8 Desktop
   Runtime) plus `tools/`. Precompiled with ReadyToRun so it starts and opens faster (less JIT on first use).
 - No compression (it unpacks into RAM) and no trimming (WPF / WPF-UI use reflection). English-only resources.

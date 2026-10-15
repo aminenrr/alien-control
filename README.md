@@ -10,6 +10,17 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 
 *Rendered design mockups (Balanced profile). Real screenshots from the laptop will replace them after hardware testing.*
 
+## Features
+
+- Presets from the tray, the window or **F2**: Battery, Quiet, Balanced, Performance (power mode, CPU boost, refresh rate), plus Custom.
+- **F1 G-Mode**: fans max, Aggressive CPU boost, optional GPU overclock (core / memory offsets, AC only, keep-or-revert test).
+- **Auto preset**: Battery when unplugged, your last preset when plugged back in.
+- Fans, temps and CPU / GPU / total power readout while the window is open.
+- Per-key keyboard color and effects, chassis lights, status keys (G-Mode, mutes, touchpad) lit by the app.
+- GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt).
+- Small top-right toasts with soft sounds for F1, F2 and plug / unplug.
+- Two themes (Legend, Fluent), Reduce motion, Reset settings. One exe, ~0% CPU and a few MB of RAM in the tray.
+
 ## Documentation
 
 - [Hardware findings](docs/HARDWARE.md): everything measured on the m15 R7 (power map, light IDs, the status-key root cause)
@@ -40,7 +51,8 @@ Sensors are polled only while the window is open; closed, it idles in the tray.
 
 1. Stop and disable the AWCC services (`services.msc`).
 2. Download the latest [alienfx-tools release](https://github.com/T-Troll/alienfx-tools/releases),
-   copy `alienfan-cli.exe`, `alienfx-cli.exe` (plus their DLLs) into `tools/` next to `AlienControl.exe`.
+   copy `alienfan-cli.exe` and `alienfx-cli.exe` (plus any DLLs they need) next to `AlienControl.exe`
+   (a `tools/` folder there works too).
    On Intel systems also copy the `DPTF` files as described in T-Troll's README.
 3. Run Alien Control as administrator. Defaults are set for the m15 R7; other models can edit
    `%AppData%\AlienControl\settings.json`.
@@ -80,12 +92,13 @@ underline and pulses once, the profile chip fades to its new color, and the gear
 only opacity and scale/position, are capped at 60 fps, never loop and never run while the window is hidden.
 **Reduce motion** in the gear menu turns all of them off (saved in settings, off by default).
 
-The gear menu also holds **Detect key** for the G-key and **Reduce motion**.
+The gear menu also holds **Detect key** for the G-key, **Reduce motion**, F2 / auto preset / notification toggles,
+**Reset settings** (back to defaults and restart; startup, BIOS and GPU mode untouched) and the version / credits line.
 
 ### Tray profiles
 
 Left-click the tray icon to open the window, or to slide it back to the tray when it is open (v0.8.7).
-Right-click it for the menu, drawn in the active theme with accent-colored text (v0.8.7): Battery (amber), Quiet (green), Balanced (cyan), Performance (red), Custom (white).
+Right-click it for the menu, drawn in the active theme with accent-colored text (v0.8.7): Battery (amber), Quiet (green), Balanced (cyan), Performance (red), Custom (violet); G-Mode shows white.
 A profile sets the power mode, CPU boost and refresh rate: Battery (boost Off, 60 Hz), Quiet (Efficient, 240 Hz),
 Balanced (On, 240 Hz), Performance (Aggressive, 240 Hz). Custom changes nothing. Profiles never touch the GPU mode and never use Ultimate.
 The header shows the current profile as a small read-only chip next to the model badge ("● BALANCED" in Legend,
@@ -130,7 +143,8 @@ v0.9.10: F2 (media mode) cycles Quiet / Balanced / Performance, F2 lit in the pr
 v0.9.11: auto preset on AC / battery, top-right toasts with sound for F1, F2 and plug / unplug.
 v0.9.12: toast size fix, unplug toast survives the display change.
 v0.9.13: idle trim (event-driven status keys, memory trim in the tray), tested: ~20 MB open, a few MB in the tray.
-v0.9.14: single ReadyToRun exe for faster start.
+v0.9.14: single ReadyToRun exe for faster start, tested.
+v0.9.15: Reset settings, About line, plainer error messages, docs cleanup.
 v0.8.10: icons take a new accent on the first click; "Performance" fits in Legend.
 v0.8.9: profiles set CPU boost, minimize slides into the screen edge.
 v0.8.8: window open/close slide moves the window itself (native), fixing the slide that never showed.

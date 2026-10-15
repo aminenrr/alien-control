@@ -160,13 +160,16 @@ public partial class MainWindow : Window
         };
 
         UpdateProfileChip(ShownProfile);
-        VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1");
+        var ver = typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1";
+        VersionText.Text = "v" + ver;
+        AboutText.Text = $"Alien Controls {ver}. Fans, power and lighting by alienfx-tools (T-Troll, MIT). Not made by Dell or Alienware.";
         StartupToggle.IsChecked = Startup.IsEnabled();
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
         InitAuto(); // v0.9.11 auto preset + toasts
 
         if (!_fan.IsAvailable || !_fx.IsAvailable)
-            Status("Put alienfan-cli.exe and alienfx-cli.exe in the tools folder next to AlienControl.exe.");
+            Status((_fan.IsAvailable ? "alienfx-cli.exe" : _fx.IsAvailable ? "alienfan-cli.exe" : "alienfan-cli.exe and alienfx-cli.exe")
+                   + " missing. Put it next to AlienControl.exe (or in a tools folder there), then restart the app.");
     }
 
     // ---------- window: G-Helper style, pinned to the bottom-right corner above the taskbar ----------
@@ -1001,7 +1004,34 @@ public partial class MainWindow : Window
     {
         var msg = (r.Ok ? r.Output : (r.Error.Length > 0 ? r.Error : r.Output)).Trim();
         var last = msg.Split('\n').LastOrDefault(l => l.Trim().Length > 0)?.Trim() ?? "";
-        Status(last);
+        Status(r.Ok ? last : FriendlyError(last));
+    }
+
+    /// <summary>v0.9.15: plain-words version of a CLI failure. Keeps the raw line at the end for bug reports.</summary>
+    private static string FriendlyError(string raw)
+    {
+        var l = raw.ToLowerInvariant();
+        string tool = l.Contains("alienfx") ? "Lighting" : "Fans / power";
+        if (l.Contains("not found next to")) return raw;   // already plain (CliRunner)
+        if (l.Contains("timed out")) return $"{tool} didn't answer in time. Nothing changed, try again.";
+        if (l.Contains("access") && l.Contains("denied")) return $"{tool}: access denied. Run Alien Controls as administrator.";
+        if (l.Contains("no device") || l.Contains("not found") || l.Contains("can't find") || l.Contains("cannot find"))
+            return $"{tool}: device not found. Close Alienware Command Center / AWCC services and try again.";
+        if (raw.Length == 0) return $"{tool} failed with no message. Try again.";
+        return $"{tool} failed: {raw}";
+    }
+
+    // ---------- v0.9.15: reset settings ----------
+
+    private async void ResetSettings_Click(object sender, RoutedEventArgs e)
+    {
+        CloseSettings(instant: true);
+        var pick = await ShowGpuDialog("Reset settings?",
+            "Theme, toggles, colors, effect, G-key, OC values and presets go back to defaults, then the app restarts. "
+            + "Run on startup, the BIOS and the GPU mode stay as they are. GPU OC goes back to +0.",
+            null, null, ("cancel", "Cancel", false), ("reset", "Reset", true));
+        if (pick != "reset") return;
+        ((App)Application.Current).RestartFresh();
     }
 
     private void Status(string text)

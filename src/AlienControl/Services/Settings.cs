@@ -137,6 +137,12 @@ public sealed class Settings
         return d;
     }
 
+    /// <summary>v0.9.15: removes settings.json (next Load writes defaults).</summary>
+    public static void Delete()
+    {
+        try { if (File.Exists(FilePath)) File.Delete(FilePath); } catch { /* non-fatal */ }
+    }
+
     private const int CurrentVersion = 6;
     public int SettingsVersion { get; set; } = CurrentVersion;
 

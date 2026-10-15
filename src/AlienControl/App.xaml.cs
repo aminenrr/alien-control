@@ -35,6 +35,8 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // v0.9.15: started by Reset settings: give the old instance a moment to let go of the HID / hooks.
+        if (e.Args.Contains("--restarted", StringComparer.OrdinalIgnoreCase)) System.Threading.Thread.Sleep(1200);
 
         _window = new MainWindow();
         _window.ProfileChanged += p => Dispatcher.BeginInvoke(new Action(() => ShowProfile(p)));
@@ -172,6 +174,23 @@ public partial class App : Application
         if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); }
         if (_tintHandle != IntPtr.Zero) DestroyIcon(_tintHandle);
         _window?.AllowClose();
+        Shutdown();
+    }
+
+    /// <summary>v0.9.15 Reset settings: clean exit (OC +0, boost restored), delete settings.json, start again with the window open.</summary>
+    public void RestartFresh()
+    {
+        if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); _tray = null; }
+        if (_tintHandle != IntPtr.Zero) { DestroyIcon(_tintHandle); _tintHandle = IntPtr.Zero; }
+        _window?.AllowClose();
+        Settings.Delete();   // after AllowClose, which can still save
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (exe is not null)
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--restarted") { UseShellExecute = false });
+        }
+        catch { /* user can start it again */ }
         Shutdown();
     }
 }
