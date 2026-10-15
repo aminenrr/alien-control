@@ -39,6 +39,24 @@ public static class Motion
     /// <summary>Runs the tracks together in ONE storyboard (60 fps cap, HoldEnd) and returns it.</summary>
     public static Storyboard Play(Action? completed, params (DependencyObject Target, DependencyProperty Property, AnimationTimeline Anim)[] tracks)
     {
+        // TEMPORARY v0.8.5 diagnostics (MotionLog): which animation starts, finishes or throws.
+        string label = string.Join("+", System.Linq.Enumerable.Select(tracks, t =>
+            $"{(t.Target is FrameworkElement fe && fe.Name.Length > 0 ? fe.Name : t.Target.GetType().Name)}.{t.Property.Name}"));
+        try
+        {
+            var sbx = PlayCore(completed, label, tracks);
+            AlienControl.Services.MotionLog.Write($"begin {label}");
+            return sbx;
+        }
+        catch (Exception ex)
+        {
+            AlienControl.Services.MotionLog.Write($"FAILED {label}: {ex.GetType().Name}: {ex.Message}");
+            throw;
+        }
+    }
+
+    private static Storyboard PlayCore(Action? completed, string label, (DependencyObject Target, DependencyProperty Property, AnimationTimeline Anim)[] tracks)
+    {
         var sb = new Storyboard();
         Timeline.SetDesiredFrameRate(sb, Fps);
         foreach (var (target, prop, anim) in tracks)
@@ -48,6 +66,7 @@ public static class Motion
             Storyboard.SetTargetProperty(anim, new PropertyPath(prop));
             sb.Children.Add(anim);
         }
+        sb.Completed += (_, _) => AlienControl.Services.MotionLog.Write($"done {label}");
         if (completed is not null) sb.Completed += (_, _) => completed();
         sb.Begin();   // SnapshotAndReplace: a new run takes over smoothly from the current value
         return sb;
@@ -120,7 +139,8 @@ public static class Motion
 
     private static void Hover(FrameworkElement el, bool on)
     {
-        if (Part(el, "HoverFx") is not { } fx) return;
+        if (Part(el, "HoverFx") is not { } fx) { AlienControl.Services.MotionLog.Write($"no HoverFx in {el.GetType().Name} '{el.Name}' (Enabled={Enabled})"); return; }
+        if (!(Enabled && el.IsVisible)) AlienControl.Services.MotionLog.Write($"hover skipped: Enabled={Enabled} IsVisible={el.IsVisible}");
         if (Enabled && el.IsVisible) Play(null, (fx, UIElement.OpacityProperty, Tween(null, on ? 1 : 0, 100, Quad)));
         else Set(fx, UIElement.OpacityProperty, on ? 1 : 0);
     }
@@ -128,7 +148,7 @@ public static class Motion
     private static void OnDown(object sender, MouseButtonEventArgs e)
     {
         var el = (FrameworkElement)sender;
-        if (!Enabled || !el.IsEnabled || !el.IsVisible) return;
+        if (!Enabled || !el.IsEnabled || !el.IsVisible) { AlienControl.Services.MotionLog.Write($"press skipped: Enabled={Enabled} IsEnabled={el.IsEnabled} IsVisible={el.IsVisible}"); return; }
         el.SetValue(PressedProperty, true);
         var s = Scale(el);
         Play(null, (s, ScaleTransform.ScaleXProperty, Tween(null, 0.97, 70, Quad)),
