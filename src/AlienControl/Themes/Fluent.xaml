@@ -76,7 +76,7 @@
         <Setter Property="Background">
             <Setter.Value>
                 <LinearGradientBrush StartPoint="0.29,0" EndPoint="0.71,1">
-                    <GradientStop Color="#1E2633" Offset="0" /><GradientStop Color="#202024" Offset="0.42" /><GradientStop Color="#221E29" Offset="1" />
+                    <GradientStop Color="#1F2329" Offset="0" /><GradientStop Color="#1E1F22" Offset="0.45" /><GradientStop Color="#1C1C1E" Offset="1" />
                 </LinearGradientBrush>
             </Setter.Value>
         </Setter>
