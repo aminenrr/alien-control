@@ -29,6 +29,9 @@ Why things are the way they are. Newest decisions win.
   down on close, no fade) instead of the v0.8.2 fade + 12 DIP rise. Hover/press/selection made stronger because the
   v0.8.2 values ran but were too faint to notice. Timings are by eye, tuned after the laptop test.
 
+- v0.8.7 (Amine): tray left click toggles the window. The tray menu follows the theme with accent-colored text; its
+  palettes live in `TrayMenu.cs` because the WinForms menu can't use the WPF theme dictionaries.
+
 - v0.8.4 (Amine): Legend section headers are icon-only (numbers removed); Fluent shows the brightness % once.
 
 ## Features

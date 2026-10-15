@@ -84,7 +84,8 @@ The gear menu also holds **Detect key** for the G-key and **Reduce motion**.
 
 ### Tray profiles
 
-Right-click the tray icon: Battery (amber), Quiet (green), Balanced (cyan), Performance (red), Custom (white).
+Left-click the tray icon to open the window, or to slide it back to the tray when it is open (v0.8.7).
+Right-click it for the menu, drawn in the active theme with accent-colored text (v0.8.7): Battery (amber), Quiet (green), Balanced (cyan), Performance (red), Custom (white).
 A profile sets the power mode and refresh rate (Battery 60 Hz, Quiet/Balanced/Performance 240 Hz; Custom changes
 nothing). Profiles never touch the GPU mode and never use Ultimate.
 The header shows the current profile as a small read-only chip next to the model badge ("● BALANCED" in Legend,
@@ -120,6 +121,7 @@ RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemor
 
 ## Status
 
+v0.8.7: tray left click toggles the window, tray menu follows the theme with accent text.
 v0.8.6: animation fix (Quick Settings style window slide, visible hover/press/selection), temporary animation log removed.
 v0.8.5: Quiet preset at 240 Hz, power readout every 1 s with an AC total estimate, Faster charging removed, BIOS report fixes, temporary animation log.
 v0.8.4: Legend drops the section numbers (icons only), Fluent shows brightness once.

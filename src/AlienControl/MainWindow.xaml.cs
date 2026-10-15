@@ -740,7 +740,16 @@ public partial class MainWindow : Window
         top.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0x7C, 0x4D, 0xFF), 1));
         res["TopLineBrush"] = Freeze(top);
         try { Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(col, Wpf.Ui.Appearance.ApplicationTheme.Dark); } catch { }
+        AccentColor = col;
+        (Application.Current as App)?.UpdateTrayMenu(legend, col);   // v0.8.7: tray menu follows theme + accent
     }
+
+    /// <summary>v0.8.7: current accent and theme, read by the tray menu.</summary>
+    public Color AccentColor { get; private set; } = Color.FromRgb(0, 229, 255);
+    public bool IsLegendTheme => IsLegend;
+
+    /// <summary>v0.8.7: visible, not minimized and not already sliding away (tray left click then hides it).</summary>
+    public bool IsShownOpen => IsVisible && WindowState != WindowState.Minimized && !_hiding;
 
     // ---------- theme ----------
 

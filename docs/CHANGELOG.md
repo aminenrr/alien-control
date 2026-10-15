@@ -2,6 +2,13 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.8.7 (2026-10-15), untested
+- Tray left click toggles: opens the window, or slides it back to the tray when it's already open (minimized restores).
+- Tray right-click menu drawn in the app's look (`Services/TrayMenu.cs`, custom `ToolStripRenderer`): text in the accent
+  color in both themes. Legend: `#0E1013`, mono font, caps, square corners, accent bar on hover. Fluent: Windows 11 dark
+  gray, Segoe UI, rounded corners (DWM), soft rounded hover. Accent check on the current profile and a dot in each
+  profile's tray tint. Restyles live on theme or accent change.
+
 ## v0.8.6 (2026-10-15), untested
 - Animation fix, from the v0.8.5 motion.log: every storyboard ran and completed, but they weren't visible.
   - Window open/close now slides like the Windows 11 Quick Settings flyout: up out of the bottom edge (clipped by a new

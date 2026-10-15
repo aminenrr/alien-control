@@ -11,6 +11,7 @@
 - Talk about: notifications when a preset changes, and automatic preset on AC vs battery.
 
 ## Waiting on hardware tests
+- v0.8.7 tray toggle and themed tray menu.
 - v0.8.6 animations (Quick Settings slide, timings to tune by eye).
 - v0.8.0 to v0.8.2 (themes, gear menu, profiles, power readout, chip, animations) not yet run on the laptop.
 - "Check Ultimate support" report: gives the exact Dell BIOS attribute for MUX and the right RAPL counter instance.

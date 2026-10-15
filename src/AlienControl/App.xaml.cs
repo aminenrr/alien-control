@@ -16,6 +16,10 @@ public partial class App : Application
     private readonly Dictionary<TrayProfile, WinForms.ToolStripMenuItem> _profileItems = new();
     private Icon? _baseIcon;
     private IntPtr _tintHandle;
+    private WinForms.ContextMenuStrip? _menu;
+    private Font? _menuFont;
+    private readonly TrayMenuStyle _menuStyle = new();
+    private readonly List<(WinForms.ToolStripItem Item, string Text)> _menuTexts = new();
 
     /// <summary>Loads only the chosen theme dictionary into App.Resources, replacing the previous one.</summary>
     public static void ApplyTheme(string name)
@@ -44,19 +48,31 @@ public partial class App : Application
 
     private void CreateTray()
     {
-        var menu = new WinForms.ContextMenuStrip();
-        menu.Items.Add("Open Alien Controls", null, (_, _) => ShowMain());
+        // v0.8.7: themed menu (TrayMenu.cs): accent text, Legend / Fluent palette, check column + profile tint dot.
+        var menu = new WinForms.ContextMenuStrip { ShowCheckMargin = true, ShowImageMargin = true, DropShadowEnabled = true };
+        menu.Renderer = new TrayMenuRenderer(_menuStyle);
+        WinForms.ToolStripMenuItem Add(string text, EventHandler click, Image? img = null)
+        {
+            var it = new WinForms.ToolStripMenuItem(text, img, click);
+            menu.Items.Add(it);
+            _menuTexts.Add((it, text));
+            return it;
+        }
+        Add("Open Alien Controls", (_, _) => ShowMain());
         menu.Items.Add(new WinForms.ToolStripSeparator());
         foreach (TrayProfile p in Enum.GetValues(typeof(TrayProfile)))
         {
-            var item = new WinForms.ToolStripMenuItem(Profiles.Label(p)) { ToolTipText = Profiles.Describe(p) };
             var profile = p;
-            item.Click += async (_, _) => { if (_window is not null) await _window.ApplyProfileAsync(profile); };
-            menu.Items.Add(item);
+            var item = Add(Profiles.Label(p), async (_, _) => { if (_window is not null) await _window.ApplyProfileAsync(profile); },
+                           TrayMenuRenderer.Dot(Profiles.Tint(p)));
+            item.ToolTipText = Profiles.Describe(p);
             _profileItems[p] = item;
         }
         menu.Items.Add(new WinForms.ToolStripSeparator());
-        menu.Items.Add("Quit", null, (_, _) => Quit());
+        Add("Quit", (_, _) => Quit());
+        menu.Opening += (_, _) => _menuStyle.ApplyCorners(menu.Handle);
+        _menu = menu;
+        if (_window is not null) UpdateTrayMenu(_window.IsLegendTheme, _window.AccentColor);
 
         _baseIcon = LoadTrayIcon();
         _tray = new WinForms.NotifyIcon
@@ -66,7 +82,32 @@ public partial class App : Application
             ContextMenuStrip = menu,
             Visible = true
         };
-        _tray.MouseClick += (_, a) => { if (a.Button == WinForms.MouseButtons.Left) ShowMain(); };
+        // v0.8.7: left click toggles: opens the window, or slides it back to the tray when it's already open.
+        _tray.MouseClick += (_, a) =>
+        {
+            if (a.Button != WinForms.MouseButtons.Left || _window is null) return;
+            if (_window.IsShownOpen) _window.HideToTray();
+            else ShowMain();
+        };
+    }
+
+    /// <summary>v0.8.7: restyles the tray menu for the theme and accent (called by MainWindow on every change).</summary>
+    public void UpdateTrayMenu(bool legend, System.Windows.Media.Color accent)
+    {
+        _menuStyle.Set(legend, Color.FromArgb(accent.R, accent.G, accent.B));
+        if (_menu is null) return;
+        var old = _menuFont;
+        _menuFont = _menuStyle.MakeFont();
+        _menu.Font = _menuFont;
+        old?.Dispose();   // only fonts we made; never the shared default menu font
+        var pad = legend ? new WinForms.Padding(0, 3, 0, 3) : new WinForms.Padding(0, 5, 0, 5);
+        foreach (var (item, text) in _menuTexts)
+        {
+            item.Text = legend ? text.ToUpperInvariant() : text;   // Legend caps, like the header chip
+            item.Padding = pad;
+        }
+        _menu.BackColor = _menuStyle.Back;
+        _menu.Invalidate();
     }
 
     [DllImport("user32.dll")] private static extern bool DestroyIcon(IntPtr handle);

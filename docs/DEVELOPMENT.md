@@ -39,6 +39,7 @@ Needs the .NET 8 SDK on Windows (or `EnableWindowsTargeting` to compile-check on
 | `Services/DellBios.cs` | Dell BIOS WMI attributes (ExpressCharge, MUX lookup) |
 | `Services/GpuMode.cs` | GPU mode detection, adapter disable/enable, apps using the RTX, support report. Buttons not wired yet |
 | `Services/Profiles.cs` | tray profiles and their tint colors |
+| `Services/TrayMenu.cs` | v0.8.7 themed tray menu: Legend / Fluent palettes in C# (WinForms can't read the XAML), accent text, tint dots |
 | `Services/Settings.cs` | `settings.json` with versioned migrations (currently v6) |
 | `Services/Startup.cs` | run-at-logon scheduled task (admin, no UAC prompt) |
 
