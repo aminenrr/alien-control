@@ -64,6 +64,8 @@ Why things are the way they are. Newest decisions win.
   - dGPU only: NVIDIA Advanced Optimus "NVIDIA GPU only" display mode (no reboot).
   - Ultimate: MUX through Dell BIOS WMI, manual only, restart prompt.
 - **Rule:** tray profiles never switch to Ultimate and never touch GPU mode automatically.
+- v0.9.2 (Amine): only **Advanced Optimus** and **Ultimate**. NVIDIA's Auto / Optimus / GPU only stay in its tray popup
+  (no command opens it); the hint reads them. iGPU only (pnputil) dropped.
 - v0.9.0 (Amine picked option A): NVIDIA's switch is a private driver call (Procmon), so no reverse engineering of
   nvapi64. The row reads the mode; Optimus / dGPU only open NVIDIA Control Panel. Mode detection uses the live panel
   path first (driver independent) and NVIDIA's registry flags only for Auto / fallback.

@@ -2,6 +2,14 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.2 (2026-10-15), untested
+- GPU row cut to two modes: **Advanced Optimus** and **Ultimate**. iGPU only, dGPU only, the RTX-off switch,
+  the "RTX in use" dialog, the NVIDIA Control Panel hand-off and "Check Ultimate support" are gone.
+- Hint (accent colored): Advanced Optimus shows NVIDIA's mode + the GPU on the screen (OPTIMUS · IRIS Xe,
+  AUTO · IRIS Xe / 3070 Ti, dGPU ONLY · 3070 Ti); Ultimate shows just 3070 Ti. Re-read on show, display change and focus.
+- Switching either way = Dell BIOS HybridGraphics, themed dialog Cancel / Restart later / Restart now.
+  Clicking the running mode does nothing (or cancels a switch queued for the next restart).
+
 ## v0.9.1 (2026-10-15), untested
 - GPU hint names the GPU actually driving the screen: Optimus / Auto on Intel show "Iris Xe", not "3070 Ti".
 

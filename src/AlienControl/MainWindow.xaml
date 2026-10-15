@@ -215,23 +215,17 @@
                             <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Gpu}" />
                             <TextBlock Grid.Column="2" Text="{DynamicResource Str.GpuMode}" Style="{DynamicResource SectionTitle}" />
                             <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
-                            <TextBlock x:Name="GpuHint" Grid.Column="4" Style="{DynamicResource SectionHint}" />
+                            <TextBlock x:Name="GpuHint" Grid.Column="4" Style="{DynamicResource SectionHint}" Foreground="{DynamicResource AccentBrush}" />
                         </Grid>
                         <Border Style="{DynamicResource Track}">
-                            <UniformGrid Columns="4">
-                                <RadioButton x:Name="GpuIgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" ToolTipService.ShowOnDisabled="True"
-                                             Tag="{DynamicResource Icon.IGpu}" Content="iGPU only" ToolTip="RTX off, Intel only. Best battery. External ports wired to the RTX go dark." />
-                                <RadioButton x:Name="GpuOptimus" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" ToolTipService.ShowOnDisabled="True" IsChecked="True"
-                                             Tag="{DynamicResource Icon.Optimus}" Content="Optimus" ToolTip="Hybrid: Intel drives the screen and the RTX wakes when needed." />
-                                <RadioButton x:Name="GpuDgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" ToolTipService.ShowOnDisabled="True"
-                                             Tag="{DynamicResource Icon.DGpu}" Content="dGPU only" ToolTip="The RTX drives the screen (NVIDIA 'GPU only' display mode, no restart). Opens NVIDIA's display mode setting." />
-                                <RadioButton x:Name="GpuUltimate" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" ToolTipService.ShowOnDisabled="True"
+                            <!-- v0.9.2: two modes. Auto / Optimus / GPU only stay in NVIDIA's own tray popup; the hint follows it. -->
+                            <UniformGrid Columns="2">
+                                <RadioButton x:Name="GpuOptimus" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" IsChecked="True"
+                                             Tag="{DynamicResource Icon.Optimus}" Content="Advanced Optimus" ToolTip="Intel + RTX. Pick Auto / Optimus / GPU only from NVIDIA's tray icon." />
+                                <RadioButton x:Name="GpuUltimate" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click"
                                              Tag="{DynamicResource Icon.Ultimate}" Content="Ultimate" ToolTip="Dell BIOS: Intel GPU off, the RTX drives everything. Needs a restart." />
                             </UniformGrid>
                         </Border>
-                        <Button x:Name="GpuCheckButton" Style="{DynamicResource LinkButton}" Margin="0,6,0,0" HorizontalAlignment="Left"
-                                Content="{DynamicResource Str.GpuCheck}" Click="GpuCheck_Click"
-                                ToolTip="Checks whether Ultimate (MUX) can be switched from Windows and copies a GPU / BIOS report" />
                     </StackPanel>
                 </Border>
 

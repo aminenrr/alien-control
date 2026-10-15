@@ -5,7 +5,7 @@
   If they still look dead, next suspect is the `AllowsTransparency` layered window dropping frames.
 
 ## Next after the bugs
-- GPU modes: wired in v0.9.0 (option A), waiting on a laptop test.
+- GPU modes: two modes since v0.9.2 (Advanced Optimus / Ultimate), waiting on a laptop test.
 - Ultimate: the BIOS exposes `HybridGraphics = Disabled/Enabled` through Dell BIOS WMI (no BIOS password on this laptop),
   so Ultimate = set `Disabled` + restart, Optimus = `Enabled` + restart. Wired together with the GPU row.
 - Talk about: notifications when a preset changes, and automatic preset on AC vs battery.

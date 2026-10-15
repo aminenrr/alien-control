@@ -972,13 +972,13 @@ public partial class MainWindow : Window
         }
     }
 
-    // ---------- GPU mode (v0.9.0) ----------
-    // NVIDIA has no API for its display mode switch (Procmon 2026-10-15: a private driver call from nvcontainer), so the row
-    // shows the real mode and Optimus / dGPU only open NVIDIA's own setting. iGPU only = RTX disabled (pnputil),
-    // Ultimate = Dell BIOS HybridGraphics + restart. Read on show, after a change and on display changes; never polled.
+    // ---------- GPU mode ----------
+    // v0.9.2: two modes, Advanced Optimus and Ultimate (Dell BIOS HybridGraphics + restart). NVIDIA has no API for its
+    // display mode (Procmon 2026-10-15), so Auto / Optimus / GPU only stay in NVIDIA's tray popup and the hint just reads them.
+    // Read on show, after a change, on display changes and on focus; never polled.
 
     private GpuMode.State _gpu = new(GpuModeKind.Unknown, false, null);
-    private bool _gpuBusy, _gpuAwaitNvidia, _gpuDisplayHooked;
+    private bool _gpuBusy, _gpuDisplayHooked;
 
     private Task RefreshGpuHintAsync() => RefreshGpuAsync(withBios: true);
 
@@ -998,9 +998,10 @@ public partial class MainWindow : Window
                 await Task.Delay(1500);
                 if (IsVisible) await RefreshGpuAsync(withBios: false);
             });
+            // Auto <-> Optimus while Intel stays on the panel changes no display, only NVIDIA's flag: re-read on focus.
             Activated += async (_, _) =>
             {
-                if (_gpuAwaitNvidia && IsVisible) await RefreshGpuAsync(withBios: false);
+                if (IsVisible && !_gpuBusy) await RefreshGpuAsync(withBios: false);
             };
         }
     }
@@ -1008,55 +1009,37 @@ public partial class MainWindow : Window
     private void ShowGpuState()
     {
         var k = _gpu.Kind;
-        GpuIgpu.IsChecked = k == GpuModeKind.IGpuOnly;
-        GpuOptimus.IsChecked = k == GpuModeKind.Optimus;
-        GpuDgpu.IsChecked = k == GpuModeKind.DGpuOnly;
-        GpuUltimate.IsChecked = k == GpuModeKind.Ultimate;
         bool ult = k == GpuModeKind.Ultimate;
-        GpuIgpu.IsEnabled = !ult;
-        GpuDgpu.IsEnabled = !ult;
-        if (ult)
-        {
-            const string off = "Not available in Ultimate: the BIOS has the Intel GPU off. Pick Optimus first (restart).";
-            GpuIgpu.ToolTip = off;
-            GpuDgpu.ToolTip = off;
-        }
-        else
-        {
-            GpuIgpu.ToolTip = "RTX off, Intel only. Best battery. External ports wired to the RTX go dark.";
-            GpuDgpu.ToolTip = "The RTX drives the screen (NVIDIA 'GPU only' display mode, no restart). Opens NVIDIA's display mode setting.";
-        }
+        GpuOptimus.IsChecked = !ult && k != GpuModeKind.Unknown;
+        GpuUltimate.IsChecked = ult;
         GpuOptimus.ToolTip = ult ? "Back to hybrid: turns the Intel GPU back on in the BIOS. Needs a restart."
-            : "Hybrid: Intel drives the screen and the RTX wakes when needed.";
+            : "Intel + RTX. Pick Auto / Optimus / GPU only from NVIDIA's tray icon.";
 
-        string screen = k == GpuModeKind.DGpuOnly ? "RTX" : "Intel";
+        // v0.9.2: Advanced Optimus = NVIDIA's mode + the GPU driving the screen. Ultimate = just the RTX.
+        bool rtx = k == GpuModeKind.DGpuOnly;
+        string fGpu = rtx ? "RTX 3070 Ti" : "Iris Xe", lGpu = rtx ? "3070 Ti" : "IRIS Xe";
         var (fluent, legend) = k switch
         {
-            // v0.9.1: the hint names the GPU driving the screen (Optimus showed "3070 Ti" while Intel drove it)
-            GpuModeKind.IGpuOnly => ("iGPU only · Iris Xe, RTX off", "iGPU ONLY · IRIS Xe"),
-            GpuModeKind.Optimus or GpuModeKind.DGpuOnly when _gpu.Auto => (screen == "RTX" ? "Auto · on RTX 3070 Ti" : "Auto · on Iris Xe", screen == "RTX" ? "AUTO · 3070 Ti" : "AUTO · IRIS Xe"),
-            GpuModeKind.Optimus => ("Optimus · on Iris Xe", "OPTIMUS · IRIS Xe"),
+            GpuModeKind.Ultimate => ("RTX 3070 Ti", "3070 Ti"),
+            GpuModeKind.Unknown => ("", ""),
+            _ when _gpu.Auto => ($"Auto · {fGpu}", $"AUTO · {lGpu}"),
             GpuModeKind.DGpuOnly => ("dGPU only · RTX 3070 Ti", "dGPU ONLY · 3070 Ti"),
-            GpuModeKind.Ultimate => ("Ultimate · RTX 3070 Ti", "ULTIMATE · 3070 Ti"),
-            _ => ("RTX 3070 Ti", "3070 Ti")
+            _ => ("Optimus · Iris Xe", "OPTIMUS · IRIS Xe")
         };
         if (_gpu.PendingRestart)
             (fluent, legend) = _gpu.BiosUltimate == true
                 ? ("Ultimate after restart", "ULTIMATE AFTER RESTART")
-                : ("Optimus after restart", "OPTIMUS AFTER RESTART");
+                : ("Adv. Optimus after restart", "ADV. OPTIMUS AFTER RESTART");
         SetHint(GpuHint, fluent, legend);
     }
 
     private async void GpuMode_Click(object sender, RoutedEventArgs e)
     {
-        var target = sender == GpuIgpu ? GpuModeKind.IGpuOnly
-            : sender == GpuDgpu ? GpuModeKind.DGpuOnly
-            : sender == GpuUltimate ? GpuModeKind.Ultimate
-            : GpuModeKind.Optimus;
+        bool toUlt = sender == GpuUltimate;
         ShowGpuState();   // the row only moves once the switch really happened
         if (_gpuBusy) return;
         _gpuBusy = true;
-        try { await SwitchGpuAsync(target); }
+        try { await SwitchGpuAsync(toUlt); }
         catch (Exception ex) { Status("GPU switch failed: " + ex.Message); }
         finally
         {
@@ -1065,88 +1048,41 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task SwitchGpuAsync(GpuModeKind target)
+    /// <summary>Advanced Optimus <-> Ultimate through Dell BIOS HybridGraphics. Clicking the running mode does nothing,
+    /// except it cancels a switch queued for the next restart.</summary>
+    private async Task SwitchGpuAsync(bool toUlt)
     {
         var cur = _gpu.Kind;
         if (cur == GpuModeKind.Unknown) { Status("Couldn't read the GPU state. Nothing was changed."); return; }
+        bool isUlt = cur == GpuModeKind.Ultimate;
 
-        // Ultimate is queued for the next boot but the user picked a hybrid mode: just undo the BIOS change.
-        if (target != GpuModeKind.Ultimate && cur != GpuModeKind.Ultimate && _gpu.BiosUltimate == true)
+        if (toUlt == isUlt)
         {
-            var undo = await Task.Run(() => GpuMode.SetUltimate(false));
-            if (undo is not null) { Status(undo); return; }
-            Status("Ultimate cancelled. No restart needed.");
-            if (target == cur) return;
-        }
-
-        // ----- Ultimate: BIOS + restart, both ways -----
-        if (target == GpuModeKind.Ultimate || cur == GpuModeKind.Ultimate)
-        {
-            bool toUlt = target == GpuModeKind.Ultimate;
-            if (toUlt == (cur == GpuModeKind.Ultimate) && !_gpu.PendingRestart) return;
-            var pick = await ShowGpuDialog(
-                toUlt ? "Switch to Ultimate?" : "Back to Optimus?",
-                toUlt ? "The BIOS turns the Intel GPU off and the RTX drives everything: best FPS, shortest battery. "
-                        + "NVIDIA's display modes and iGPU only aren't available until you switch back. Needs a restart."
-                      : "The BIOS turns the Intel GPU back on (hybrid). After the restart NVIDIA's display modes come back. Needs a restart.",
-                null, null,
-                ("cancel", "Cancel", false), ("later", "Restart later", false), ("now", "Restart now", true));
-            if (pick is null or "cancel") return;
-            if (toUlt && cur == GpuModeKind.IGpuOnly)
-            {
-                // never boot into Ultimate with the RTX disabled in Windows: that's a black screen
-                var en = await GpuMode.SetDgpuEnabledAsync(true);
-                if (en is not null) { Status(en); return; }
-            }
-            var err = await Task.Run(() => GpuMode.SetUltimate(toUlt));
-            if (err is not null) { Status(err); return; }
-            if (pick == "now") { GpuMode.RestartNow(); return; }
-            Status(toUlt ? "Ultimate is set. It takes effect after your next restart." : "Optimus is set. It takes effect after your next restart.");
+            if (!_gpu.PendingRestart) return;
+            var undo = await Task.Run(() => GpuMode.SetUltimate(isUlt));
+            Status(undo ?? "Switch cancelled. No restart needed.");
             return;
         }
+        if (_gpu.PendingRestart) { Status("Already set. It takes effect after your next restart."); return; }
 
-        // ----- iGPU only: disable the RTX -----
-        if (target == GpuModeKind.IGpuOnly)
+        var pick = await ShowGpuDialog(
+            toUlt ? "Switch to Ultimate?" : "Back to Advanced Optimus?",
+            toUlt ? "The BIOS turns the Intel GPU off and the RTX drives everything: best FPS, shortest battery. "
+                    + "NVIDIA's display modes come back when you switch back. Needs a restart."
+                  : "The BIOS turns the Intel GPU back on, so NVIDIA's Auto / Optimus / GPU only modes come back. Needs a restart.",
+            null, null,
+            ("cancel", "Cancel", false), ("later", "Restart later", false), ("now", "Restart now", true));
+        if (pick is null or "cancel") return;
+        if (toUlt && cur == GpuModeKind.IGpuOnly)
         {
-            if (cur == GpuModeKind.IGpuOnly) return;
-            if (cur == GpuModeKind.DGpuOnly)
-            {
-                Status("The RTX drives the screen right now. Switch to Optimus first, then iGPU only.");
-                return;
-            }
-            while (true)
-            {
-                var apps = await Task.Run(GpuMode.AppsUsingDgpu);
-                var pick = await ShowGpuDialog(
-                    apps.Count > 0 ? "RTX in use" : "Turn the RTX off?",
-                    "Intel only, best battery. Screens on the ports wired to the RTX go dark until you switch back."
-                        + (apps.Count > 0 ? " These apps lose the RTX and may crash or freeze:" : ""),
-                    apps.Count > 0 ? apps : null, null,
-                    ("cancel", "Cancel", false), ("refresh", "Refresh", false), ("go", apps.Count > 0 ? "Switch anyway" : "Turn off", true));
-                if (pick == "refresh") continue;
-                if (pick != "go") return;
-                break;
-            }
-            var err = await GpuMode.SetDgpuEnabledAsync(false);
-            Status(err ?? "RTX off. Intel only.");
-            return;
+            // RTX disabled by an older build: never boot into Ultimate like that (black screen)
+            var en = await GpuMode.SetDgpuEnabledAsync(true);
+            if (en is not null) { Status(en); return; }
         }
-
-        // ----- Optimus / dGPU only (NVIDIA display mode) -----
-        if (cur == GpuModeKind.IGpuOnly)
-        {
-            var err = await GpuMode.SetDgpuEnabledAsync(true);
-            if (err is not null) { Status(err); return; }
-            if (target == GpuModeKind.Optimus) { Status("RTX back on. Optimus."); return; }
-        }
-        else if (target == cur && !_gpu.Auto) return;
-
-        var open = GpuMode.OpenNvidiaDisplayMode();
-        if (open is not null) { Status(open); return; }
-        _gpuAwaitNvidia = true;
-        Status(target == GpuModeKind.DGpuOnly
-            ? "In NVIDIA Control Panel: Manage display mode > NVIDIA GPU only. This row updates by itself."
-            : "In NVIDIA Control Panel: Manage display mode > Optimus. This row updates by itself.");
+        var err = await Task.Run(() => GpuMode.SetUltimate(toUlt));
+        if (err is not null) { Status(err); return; }
+        if (pick == "now") { GpuMode.RestartNow(); return; }
+        Status(toUlt ? "Ultimate is set. It takes effect after your next restart." : "Advanced Optimus is set. It takes effect after your next restart.");
     }
 
     // ----- in-window dialog -----
@@ -1189,22 +1125,6 @@ public partial class MainWindow : Window
         var t = _gpuDlg;
         _gpuDlg = null;
         t?.TrySetResult(id);
-    }
-
-    /// <summary>"Check Ultimate support": GPU / BIOS WMI report, shown and copied to the clipboard.</summary>
-    private async void GpuCheck_Click(object sender, RoutedEventArgs e)
-    {
-        GpuCheckButton.IsEnabled = false;
-        try
-        {
-            var report = await Task.Run(GpuMode.Report);
-            bool copied = false;
-            try { Clipboard.SetText(report); copied = true; } catch { }
-            Status(copied ? "GPU report copied. Paste it to me." : "Couldn't copy the GPU report.");
-            MessageBox.Show(report + (copied ? "\n(Copied to the clipboard.)" : ""), "Alien Controls · Ultimate support",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        finally { GpuCheckButton.IsEnabled = true; }
     }
 
     // ---------- refresh rate (read on window show and after a change; never polled) ----------

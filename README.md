@@ -93,11 +93,9 @@ The header shows the current profile as a small read-only chip next to the model
 
 ### GPU mode
 
-The row lights the real mode (Auto shows as "Auto · screen on Intel/RTX" in the hint).
-- **iGPU only** turns the RTX off after an in-window "RTX in use" check. Not available while the RTX drives the screen.
-- **Optimus / dGPU only** open NVIDIA's own "Manage display mode" setting (NVIDIA has no API for it); the row follows.
-- **Ultimate** sets the Dell BIOS graphics switch and asks to restart. In Ultimate only Optimus (back, restart) is clickable.
-**Check Ultimate support** shows and copies a GPU / BIOS report.
+Two buttons: **Advanced Optimus** and **Ultimate**. In Advanced Optimus the hint shows NVIDIA's mode and the GPU on the
+screen (OPTIMUS · IRIS Xe, AUTO · 3070 Ti, dGPU ONLY · 3070 Ti); change those from NVIDIA's own tray icon.
+In Ultimate the hint shows 3070 Ti. Switching between the two sets the Dell BIOS graphics switch and asks to restart.
 
 | Legend | Fluent |
 |---|---|
