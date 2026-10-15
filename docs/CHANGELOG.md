@@ -2,7 +2,14 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
-## v0.8.8 (2026-10-15), untested
+## v0.8.9 (2026-10-15), untested
+- Tray profiles now set CPU boost (AC and battery): Battery Off, Quiet Efficient, Balanced On, Performance Aggressive.
+  The CPU boost row shows the level the profile set. Custom still changes nothing.
+- Minimize slides down into the screen edge (170 ms, like hide), then minimizes; the taskbar button stays. Restoring
+  (taskbar, tray, Alt+Tab) slides it back up.
+- Fluent: performance mode labels at 10.5 px so "Performance" is no longer cut off.
+
+## v0.8.8 (2026-10-15), tested OK (slide works; hover fades verified on video)
 - Window slide fix, from Amine's 30 fps screen recording of v0.8.7: open and close had zero in-between frames (pop in,
   pop out). The storyboards ran, but WPF never presented the frames of content moving inside the transparent (layered)
   window.

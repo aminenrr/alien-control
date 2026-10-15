@@ -118,7 +118,17 @@ public partial class MainWindow : Window
         {
             if (SettingsPopup.IsOpen && !_settingsPinned && !SettingsPanel.IsMouseOver) CloseSettings();
         };
-        StateChanged += (_, _) => { if (WindowState == WindowState.Minimized) CloseSettings(instant: true); };
+        StateChanged += (_, _) =>
+        {
+            if (WindowState == WindowState.Minimized) CloseSettings(instant: true);
+            else if (WindowState == WindowState.Normal && _minSlid)
+            {
+                _minSlid = false;   // v0.8.9: restored from a slid minimize: rise back up from below the screen
+                _showGen++;
+                _hiding = false;
+                if (Motion.Enabled) SlideIn(); else SnapToCorner();
+            }
+        };
 
         SizeChanged += (_, _) => SnapToCorner();
         SystemParameters.StaticPropertyChanged += (_, a) =>
@@ -148,7 +158,7 @@ public partial class MainWindow : Window
     /// </summary>
     public void SnapToCorner()
     {
-        if (_slide?.Active == true || _openParked) return;   // v0.8.8: the slide owns the position until it lands
+        if (_slide?.Active == true || _openParked || _minSlid) return;   // v0.8.8: the slide owns the position until it lands
         var (l, t) = CornerPosition();
         Left = l;
         Top = t;
@@ -185,7 +195,26 @@ public partial class MainWindow : Window
     protected override void OnContentRendered(EventArgs e) { base.OnContentRendered(e); SnapToCorner(); }
 
     private void Header_MouseDown(object sender, MouseButtonEventArgs e) { /* pinned; no dragging */ }
-    private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    /// <summary>v0.8.9: minimize slides down into the screen edge like hide, then minimizes (taskbar button stays).
+    /// The restore position is left below the screen, so a restore (taskbar, tray, Alt+Tab) slides it back up.</summary>
+    private void Minimize_Click(object sender, RoutedEventArgs e)
+    {
+        CloseSettings(instant: true);
+        if (!Motion.Enabled || _hiding) { WindowState = WindowState.Minimized; return; }
+        int gen = ++_showGen;
+        try
+        {
+            var h = Hwnd;
+            var r = WindowSlide.Rect(h);
+            Slide.Run(r.Left, WindowSlide.MonitorBottom(h) + 2, HideMs, CubicBezier.Accelerate, () =>
+            {
+                if (gen != _showGen) return;
+                _minSlid = true;
+                WindowState = WindowState.Minimized;
+            });
+        }
+        catch { WindowState = WindowState.Minimized; }
+    }
     private void Close_Click(object sender, RoutedEventArgs e) => HideToTray();
 
     // ---------- v0.8.8 window open / hide: Windows 11 Quick Settings style slide, done natively ----------
@@ -197,6 +226,7 @@ public partial class MainWindow : Window
     private const int OpenMs = 250, HideMs = 170;
     private int _showGen;     // bumps on every show/hide so a stale hide never fires after a re-show
     private bool _hiding;
+    private bool _minSlid;    // v0.8.9: minimized by sliding down; the restore slides it back up
     private bool _openParked; // PrepareShow parked the hidden window below the screen; the slide starts once it's drawn
     private WindowSlide? _slide;
     private WindowSlide Slide => _slide ??= new WindowSlide(() => new System.Windows.Interop.WindowInteropHelper(this).Handle);
@@ -278,6 +308,7 @@ public partial class MainWindow : Window
     private void HideNow()
     {
         _hiding = false;
+        _minSlid = false;
         _showGen++;
         Slide.Stop();
         Hide();
@@ -999,6 +1030,11 @@ public partial class MainWindow : Window
             Report(await _fan.SetPowerAsync(idx));
             _lastPowerIndex = idx;
         }
+        if (Profiles.CpuBoost(p) is { } boost)
+        {
+            Report(await _fan.SetCpuBoostAsync(boost, boost));   // v0.8.9: same level on AC and battery
+            ShowCpuBoost(boost);
+        }
         if (Profiles.RefreshHz(p) is { } hz)
         {
             var err = await Task.Run(() => DisplayRefresh.Set(hz));
@@ -1006,6 +1042,14 @@ public partial class MainWindow : Window
         }
         if (IsVisible) { RefreshDisplayRate(); await RefreshStateAsync(); }
         await SyncIndicatorsAsync();
+    }
+
+    private void ShowCpuBoost(int level)
+    {
+        CpuOff.IsChecked = level == 0;
+        CpuOn.IsChecked = level == 1;
+        CpuAggressive.IsChecked = level == 2;
+        CpuEfficient.IsChecked = level == 3;
     }
 
     private void SetProfile(TrayProfile p)

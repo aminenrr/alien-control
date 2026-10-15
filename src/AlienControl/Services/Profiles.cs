@@ -2,7 +2,7 @@ using System.Drawing;
 
 namespace AlienControl.Services;
 
-/// <summary>Tray profiles. They set the power mode and refresh rate only: never the GPU mode, never Ultimate.</summary>
+/// <summary>Tray profiles. They set the power mode, CPU boost and refresh rate only: never the GPU mode, never Ultimate.</summary>
 public enum TrayProfile { Battery, Quiet, Balanced, Performance, Custom }
 
 public static class Profiles
@@ -11,10 +11,10 @@ public static class Profiles
 
     public static string Describe(TrayProfile p) => p switch
     {
-        TrayProfile.Battery => "Battery Saver power mode, 60 Hz",
-        TrayProfile.Quiet => "Quiet power mode, 240 Hz",
-        TrayProfile.Balanced => "Balanced power mode, 240 Hz",
-        TrayProfile.Performance => "Performance power mode, 240 Hz",
+        TrayProfile.Battery => "Battery Saver power mode, CPU boost Off, 60 Hz",
+        TrayProfile.Quiet => "Quiet power mode, CPU boost Efficient, 240 Hz",
+        TrayProfile.Balanced => "Balanced power mode, CPU boost On, 240 Hz",
+        TrayProfile.Performance => "Performance power mode, CPU boost Aggressive, 240 Hz",
         _ => "Your own mix: nothing is changed"
     };
 
@@ -42,6 +42,17 @@ public static class Profiles
         TrayProfile.Quiet => s.QuietPowerIndex,
         TrayProfile.Balanced => s.BalancedPowerIndex,
         TrayProfile.Performance => s.PerformancePowerIndex,
+        _ => null
+    };
+
+    /// <summary>v0.8.9 (Amine): CPU boost per profile, as Windows PERFBOOSTMODE (0 Off, 1 On, 2 Aggressive,
+    /// 3 Efficient). Set for both AC and battery. Custom leaves it alone.</summary>
+    public static int? CpuBoost(TrayProfile p) => p switch
+    {
+        TrayProfile.Battery => 0,
+        TrayProfile.Quiet => 3,
+        TrayProfile.Balanced => 1,
+        TrayProfile.Performance => 2,
         _ => null
     };
 }

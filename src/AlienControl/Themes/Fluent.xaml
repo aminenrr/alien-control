@@ -327,7 +327,8 @@
         </Setter>
     </Style>
     <Style x:Key="ModeButton" TargetType="RadioButton" BasedOn="{StaticResource SegButton}">
-        <Setter Property="Padding" Value="1,9,1,10" />
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="Padding" Value="0,9,0,10" />
     </Style>
     <Style x:Key="GModeButton" TargetType="RadioButton" BasedOn="{StaticResource ModeButton}">
         <Setter Property="Template">
