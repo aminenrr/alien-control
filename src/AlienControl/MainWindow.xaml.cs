@@ -544,9 +544,13 @@ public partial class MainWindow : Window
     private void UpdateGKeyText() =>
         GKeyText.Text = $"G-key (F1) toggles G-Mode · key 0x{_settings.GKeyVk:X2}";
 
-    private async void Cpu_Click(object sender, RoutedEventArgs e) =>
+    private async void Cpu_Click(object sender, RoutedEventArgs e)
+    {
         // AC level from the button; battery stays on "efficient" (3).
-        Report(await _fan.SetCpuBoostAsync(int.Parse((string)((RadioButton)sender).CommandParameter), 3));
+        int level = int.Parse((string)((RadioButton)sender).CommandParameter);
+        Report(await _fan.SetCpuBoostAsync(level, 3));
+        if (await CpuFreq.ApplyAsync(level, 3) is { } err) Status(err);   // v0.9.4: Efficient = 3.4 GHz cap
+    }
 
     private async void Fan_Click(object sender, RoutedEventArgs e)
     {
@@ -1180,6 +1184,7 @@ public partial class MainWindow : Window
         if (Profiles.CpuBoost(p) is { } boost)
         {
             Report(await _fan.SetCpuBoostAsync(boost, boost));   // v0.8.9: same level on AC and battery
+            if (await CpuFreq.ApplyAsync(boost, boost) is { } err) Status(err);
             ShowCpuBoost(boost);
         }
         if (Profiles.RefreshHz(p) is { } hz)

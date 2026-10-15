@@ -2,6 +2,10 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.4 (2026-10-15), untested
+- Efficient CPU boost (Quiet) is capped at 3.4 GHz through Windows "Maximum processor frequency" (PROCFREQMAX and
+  PROCFREQMAX1, active plan, AC + battery). Any other boost level removes the cap. Services/CpuFreq.cs.
+
 ## v0.9.3 (2026-10-15), untested
 - Fix: after switching to Ultimate and restarting, the row still showed Advanced Optimus + "Ultimate after restart".
   On the m15 R7 the Intel GPU stays listed in Ultimate, so detection now trusts the BIOS value, unless the app changed

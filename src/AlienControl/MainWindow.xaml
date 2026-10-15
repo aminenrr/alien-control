@@ -270,7 +270,7 @@
                             <UniformGrid Columns="4">
                                 <RadioButton x:Name="CpuOff" GroupName="Cpu" CommandParameter="0" Content="Off" Style="{DynamicResource SegButton}" Click="Cpu_Click" />
                                 <RadioButton x:Name="CpuOn" GroupName="Cpu" CommandParameter="1" Content="On" Style="{DynamicResource SegButton}" Click="Cpu_Click" />
-                                <RadioButton x:Name="CpuEfficient" GroupName="Cpu" CommandParameter="3" Content="Efficient" Style="{DynamicResource SegButton}" Click="Cpu_Click" />
+                                <RadioButton x:Name="CpuEfficient" GroupName="Cpu" CommandParameter="3" Content="Efficient" Style="{DynamicResource SegButton}" Click="Cpu_Click" ToolTip="Boosts only when worth it, capped at 3.4 GHz (less heat and fan noise)" />
                                 <RadioButton x:Name="CpuAggressive" GroupName="Cpu" CommandParameter="2" Content="Aggressive" Style="{DynamicResource SegButton}" Click="Cpu_Click" />
                             </UniformGrid>
                         </Border>
