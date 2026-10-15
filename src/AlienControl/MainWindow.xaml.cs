@@ -181,7 +181,9 @@ public partial class MainWindow : Window
         _hiding = false;
         if (!Motion.Enabled) { ResetCard(); return; }
         var shift = Motion.Translate(RootCard);
-        Motion.Play(null,
+        int gen = _showGen;
+        // On completion drop the held animation values, so the card ends at exact Opacity 1 / Y 0 (ClearType, crisp text).
+        Motion.Play(() => { if (gen == _showGen && !_hiding) ResetCard(); },
             (RootCard, OpacityProperty, Motion.Tween(fromCurrent ? null : 0, 1, 160, Motion.Cubic)),
             (shift, TranslateTransform.YProperty, Motion.Tween(fromCurrent ? null : 12, 0, 160, Motion.Cubic)));
     }
@@ -231,6 +233,7 @@ public partial class MainWindow : Window
     {
         Motion.Set(RootCard, OpacityProperty, 1);
         Motion.Set(Motion.Translate(RootCard), TranslateTransform.YProperty, 0);
+        RootCard.RenderTransform = Transform.Identity;   // no transform at rest: text snaps to device pixels
     }
 
     public void AllowClose() { StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
