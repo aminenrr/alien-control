@@ -25,6 +25,8 @@ Why things are the way they are. Newest decisions win.
 - Animations (v0.8.2) replace the earlier "fully static" rule, on condition they cost nothing at idle:
   Opacity/RenderTransform only, one-shot, 60 fps, nothing while hidden. "Reduce motion" (off by default) makes it static.
 
+- v0.8.4 (Amine): Legend section headers are icon-only (numbers removed); Fluent shows the brightness % once.
+
 ## Features
 - RAM clean: Quick (click) and Deep (right-click). No auto-clean.
 - G-key hook always on; its toggle was removed (Amine's choice).
