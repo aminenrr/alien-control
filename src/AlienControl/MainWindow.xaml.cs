@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Media;
+using System.Runtime.InteropServices;
 using System.Windows.Input;
 using System.Windows.Threading;
 using AlienControl.Services;
@@ -28,6 +30,7 @@ public partial class MainWindow : Window
     private bool _allowClose;
     private int _fanCount = 2;
     private bool _gmodeOn;
+    private readonly SystemStats _stats = new();
 
     public MainWindow()
     {
@@ -44,6 +47,7 @@ public partial class MainWindow : Window
         foreach (var id in new[] { _settings.GModeKey, _settings.TouchpadKey, _settings.SpeakerMuteKey, _settings.MicMuteKey, _settings.WinLockKey })
             _indicators[id] = false;
         if (_settings.LastColor is { Length: 3 } saved) _lastColor = saved;
+        ApplyAccent(_lastColor);
         // Status-key watcher: in-process reads only (no CLI) unless a state changes.
         _indicatorTimer.Tick += async (_, _) => await SyncIndicatorsAsync();
         Dispatcher.BeginInvoke(new Action(async () => await StartupLightingAsync()));
@@ -73,14 +77,43 @@ public partial class MainWindow : Window
 
     // ---------- window: G-Helper style, pinned to the bottom-right corner above the taskbar ----------
 
+    [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct APPBARDATA { public int cbSize; public IntPtr hWnd; public uint uCallbackMessage; public uint uEdge; public RECT rc; public IntPtr lParam; }
+    [DllImport("shell32.dll")] private static extern IntPtr SHAppBarMessage(uint msg, ref APPBARDATA data);
+    private const uint ABM_GETSTATE = 4, ABM_GETTASKBARPOS = 5, ABS_AUTOHIDE = 1;
+
+    /// <summary>
+    /// Bottom-right corner, above the taskbar. WorkArea ignores an auto-hide taskbar (it reports the
+    /// full screen), so the taskbar's real size is read from the shell and always kept clear.
+    /// </summary>
     public void SnapToCorner()
     {
         UpdateLayout();
         var wa = SystemParameters.WorkArea;
+        double right = wa.Right, bottom = wa.Bottom;
+        try
+        {
+            var abd = new APPBARDATA { cbSize = Marshal.SizeOf<APPBARDATA>() };
+            bool autoHide = ((uint)SHAppBarMessage(ABM_GETSTATE, ref abd).ToInt64() & ABS_AUTOHIDE) != 0;
+            if (autoHide && SHAppBarMessage(ABM_GETTASKBARPOS, ref abd) != IntPtr.Zero)
+            {
+                var src = PresentationSource.FromVisual(this);
+                double sx = src?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
+                double sy = src?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
+                double tbH = (abd.rc.Bottom - abd.rc.Top) * sy, tbW = (abd.rc.Right - abd.rc.Left) * sx;
+                switch (abd.uEdge)
+                {
+                    case 3: bottom = SystemParameters.PrimaryScreenHeight - tbH; break; // bottom
+                    case 2: right = SystemParameters.PrimaryScreenWidth - tbW; break;   // right
+                }
+            }
+        }
+        catch { /* fall back to WorkArea */ }
         double w = ActualWidth > 0 ? ActualWidth : Width;
         double h = ActualHeight > 0 ? ActualHeight : 700;
-        Left = wa.Right - w - 2;
-        Top = wa.Bottom - h - 2;
+        Left = right - w - 4;
+        Top = Math.Max(0, bottom - h - 4);
     }
 
     protected override void OnContentRendered(EventArgs e) { base.OnContentRendered(e); SnapToCorner(); }
@@ -89,7 +122,7 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Hide();
 
-    public void AllowClose() { _allowClose = true; _gkey.Dispose(); _indicatorTimer.Stop(); }
+    public void AllowClose() { _allowClose = true; _stats.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
 
     // ---------- status keys ----------
 
@@ -102,6 +135,7 @@ public partial class MainWindow : Window
         if (_settings.LastColor is { Length: 3 } c)
         {
             await _fx.SetAllAsync(c[0], c[1], c[2], _indicators);
+            await _fx.SetIndicatorsAsync(_indicators, c);
             _lightsManaged = true;
         }
         _indicatorTimer.Start();
@@ -190,8 +224,11 @@ public partial class MainWindow : Window
             if (s.Fans.Count > 0) _fanCount = s.Fans.Count;
             var cpuFan = s.Fans.FirstOrDefault(f => f.Type == "CPU") ?? s.Fans.ElementAtOrDefault(0);
             var gpuFan = s.Fans.FirstOrDefault(f => f.Type == "GPU") ?? s.Fans.ElementAtOrDefault(1);
-            SetRpm(CpuFanText, CpuFanBar, cpuFan);
-            SetRpm(GpuFanText, GpuFanBar, gpuFan);
+            SetFanPercent(CpuFanText, CpuFanBar, cpuFan);
+            SetFanPercent(GpuFanText, GpuFanBar, gpuFan);
+
+            if (SystemStats.Ram() is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
+            if (_stats.Vram() is { } vram) SetMem(VramText, VramTextUnit, VramBar, vram.Used, vram.Total);
         }
         finally { _polling = false; }
     }
@@ -202,10 +239,21 @@ public partial class MainWindow : Window
         bar.Value = t?.Celsius ?? 0;
     }
 
-    private static void SetRpm(Run text, ProgressBar bar, FanReading? f)
+    /// <summary>Fan speed as % of the fan's max RPM (5000 on the m15 R7), capped at 100.</summary>
+    private void SetFanPercent(Run text, ProgressBar bar, FanReading? f)
     {
-        text.Text = f is null ? "--" : $"{f.Rpm}";
-        bar.Value = f?.Rpm ?? 0;
+        if (f is null) { text.Text = "--"; bar.Value = 0; return; }
+        int pct = (int)Math.Round(Math.Clamp(f.Rpm * 100.0 / Math.Max(1, _settings.FanMaxRpm), 0, 100));
+        text.Text = pct.ToString();
+        bar.Value = pct;
+        bar.ToolTip = $"{f.Rpm} rpm";
+    }
+
+    private static void SetMem(Run text, Run unit, ProgressBar bar, double used, double total)
+    {
+        text.Text = used.ToString("0.0");
+        unit.Text = total > 0 ? $" / {Math.Round(total):0} GB" : " GB";
+        bar.Value = total > 0 ? used * 100 / total : 0;
     }
 
     // ---------- actions ----------
@@ -297,7 +345,10 @@ public partial class MainWindow : Window
     {
         ReadIndicatorStates();
         Report(await _fx.SetAllAsync(c[0], c[1], c[2], _indicators));
+        // The big batch leaves the five status keys dark; a separate command lights them (verified 2026-10-15).
+        await _fx.SetIndicatorsAsync(_indicators, c);
         _lightsManaged = true;
+        ApplyAccent(c);
         _settings.LastColor = c;
         _settings.Save();
     }
@@ -339,6 +390,23 @@ public partial class MainWindow : Window
     private void Quit_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).Quit();
 
     // ---------- helpers ----------
+
+    /// <summary>App accent follows the keyboard / ring color. Black (lights off) keeps the default cyan.</summary>
+    private static void ApplyAccent(byte[] c)
+    {
+        var col = (c[0] + c[1] + c[2]) < 60 ? Color.FromRgb(0, 229, 255) : Color.FromRgb(c[0], c[1], c[2]);
+        var res = Application.Current.Resources;
+        var lighter = Color.FromRgb((byte)((col.R + 255) / 2), (byte)((col.G + 255) / 2), (byte)((col.B + 255) / 2));
+        var darker = Color.FromRgb((byte)(col.R * 0.55), (byte)(col.G * 0.55), (byte)(col.B * 0.55));
+        res["AccentBrush"] = Freeze(new SolidColorBrush(col));
+        var grad = new LinearGradientBrush(col, lighter == col ? darker : (col.R + col.G + col.B > 600 ? darker : lighter), 0);
+        res["AccentGradient"] = Freeze(grad);
+        var chk = new LinearGradientBrush(Color.FromArgb(0x33, col.R, col.G, col.B), Color.FromArgb(0x10, col.R, col.G, col.B), 90);
+        res["CyanChecked"] = Freeze(chk);
+        try { Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(col, Wpf.Ui.Appearance.ApplicationTheme.Dark); } catch { }
+    }
+
+    private static T Freeze<T>(T f) where T : Freezable { f.Freeze(); return f; }
 
     private static int TagInt(object sender) => int.Parse((string)((FrameworkElement)sender).Tag);
 
