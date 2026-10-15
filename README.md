@@ -1,10 +1,21 @@
-# Alien Control
+# Alien Controls
 
 A lightweight, G-Helper-style control panel for the **Alienware m15 R7**, built on top of
 [T-Troll's AlienFX Tools](https://github.com/T-Troll/alienfx-tools). It replaces Alienware
 Command Center, whose background services keep *WMI Provider Host* busy.
 
-![mock](mock/mock.jpg)
+| Legend theme | Fluent theme |
+|---|---|
+| ![Legend theme](docs/screenshots/legend.jpg) | ![Fluent theme](docs/screenshots/fluent.jpg) |
+
+*Rendered design mockups (Balanced profile). Real screenshots from the laptop will replace them after hardware testing.*
+
+## Documentation
+
+- [Hardware findings](docs/HARDWARE.md): everything measured on the m15 R7 (power map, light IDs, the status-key root cause)
+- [Decisions log](docs/DECISIONS.md): why the app works the way it does
+- [Development guide](docs/DEVELOPMENT.md): code layout, build, theme generator, mockups, workflow
+- [Changelog](docs/CHANGELOG.md) and [Roadmap](docs/ROADMAP.md)
 
 ## How it works
 
@@ -84,6 +95,11 @@ The header shows the current profile as a small read-only chip next to the model
 
 The iGPU only / Optimus / dGPU only / Ultimate buttons are visual only in v0.8 and switch nothing yet.
 The header shows the detected mode; **Check Ultimate support** shows and copies a GPU / BIOS report.
+Before iGPU only disables the RTX, the app will list apps still using it (planned warning below).
+
+| Legend | Fluent |
+|---|---|
+| ![RTX in use warning, Legend](docs/screenshots/gpu-warning-legend.jpg) | ![RTX in use warning, Fluent](docs/screenshots/gpu-warning-fluent.jpg) |
 
 ## Build
 
@@ -105,6 +121,8 @@ RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemor
 
 ## Status
 
+v0.8.3: sharper rendering (shadow moved off the card, ClearType, layout rounding) and a neutral Fluent background.
+v0.8.2: subtle animations with a Reduce motion switch.
 v0.8.1: read-only current-profile chip in the header, tinted like the tray icon.
 v0.8: redesign with Legend and Fluent themes, gear settings menu, G-key always on, Battery power mode, refresh rate 60/240 Hz,
 power readout, tray profiles with tinted icon, experimental Faster charging, GPU row renamed (preview only) with the Ultimate support check.
