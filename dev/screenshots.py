@@ -1,4 +1,4 @@
-# Crops / centers the README screenshots (window + toasts) and rebuilds the plug / unplug toasts. Usage: python3 dev/screenshots.py <folder with the .webp shots>/
+# Crops / centers the README screenshots (window, GPU mode, toasts) and rebuilds the plug / unplug toasts. Usage: python3 dev/screenshots.py <folder with the .webp shots>/
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import numpy as np, cairosvg, io
 U=__import__("sys").argv[1] if len(__import__("sys").argv)>1 else "./"
@@ -121,3 +121,10 @@ def crop_window(f):
 for f,n in [('legend .webp','legend'),('fluent.webp','fluent')]:
     w=crop_window(f); print(n,w.size)
     present(w,pad=36,r=12).save(f'{n}.png')
+
+# --- F2 Quiet toast (sent separately) + GPU mode section crops ---
+q=Image.open(U+'quiet-f2.webp').convert('RGB'); present(q.crop(card_bbox(q))).save('toast-quiet.png')
+L=Image.open(U+'legend .webp').convert('RGB'); F=Image.open(U+'fluent.webp').convert('RGB')
+c=L.crop((40,456,534,570)); o=Image.new('RGB',(c.width+40,c.height+40),L.getpixel((300,455))); o.paste(c,(20,20))
+present(o,r=10).save('gpu-legend.png')
+present(F.crop((44,431,537,557)),r=10).save('gpu-fluent.png')

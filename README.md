@@ -12,8 +12,9 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 
 | F2 cycle | F1 G-Mode | Auto preset |
 |---|---|---|
-| ![F2 Performance](docs/screenshots/toasts/performance.png) | ![G-Mode on](docs/screenshots/toasts/gmode-on.png) | ![Unplugged](docs/screenshots/toasts/unplug.png) |
+| ![F2 Quiet](docs/screenshots/toasts/quiet.png) | ![G-Mode on](docs/screenshots/toasts/gmode-on.png) | ![Unplugged](docs/screenshots/toasts/unplug.png) |
 | ![F2 Balanced](docs/screenshots/toasts/balanced.png) | ![G-Mode off](docs/screenshots/toasts/gmode-off.png) | ![Plugged in](docs/screenshots/toasts/plug.png) |
+| ![F2 Performance](docs/screenshots/toasts/performance.png) | | |
 
 *Real screenshots from the m15 R7 (Legend theme). The plug / unplug toasts are recreated from a real toast with the same layout.*
 
@@ -51,7 +52,7 @@ Alien Control is GUI only. Every button runs one of T-Troll's command-line tools
 | G-key (F1) | app | global keyboard hook (always on), toggles `setgmode` |
 | Refresh rate 60 / 240 Hz | app | `EnumDisplaySettings` / `ChangeDisplaySettingsEx` on the primary display (resolution kept) |
 | Power readout (every 1 s) | app | CPU: `\EsifDeviceInformation(*)\RAPL Power` (Intel DTT) · GPU: NVIDIA NVML (`nvml.dll`, plugged in only) · Total: battery discharge rate on battery; on AC an estimate `~N W` = CPU + GPU + rest of the laptop (learned on battery) |
-| GPU mode report | app | "Check Ultimate support": adapters, internal-panel GPU and Dell BIOS WMI attributes |
+| GPU mode | app | Dell BIOS graphics switch (Advanced Optimus / Ultimate) and NVIDIA's display mode for the hint |
 
 Sensors are polled only while the window is open; closed, it idles in the tray.
 
@@ -114,13 +115,13 @@ The header shows the current profile as a small read-only chip next to the model
 
 ### GPU mode
 
-Two buttons: **Advanced Optimus** and **Ultimate**. In Advanced Optimus the hint shows NVIDIA's mode and the GPU on the
-screen (OPTIMUS · IRIS Xe, AUTO · 3070 Ti, dGPU ONLY · 3070 Ti); change those from NVIDIA's own tray icon.
-In Ultimate the hint shows 3070 Ti. Switching between the two sets the Dell BIOS graphics switch and asks to restart.
+Two buttons: **Advanced Optimus** and **Ultimate**. The hint on the right shows what drives the screen
+(Optimus · Iris Xe, Auto · RTX 3070 Ti, dGPU only · RTX 3070 Ti); change that from NVIDIA's own app.
+Switching between the two sets the Dell BIOS graphics switch and asks to restart. Presets never change it.
 
 | Legend | Fluent |
 |---|---|
-| ![RTX in use warning, Legend](docs/screenshots/gpu-warning-legend.jpg) | ![RTX in use warning, Fluent](docs/screenshots/gpu-warning-fluent.jpg) |
+| ![GPU mode, Legend](docs/screenshots/gpu-legend.png) | ![GPU mode, Fluent](docs/screenshots/gpu-fluent.png) |
 
 ## Build
 
@@ -141,6 +142,10 @@ by T-Troll and contributors (MIT license).
 Legend theme icons: [Tabler Icons](https://tabler.io/icons) (MIT license). Fluent theme icons: Fluent System Icons via
 [WPF-UI](https://github.com/lepoco/wpfui) (MIT), fan icon from [Phosphor](https://phosphoricons.com) (MIT).
 RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemoryCleaner) and GPU modes from [G-Helper](https://github.com/seerge/g-helper). Both ideas are reimplemented here, and no code was copied.
+
+## License
+
+[MIT](LICENSE). Bundled alienfx-tools binaries and icon sets keep their own MIT licenses (see Credits).
 
 ## Status
 
