@@ -21,6 +21,8 @@ public static class Toast
 {
     private const int Inset = 16, HoldMs = 1600, InMs = 140, OutMs = 260;
     private static Window? _w;
+    private static bool _hooked;
+    private static (bool legend, TrayProfile p, string sub, bool cycle, bool animate, int hold)? _last;
     private static DispatcherTimer? _timer;
 
     [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr h, int i);
@@ -31,13 +33,27 @@ public static class Toast
     private static SolidColorBrush B(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
     /// <param name="cycle">Light the F2 cycle pills (Quiet / Balanced / Performance).</param>
-    public static void Show(bool legend, TrayProfile p, string sub, bool cycle, bool animate)
+    public static void Show(bool legend, TrayProfile p, string sub, bool cycle, bool animate, int holdMs = HoldMs)
     {
         var app = Application.Current;
         if (app is null) return;
-        if (!app.Dispatcher.CheckAccess()) { app.Dispatcher.BeginInvoke(new Action(() => Show(legend, p, sub, cycle, animate))); return; }
+        if (!app.Dispatcher.CheckAccess()) { app.Dispatcher.BeginInvoke(new Action(() => Show(legend, p, sub, cycle, animate, holdMs))); return; }
 
         Close();   // a new toast replaces the old one at once
+        _last = (legend, p, sub, cycle, animate, holdMs);
+        if (!_hooked)
+        {
+            // v0.9.12: unplugging can move the screen to the other GPU (Advanced Optimus) or change its rate; a toast that
+            // is up when the display changes gets lost, so it's shown again once the display has settled.
+            _hooked = true;
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (_, _) => app.Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                if (_w is null || _last is not { } l) return;
+                var mine = _w;
+                await System.Threading.Tasks.Task.Delay(700);
+                if (_w == mine) Show(l.legend, l.p, l.sub, l.cycle, false, 2000);
+            }));
+        }
         var t = Profiles.Tint(p);
         var tint = Color.FromRgb(t.R, t.G, t.B);
         var title = Profiles.Label(p);
@@ -49,8 +65,8 @@ public static class Toast
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.RowDefinitions.Add(new RowDefinition());
-        grid.RowDefinitions.Add(new RowDefinition());
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var iconKey = p switch
         {
@@ -129,12 +145,16 @@ public static class Toast
         }
 
         const int pad = 24;   // room for the shadow
+        // v0.9.12: size it by hand. SizeToContent came out ~4x too tall on the laptop (125% scaling), stretching the rows.
+        var content = new Border { Child = root, Padding = new Thickness(pad), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+        content.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var size = content.DesiredSize;
         var w = new Window
         {
             WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent,
             Topmost = true, ShowInTaskbar = false, ShowActivated = false, Focusable = false, ResizeMode = ResizeMode.NoResize,
-            SizeToContent = SizeToContent.WidthAndHeight, IsHitTestVisible = false,
-            Content = new Border { Child = root, Padding = new Thickness(pad) },
+            SizeToContent = SizeToContent.Manual, Width = Math.Ceiling(size.Width), Height = Math.Ceiling(size.Height),
+            MinWidth = 0, MinHeight = 0, IsHitTestVisible = false, Content = content,
             Opacity = animate ? 0 : 1,
         };
         w.SourceInitialized += (_, _) =>
@@ -145,7 +165,7 @@ public static class Toast
         w.Loaded += (_, _) =>
         {
             var wa = SystemParameters.WorkArea;
-            w.Left = wa.Right - w.ActualWidth - Inset + pad;
+            w.Left = wa.Right - w.Width - Inset + pad;
             w.Top = wa.Top + Inset - pad;
             if (animate) w.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(InMs)));
         };
@@ -154,7 +174,7 @@ public static class Toast
         _w = w;
         w.Show();
 
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(HoldMs + InMs) };
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(holdMs + InMs) };
         _timer.Tick += (_, _) =>
         {
             _timer?.Stop();

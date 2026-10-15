@@ -2,7 +2,13 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
-## v0.9.11 (2026-10-15), untested
+## v0.9.12 (2026-10-15), untested
+- Toast fix: it came out huge (rows stretched, window several times too tall at 125%). Now sized by hand to its content.
+- Unplug toast was missing (sound played): after a refresh-rate change the toast and sound wait ~1.5 s for the screen
+  to settle and stay up 2.2 s; if the display changes while a toast is up (rate change, Advanced Optimus moving the
+  screen to the other GPU) it's shown again.
+
+## v0.9.11 (2026-10-15), tested: toast too big, unplug toast missing
 - **Auto preset** (on by default): unplug → Battery (leaves G-Mode first, OC back to +0) and remembers the AC preset;
   plug in → that preset again (Quiet / Balanced / Performance; after G-Mode or Custom it's Balanced, never G-Mode).
   Only if you're still on Battery; nothing changes at startup. Battery is greyed on AC (window + tray) while it's on.

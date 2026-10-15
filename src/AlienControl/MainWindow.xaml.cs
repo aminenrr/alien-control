@@ -1212,6 +1212,8 @@ public partial class MainWindow : Window
         }
         if (Profiles.RefreshHz(p) is { } hz)
         {
+            // v0.9.12: a real rate change blanks the screen ~1 s; the toast waits it out (unplug toast was lost)
+            if (DisplayRefresh.Read() is not { } now || !DisplayRefresh.IsActive(now, hz)) _rateChangedUtc = DateTime.UtcNow;
             var err = await Task.Run(() => DisplayRefresh.Set(hz));
             if (err is not null) Status(err);
         }
@@ -1219,6 +1221,8 @@ public partial class MainWindow : Window
         await SyncOcAsync();
         await SyncIndicatorsAsync();
     }
+
+    private DateTime _rateChangedUtc = DateTime.MinValue;
 
     private void ShowCpuBoost(int level)
     {

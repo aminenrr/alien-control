@@ -75,10 +75,14 @@ public partial class MainWindow
         finally { _autoBusy = false; }
     }
 
-    /// <summary>Toast + sound, each with its own gear toggle.</summary>
-    private void Notify(TrayProfile p, string sub, Sounds.Kind sound, bool cycle = false)
+    /// <summary>Toast + sound, each with its own gear toggle. v0.9.12: after a refresh-rate change (Battery 60 Hz <-> 240 Hz)
+    /// the screen blanks for about a second, so both wait until ~1.5 s after it and the toast stays a bit longer.</summary>
+    private async void Notify(TrayProfile p, string sub, Sounds.Kind sound, bool cycle = false)
     {
-        if (_settings.Toasts) Toast.Show(IsLegend, p, sub, cycle, Motion.Enabled);
+        var since = (DateTime.UtcNow - _rateChangedUtc).TotalMilliseconds;
+        bool modeSwitch = since < 1500;
+        if (modeSwitch) await Task.Delay((int)(1500 - since));
+        if (_settings.Toasts) Toast.Show(IsLegend, p, sub, cycle, Motion.Enabled, modeSwitch ? 2200 : 1600);
         if (_settings.ToastSound) Sounds.Play(sound);
     }
 
