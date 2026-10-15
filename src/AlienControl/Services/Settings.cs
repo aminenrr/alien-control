@@ -59,6 +59,9 @@ public sealed class Settings
 
     public int PollSeconds { get; set; } = 2;
 
+    /// <summary>GPU "Optimized": Eco on battery, Standard on AC.</summary>
+    public bool GpuOptimized { get; set; } = false;
+
     private static string FilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl", "settings.json");
 
