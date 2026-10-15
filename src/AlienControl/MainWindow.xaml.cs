@@ -48,6 +48,7 @@ public partial class MainWindow : Window
             _indicators[id] = false;
         if (_settings.LastColor is { Length: 3 } saved) _lastColor = saved;
         ApplyAccent(_lastColor);
+        BrightnessSlider.Value = Math.Round(_settings.Brightness * 100 / 255.0);
         // Status-key watcher: in-process reads only (no CLI) unless a state changes.
         _indicatorTimer.Tick += async (_, _) => await SyncIndicatorsAsync();
         Dispatcher.BeginInvoke(new Action(async () => await StartupLightingAsync()));
@@ -134,8 +135,7 @@ public partial class MainWindow : Window
         // Reapply the user's color after boot (firmware resets to its default); otherwise leave firmware lighting alone.
         if (_settings.LastColor is { Length: 3 } c)
         {
-            await _fx.SetAllAsync(c[0], c[1], c[2], _indicators);
-            await _fx.SetIndicatorsAsync(_indicators, c);
+            await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, _settings.Brightness);
             _lightsManaged = true;
         }
         _indicatorTimer.Start();
@@ -166,11 +166,8 @@ public partial class MainWindow : Window
         {
             var changed = ReadIndicatorStates();
             if (!_lightsManaged) return;
-            foreach (var key in changed)
-            {
-                var c = _indicators[key] ? _settings.IndicatorOnColor : _lastColor;
-                await _fx.SetKeyAsync(key, c[0], c[1], c[2]);
-            }
+            // One full frame: writing a single status key would blank the others.
+            if (changed.Count > 0) await _fx.SetKeyboardAsync(_lastColor, _indicators, _settings.Brightness);
         }
         finally { _indicatorBusy = false; }
     }
@@ -344,9 +341,7 @@ public partial class MainWindow : Window
     private async Task ApplyColorAsync(byte[] c)
     {
         ReadIndicatorStates();
-        Report(await _fx.SetAllAsync(c[0], c[1], c[2], _indicators));
-        // The big batch leaves the five status keys dark; a separate command lights them (verified 2026-10-15).
-        await _fx.SetIndicatorsAsync(_indicators, c);
+        Report(await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, _settings.Brightness));
         _lightsManaged = true;
         ApplyAccent(c);
         _settings.LastColor = c;
@@ -374,9 +369,9 @@ public partial class MainWindow : Window
     private async void Brightness_Commit(object sender, MouseButtonEventArgs e)
     {
         int level = (int)Math.Round(BrightnessSlider.Value * 255 / 100);
+        _settings.Brightness = level;
+        _settings.Save();
         Report(await _fx.SetBrightnessAsync(level));
-        // setdim also blanks the five status keys; light them again.
-        if (_lightsManaged) { ReadIndicatorStates(); await _fx.SetIndicatorsAsync(_indicators, _lastColor); }
     }
 
     private void Startup_Click(object sender, RoutedEventArgs e)
