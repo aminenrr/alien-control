@@ -116,3 +116,8 @@ is done in software (colors scaled by level/255) since v0.5.3. At startup the ap
   - `ACESwitchedI2D` = 1 after an Intel->dGPU switch; `AutoSwitchInternalMux` touched when Automatic is chosen.
 - In Optimus the Intel iGPU already drives the internal panel and the RTX sleeps when unused.
 - The BIOS (and AWCC) also offer the MUX / hybrid graphics setting, which needs a restart.
+
+## Ultimate detection (2026-10-15, v0.9.3)
+- In Ultimate (BIOS HybridGraphics = Disabled) the Intel Iris Xe still shows in Device Manager / Win32_PnPEntity with
+  no error, so "iGPU missing" can't detect Ultimate. The BIOS value is used instead, corrected for a change the app made
+  after the current boot.

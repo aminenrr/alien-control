@@ -59,6 +59,10 @@ public sealed class Settings
 
     public int PollSeconds { get; set; } = 2;
 
+    /// <summary>v0.9.3: when the app last wrote the BIOS graphics switch (UTC). Written after the last boot = not applied yet.
+    /// Null after a cancel (BIOS back to what's running).</summary>
+    public DateTime? GpuSwitchSetUtc { get; set; }
+
     /// <summary>UI theme: "Legend" (default) or "Fluent".</summary>
     public string Theme { get; set; } = "Legend";
 

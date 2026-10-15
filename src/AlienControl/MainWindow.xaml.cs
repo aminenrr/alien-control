@@ -984,9 +984,15 @@ public partial class MainWindow : Window
 
     private async Task RefreshGpuAsync(bool withBios)
     {
-        var prevBios = _gpu.BiosUltimate;
-        var st = await Task.Run(() => GpuMode.Read(withBios));
-        if (!withBios) st = st with { BiosUltimate = prevBios };
+        var prev = _gpu;
+        var setUtc = _settings.GpuSwitchSetUtc;
+        var st = await Task.Run(() => GpuMode.Read(withBios, setUtc));
+        if (!withBios)
+        {
+            // only the BIOS read can tell Ultimate apart: keep what the last full read said
+            st = st with { BiosUltimate = prev.BiosUltimate };
+            if (prev.Kind == GpuModeKind.Ultimate) st = st with { Kind = GpuModeKind.Ultimate, Auto = false };
+        }
         _gpu = st;
         ShowGpuState();
         if (!_gpuDisplayHooked)
@@ -1060,6 +1066,7 @@ public partial class MainWindow : Window
         {
             if (!_gpu.PendingRestart) return;
             var undo = await Task.Run(() => GpuMode.SetUltimate(isUlt));
+            if (undo is null) { _settings.GpuSwitchSetUtc = null; _settings.Save(); }
             Status(undo ?? "Switch cancelled. No restart needed.");
             return;
         }
@@ -1081,6 +1088,8 @@ public partial class MainWindow : Window
         }
         var err = await Task.Run(() => GpuMode.SetUltimate(toUlt));
         if (err is not null) { Status(err); return; }
+        _settings.GpuSwitchSetUtc = DateTime.UtcNow;
+        _settings.Save();
         if (pick == "now") { GpuMode.RestartNow(); return; }
         Status(toUlt ? "Ultimate is set. It takes effect after your next restart." : "Advanced Optimus is set. It takes effect after your next restart.");
     }

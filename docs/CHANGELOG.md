@@ -2,6 +2,11 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.3 (2026-10-15), untested
+- Fix: after switching to Ultimate and restarting, the row still showed Advanced Optimus + "Ultimate after restart".
+  On the m15 R7 the Intel GPU stays listed in Ultimate, so detection now trusts the BIOS value, unless the app changed
+  it after the last boot (`GpuSwitchSetUtc` in settings).
+
 ## v0.9.2 (2026-10-15), untested
 - GPU row cut to two modes: **Advanced Optimus** and **Ultimate**. iGPU only, dGPU only, the RTX-off switch,
   the "RTX in use" dialog, the NVIDIA Control Panel hand-off and "Check Ultimate support" are gone.

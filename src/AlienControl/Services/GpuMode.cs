@@ -78,10 +78,10 @@ public static class GpuMode
     }
 
     /// <summary>Reads everything. withBios = also ask the BIOS (slower, only on window show and after a change).</summary>
-    public static State Read(bool withBios)
+    /// <param name="switchSetUtc">When the app last wrote the BIOS switch (Settings.GpuSwitchSetUtc).</param>
+    public static State Read(bool withBios, DateTime? switchSetUtc = null)
     {
         var kind = Current(Adapters());
-        bool auto = kind is GpuModeKind.Optimus or GpuModeKind.DGpuOnly && ReadNvidiaFlags().Auto == true;
         bool? bios = null;
         if (withBios)
         {
@@ -92,6 +92,18 @@ public static class GpuMode
                 bios = attr.MuxMeansOn ? on : !on;
             }
         }
+        if (bios is bool b)
+        {
+            // v0.9.3: on the m15 R7 the Intel GPU stays listed (and OK) in Ultimate, so the adapters can't tell
+            // Ultimate from NVIDIA GPU only. The BIOS value can: it's what this boot used, unless the app changed it
+            // after the boot (then the running mode is the other one).
+            var bootUtc = DateTime.UtcNow - TimeSpan.FromMilliseconds(Environment.TickCount64);
+            bool changedSinceBoot = switchSetUtc is DateTime t && t > bootUtc;
+            bool runningUlt = changedSinceBoot ? !b : b;
+            if (runningUlt) kind = GpuModeKind.Ultimate;
+            else if (kind == GpuModeKind.Ultimate) kind = GpuModeKind.DGpuOnly;
+        }
+        bool auto = kind is GpuModeKind.Optimus or GpuModeKind.DGpuOnly && ReadNvidiaFlags().Auto == true;
         return new State(kind, auto, bios);
     }
 
