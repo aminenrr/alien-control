@@ -100,6 +100,25 @@
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Foreground" Value="#99FFFFFF" />
     </Style>
+    <!-- v0.8.1 current-profile chip: dot/text/border tint set in code from Profiles.Tint (read-only) -->
+    <Style x:Key="ProfileChip" TargetType="Border">
+        <Setter Property="Margin" Value="8,1,0,0" />
+        <Setter Property="Padding" Value="7,1,8,2" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+    <Style x:Key="ProfileChipDot" TargetType="Ellipse">
+        <Setter Property="Width" Value="6" />
+        <Setter Property="Height" Value="6" />
+        <Setter Property="Margin" Value="0,1,5,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style x:Key="ProfileChipText" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
     <Style x:Key="HeaderButton" TargetType="Button">
         <Setter Property="Width" Value="44" />
         <Setter Property="Height" Value="40" />
