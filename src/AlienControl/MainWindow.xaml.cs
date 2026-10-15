@@ -784,6 +784,28 @@ public partial class MainWindow : Window
         try { Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(col, Wpf.Ui.Appearance.ApplicationTheme.Dark); } catch { }
         AccentColor = col;
         (Application.Current as App)?.UpdateTrayMenu(legend, col);   // v0.8.7: tray menu follows theme + accent
+        // v0.8.10: line icons bind Stroke to their inherited TextElement.Foreground; WPF updated them one click late
+        // (the old accent stayed until the next change). Re-read the bindings and repaint once, after the resource swap.
+        Dispatcher.BeginInvoke(new Action(() => RefreshIcons(this)), DispatcherPriority.Loaded);
+    }
+
+    /// <summary>One-shot walk (only on an accent or theme change): re-reads icon Stroke / Fill bindings and repaints them.</summary>
+    private static void RefreshIcons(DependencyObject root)
+    {
+        int n = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < n; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is ContentControl or ContentPresenter)
+                child.InvalidateProperty(TextElement.ForegroundProperty);   // re-evaluate the style / trigger value
+            if (child is System.Windows.Shapes.Shape shape)
+            {
+                System.Windows.Data.BindingOperations.GetBindingExpression(shape, System.Windows.Shapes.Shape.StrokeProperty)?.UpdateTarget();
+                System.Windows.Data.BindingOperations.GetBindingExpression(shape, System.Windows.Shapes.Shape.FillProperty)?.UpdateTarget();
+                shape.InvalidateVisual();
+            }
+            RefreshIcons(child);
+        }
     }
 
     /// <summary>v0.8.7: current accent and theme, read by the tray menu.</summary>

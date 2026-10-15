@@ -2,6 +2,11 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.8.10 (2026-10-15), untested
+- Accent fix: the line icons (Legend section icons) kept the old accent until a second click on the swatch. After an
+  accent change the window now re-reads every icon's color binding and repaints it once (one-shot walk, no timer).
+- Legend: performance mode labels at 10.5 px too, so "Performance" fits in both themes.
+
 ## v0.8.9 (2026-10-15), untested
 - Tray profiles now set CPU boost (AC and battery): Battery Off, Quiet Efficient, Balanced On, Performance Aggressive.
   The CPU boost row shows the level the profile set. Custom still changes nothing.

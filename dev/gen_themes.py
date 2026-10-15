@@ -510,8 +510,8 @@ def legend():
         </Setter>
     </Style>
     <Style x:Key="ModeButton" TargetType="RadioButton" BasedOn="{{StaticResource SegButton}}">
-        <Setter Property="FontSize" Value="11" />
-        <Setter Property="Padding" Value="2,10,2,9" />
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="Padding" Value="0,10,0,9" />
     </Style>
     <Style x:Key="GModeButton" TargetType="RadioButton" BasedOn="{{StaticResource ModeButton}}">
         <Setter Property="Template">

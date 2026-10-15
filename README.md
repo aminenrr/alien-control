@@ -121,6 +121,7 @@ RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemor
 
 ## Status
 
+v0.8.10: icons take a new accent on the first click; "Performance" fits in Legend.
 v0.8.9: profiles set CPU boost, minimize slides into the screen edge.
 v0.8.8: window open/close slide moves the window itself (native), fixing the slide that never showed.
 v0.8.7: tray left click toggles the window, tray menu follows the theme with accent text.
