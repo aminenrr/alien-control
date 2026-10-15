@@ -83,5 +83,32 @@ public sealed class AlienFx
     public Task<CliResult> SetKeyboardEffectAsync(int type, byte r, byte g, byte b) =>
         _cli.RunAsync($"setglobal={_s.KeyboardDevice},{type},1,{r},{g},{b}");
 
+    /// <summary>Second color for the two-color effects: purple, or cyan when the main color is purple.</summary>
+    public static byte[] SecondColor(byte[] c) =>
+        c.SequenceEqual(new byte[] { 124, 77, 255 }) ? new byte[] { 0, 229, 255 } : new byte[] { 124, 77, 255 };
+
+    /// <summary>
+    /// A keyboard effect plus the closest APIv4 action on the chassis lights (power button skipped).
+    /// Colors are scaled by brightness.
+    /// </summary>
+    public Task<CliResult> SetEffectAsync(int type, byte[] color, int brightness)
+    {
+        var a = Dim(color, brightness);
+        var b = Dim(SecondColor(color), brightness);
+        bool dual = type is 4 or 9;
+        var kb = dual
+            ? $"setglobal={_s.KeyboardDevice},{type},1,{a[0]},{a[1]},{a[2]},{b[0]},{b[1]},{b[2]}"
+            : $"setglobal={_s.KeyboardDevice},{type},1,{a[0]},{a[1]},{a[2]}";
+        string Act(int light) => type switch
+        {
+            2 => $"setaction={_s.ChassisDevice},{light},breath,{a[0]},{a[1]},{a[2]}",
+            8 => $"setaction={_s.ChassisDevice},{light},pulse,{a[0]},{a[1]},{a[2]}",
+            4 or 9 => $"setaction={_s.ChassisDevice},{light},morph,{a[0]},{a[1]},{a[2]},morph,{b[0]},{b[1]},{b[2]}",
+            _ => $"setone={_s.ChassisDevice},{light},{a[0]},{a[1]},{a[2]}",
+        };
+        var chassis = string.Join(" ", _s.ChassisLights.Where(i => i != Settings.PowerButtonLight).Select(Act));
+        return _cli.RunAsync($"{chassis} {kb}");
+    }
+
     public Task<CliResult> StatusAsync() => _cli.RunAsync("status");
 }
