@@ -43,6 +43,23 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 - Small top-right toasts with soft sounds for F1, F2 and plug / unplug.
 - Two themes (Legend, Fluent), Reduce motion, Reset settings. One exe, ~0% CPU and a few MB of RAM in the tray.
 
+## Idle cost
+
+Measured on my m15 R7 (v1.0.0, Task Manager):
+
+| State | CPU | RAM |
+|---|---|---|
+| Window open, idle | 0% | ~20 MB |
+| Window open, busy (switching, sensors) | brief spikes | ~40 MB |
+| In the tray | 0% | a few MB |
+
+How it stays that small:
+- Sensors (temps, fans, watts) are polled only while the window is open; closed, nothing polls.
+- Status keys (mute, mic, touchpad) update from Windows events (audio endpoint and registry callbacks), with a 30 s safety check.
+- Memory is trimmed a few seconds after the window hides or a toast closes.
+- One framework-dependent ReadyToRun exe (faster start, no self-contained runtime). The release zip is ~3.3 MB.
+- No blur or Mica, and only the active theme is loaded.
+
 ## Documentation
 
 - [Hardware findings](docs/HARDWARE.md): everything measured on the m15 R7 (power map, light IDs, the status-key root cause)
