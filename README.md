@@ -69,7 +69,7 @@ leaves keys dark until a reboot.
 
 Two themes, switched in the gear menu (saved in settings, default **Legend**):
 
-- **Legend**: Alienware-style terminal look, mono numbers and numbered section headers, tick bars, cyan accent.
+- **Legend**: Alienware-style terminal look, mono numbers and icon section headers, tick bars, cyan accent.
 - **Fluent**: Windows 11 cards, segmented controls and rounded bars.
 
 Each theme is its own ResourceDictionary (`Themes/Legend.xaml`, `Themes/Fluent.xaml`); only the active one is loaded. No blur or Mica, and the app idles at ~0% CPU.
@@ -121,6 +121,7 @@ RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemor
 
 ## Status
 
+v0.8.4: Legend drops the section numbers (icons only), Fluent shows brightness once.
 v0.8.3: sharper rendering (shadow moved off the card, ClearType, layout rounding) and a neutral Fluent background.
 v0.8.2: subtle animations with a Reduce motion switch.
 v0.8.1: read-only current-profile chip in the header, tinted like the tray icon.
