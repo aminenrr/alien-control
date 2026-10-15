@@ -17,6 +17,39 @@ A lightweight, G-Helper-style control panel for the **Alienware m15 R7**, built 
 [T-Troll's AlienFX Tools](https://github.com/T-Troll/alienfx-tools). It replaces Alienware
 Command Center, whose background services keep *WMI Provider Host* busy.
 
+**[⬇️ Download the latest release](https://github.com/aminenrr/alien-control/releases/latest)** · [Installation guide](#installation)
+
+## Contents
+
+- [Screenshots](#screenshots)
+  - [Notifications (F1, F2, plug / unplug)](#notifications-f1-f2-plug--unplug)
+- [Features](#features)
+- [Idle cost](#idle-cost)
+- [Documentation](#documentation)
+- [How it works](#how-it-works)
+- [Installation](#installation)
+  - [1. Install the .NET 8 Desktop Runtime](#1-install-the-net-8-desktop-runtime)
+  - [2. Download Alien Controls](#2-download-alien-controls)
+  - [3. Add the two alienfx-tools CLIs](#3-add-the-two-alienfx-tools-clis)
+  - [4. Turn off AWCC](#4-turn-off-awcc)
+  - [5. Run it](#5-run-it)
+  - [6. Check the hotkeys](#6-check-the-hotkeys)
+  - [Updating](#updating)
+  - [Uninstalling](#uninstalling)
+  - [m15 R7 power modes (verified)](#m15-r7-power-modes-verified)
+- [Themes and settings](#themes-and-settings)
+  - [Tray profiles](#tray-profiles)
+  - [GPU mode](#gpu-mode)
+- [Build](#build)
+- [Credits](#credits)
+- [Disclaimer](#disclaimer)
+- [AI disclosure](#ai-disclosure)
+- [License](#license)
+- [Status](#status)
+- [Issues and support](#issues-and-support)
+
+## Screenshots
+
 | Legend theme | Fluent theme |
 |---|---|
 | ![Legend theme](docs/screenshots/legend.png) | ![Fluent theme](docs/screenshots/fluent.png) |
@@ -86,7 +119,7 @@ Alien Control is GUI only. Every button runs one of T-Troll's command-line tools
 
 Sensors are polled only while the window is open; closed, it idles in the tray.
 
-## Setup
+## Installation
 
 > [!WARNING]
 > Made and tested only on the **Alienware m15 R7**. Read the caution box at the top first.
