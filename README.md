@@ -121,6 +121,7 @@ RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemor
 
 ## Status
 
+v0.8.8: window open/close slide moves the window itself (native), fixing the slide that never showed.
 v0.8.7: tray left click toggles the window, tray menu follows the theme with accent text.
 v0.8.6: animation fix (Quick Settings style window slide, visible hover/press/selection), temporary animation log removed.
 v0.8.5: Quiet preset at 240 Hz, power readout every 1 s with an AC total estimate, Faster charging removed, BIOS report fixes, temporary animation log.

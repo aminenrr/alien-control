@@ -84,7 +84,7 @@ public partial class MainWindow : Window
         {
             if (IsVisible)
             {
-                PlayOpen(fromCurrent: false);   // v0.8.6 Quick Settings style slide (instant with Reduce motion)
+                PlayOpen();   // v0.8.8 native Quick Settings style slide (instant with Reduce motion)
                 int gen = _showGen;
                 UpdateProfileChip(CurrentProfile);
                 // v0.8.6: the hardware reads wait until the slide has played, so they can't stall its frames
@@ -148,6 +148,14 @@ public partial class MainWindow : Window
     /// </summary>
     public void SnapToCorner()
     {
+        if (_slide?.Active == true || _openParked) return;   // v0.8.8: the slide owns the position until it lands
+        var (l, t) = CornerPosition();
+        Left = l;
+        Top = t;
+    }
+
+    private (double Left, double Top) CornerPosition()
+    {
         UpdateLayout();
         var wa = SystemParameters.WorkArea;
         double right = wa.Right, bottom = wa.Bottom;
@@ -171,8 +179,7 @@ public partial class MainWindow : Window
         catch { /* fall back to WorkArea */ }
         double w = ActualWidth > 0 ? ActualWidth : Width;
         double h = ActualHeight > 0 ? ActualHeight : 700;
-        Left = right - w - 4;
-        Top = Math.Max(0, bottom - h - 4);
+        return (right - w - 4, Math.Max(0, bottom - h - 4));
     }
 
     protected override void OnContentRendered(EventArgs e) { base.OnContentRendered(e); SnapToCorner(); }
@@ -181,71 +188,82 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => HideToTray();
 
-    // ---------- v0.8.6 window open / hide: Windows 11 Quick Settings style slide ----------
-    // The card slides up from the bottom edge (ClipHost clips it, so it rises out of the edge like the Win11 flyout)
-    // and slides back down past the edge on hide. TranslateTransform.Y only, one-shot, 60 fps, nothing while hidden.
+    // ---------- v0.8.8 window open / hide: Windows 11 Quick Settings style slide, done natively ----------
+    // v0.8.6/0.8.7 slid the card INSIDE the transparent window; the laptop recording showed not one in-between
+    // frame (WPF never presented them for the layered window). Now the whole HWND moves (WindowSlide, SetWindowPos
+    // per frame): the compositor moves the already-drawn window, rising out of the bottom screen edge on open and
+    // dropping back past it on hide. The per-frame hook lives only for the 250 / 170 ms of a slide.
 
     private const int OpenMs = 250, HideMs = 170;
     private int _showGen;     // bumps on every show/hide so a stale hide never fires after a re-show
     private bool _hiding;
-    private bool _openQueued;
+    private bool _openParked; // PrepareShow parked the hidden window below the screen; the slide starts once it's drawn
+    private WindowSlide? _slide;
+    private WindowSlide Slide => _slide ??= new WindowSlide(() => new System.Windows.Interop.WindowInteropHelper(this).Handle);
+    private IntPtr Hwnd => new System.Windows.Interop.WindowInteropHelper(this).Handle;
 
-    /// <summary>Distance that puts the card fully below the clip edge.</summary>
-    private double SlideDistance => (ClipHost.ActualHeight > 0 ? ClipHost.ActualHeight : 800) + 2;
+    /// <summary>The snapped corner position in device pixels (what SetWindowPos takes).</summary>
+    private (int X, int Y) RestDevice()
+    {
+        var (l, t) = CornerPosition();
+        var m = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice ?? Matrix.Identity;
+        return ((int)Math.Round(l * m.M11), (int)Math.Round(t * m.M22));
+    }
 
-    /// <summary>fromCurrent: resume from a hide that was interrupted (no jump). Otherwise the card is parked below
-    /// the edge and the slide starts on the first rendered frame, after Show() has done its layout work.</summary>
-    private void PlayOpen(bool fromCurrent)
+    /// <summary>App.ShowMain calls this before Show(). Hidden: park the window just below the screen so it is drawn
+    /// out of sight and then rises. Mid-hide: reverse from where it is.</summary>
+    public void PrepareShow()
+    {
+        if (_hiding) { _hiding = false; _showGen++; SlideIn(); return; }
+        if (IsVisible || !Motion.Enabled) return;
+        var (l, _) = CornerPosition();
+        Left = l;
+        Top = SystemParameters.PrimaryScreenHeight + 2;   // fully below the bottom edge of the screen
+        _openParked = true;
+    }
+
+    /// <summary>Called when the window becomes visible.</summary>
+    private void PlayOpen()
     {
         _showGen++;
         _hiding = false;
-        if (!Motion.Enabled) { ResetCard(); return; }
-        var shift = Motion.Translate(RootCard);
-        Motion.Set(RootCard, OpacityProperty, 1);
-        if (fromCurrent) { StartSlideIn(_showGen); return; }
-        Motion.Set(shift, TranslateTransform.YProperty, SlideDistance);
-        if (_openQueued) return;
-        _openQueued = true;
-        int gen = _showGen;
+        if (!Motion.Enabled || !_openParked) { _openParked = false; Slide.Stop(); SnapToCorner(); return; }
+        // Wait two rendered frames, so layout (SizeToContent) and the first paint are done while it's out of sight.
+        int gen = _showGen, frames = 0;
         EventHandler? onFrame = null;
         onFrame = (_, _) =>
         {
+            if (++frames < 2) return;
             CompositionTarget.Rendering -= onFrame;   // one-shot: never keeps a per-frame hook alive
-            _openQueued = false;
-            if (gen == _showGen && !_hiding && IsVisible) StartSlideIn(gen);
+            _openParked = false;
+            if (gen == _showGen && !_hiding && IsVisible) SlideIn();
         };
         CompositionTarget.Rendering += onFrame;
     }
 
-    private void StartSlideIn(int gen)
+    private void SlideIn()
     {
-        var shift = Motion.Translate(RootCard);
-        // On completion drop the transform, so the card rests at exact Y 0 (crisp ClearType text).
-        Motion.Play(() => { if (gen == _showGen && !_hiding) ResetCard(); },
-            (shift, TranslateTransform.YProperty, Motion.Spline(null, 0, OpenMs, Motion.Decelerate)));
+        int gen = _showGen;
+        var (x, y) = RestDevice();
+        Slide.Run(x, y, OpenMs, CubicBezier.Decelerate, () => { if (gen == _showGen && !_hiding) SnapToCorner(); });
     }
 
-    /// <summary>App.ShowMain calls this before Show(): a show during the hide animation cancels the hide.</summary>
-    public void PrepareShow()
-    {
-        if (_hiding) PlayOpen(fromCurrent: true);
-    }
-
-    /// <summary>Slide down past the edge over 170 ms, THEN Hide(). Falls back to an instant Hide() whenever the
-    /// animation can't run (Reduce motion, minimized, a second request, an exception) and, as a safety net,
-    /// if the storyboard hasn't completed 400 ms later (one-shot check, nothing repeats).</summary>
+    /// <summary>Slide down past the screen edge over 170 ms, THEN Hide(). Instant with Reduce motion or minimized;
+    /// a one-shot 400 ms safety net hides it if the slide never reports back.</summary>
     public void HideToTray()
     {
         CloseSettings(instant: true);
         if (!IsVisible) return;
         if (!Motion.Enabled || WindowState == WindowState.Minimized || _hiding) { HideNow(); return; }
         _hiding = true;
+        _openParked = false;
         int gen = ++_showGen;
         try
         {
-            var shift = Motion.Translate(RootCard);
-            Motion.Play(() => { if (gen == _showGen && _hiding) HideNow(); },
-                (shift, TranslateTransform.YProperty, Motion.Spline(null, SlideDistance, HideMs, Motion.Accelerate)));
+            var h = Hwnd;
+            var r = WindowSlide.Rect(h);
+            Slide.Run(r.Left, WindowSlide.MonitorBottom(h) + 2, HideMs, CubicBezier.Accelerate,
+                () => { if (gen == _showGen && _hiding) HideNow(); });
         }
         catch { HideNow(); return; }
         _ = HideSafetyNetAsync(gen);
@@ -261,15 +279,8 @@ public partial class MainWindow : Window
     {
         _hiding = false;
         _showGen++;
+        Slide.Stop();
         Hide();
-        ResetCard();   // back to the rest position while hidden; PlayOpen parks it below the edge again on show
-    }
-
-    private void ResetCard()
-    {
-        Motion.Set(RootCard, OpacityProperty, 1);
-        Motion.Set(Motion.Translate(RootCard), TranslateTransform.YProperty, 0);
-        RootCard.RenderTransform = Transform.Identity;   // no transform at rest: text snaps to device pixels
     }
 
     public void AllowClose() { StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
@@ -775,10 +786,17 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(new Action(SnapToCorner), DispatcherPriority.Loaded);
     }
 
-    // ---------- gear flyout (v0.8.6: slide up 14 DIP, 160 ms decelerate, quick fade; instant with Reduce motion) ----------
+    // ---------- gear flyout (v0.8.8: the popup's own window slides up 14 DIP natively, 160 ms decelerate;
+    // out 120 ms accelerate; instant with Reduce motion). Same reason as the main window: content animations
+    // inside a transparent window weren't being presented. ----------
 
     private bool _settingsPinned;   // "Detect key" keeps the flyout open while it waits for the G-key
     private int _flyGen;
+    private WindowSlide? _flySlide;
+    private int _flyRestY = int.MinValue;
+    private IntPtr FlyHwnd => (PresentationSource.FromVisual(SettingsPanel) as System.Windows.Interop.HwndSource)?.Handle ?? IntPtr.Zero;
+    private WindowSlide FlySlide => _flySlide ??= new WindowSlide(() => FlyHwnd);
+    private int FlyOffset => (int)Math.Round(14 * (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M22 ?? 1.0));
 
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
@@ -788,38 +806,45 @@ public partial class MainWindow : Window
 
     private void OpenSettings()
     {
-        _flyGen++;
+        int gen = ++_flyGen;
+        bool reopening = SettingsPopup.IsOpen && FlySlide.Active;   // clicked again while it was sliding out
         SettingsPopup.IsOpen = true;
-        var shift = Motion.Translate(SettingsPanel);
-        if (!Motion.Enabled) { ResetFlyout(); return; }
-        Motion.Play(null,
-            (SettingsPanel, OpacityProperty, Motion.Tween(0, 1, 90, Motion.Quad)),
-            (shift, TranslateTransform.YProperty, Motion.Spline(14, 0, 160, Motion.Decelerate)));
+        ResetFlyout();
+        if (!Motion.Enabled) return;
+        var h = FlyHwnd;
+        if (h == IntPtr.Zero) return;
+        var r = WindowSlide.Rect(h);
+        if (!reopening || _flyRestY == int.MinValue) _flyRestY = r.Top;
+        if (!reopening) WindowSlide.Move(h, r.Left, _flyRestY + FlyOffset);
+        FlySlide.Run(r.Left, _flyRestY, 160, CubicBezier.Decelerate, null);
     }
 
     private void CloseSettings(bool instant = false)
     {
         if (!SettingsPopup.IsOpen) return;
         int gen = ++_flyGen;
-        if (instant || !Motion.Enabled || !IsVisible)
+        var h = FlyHwnd;
+        if (instant || !Motion.Enabled || !IsVisible || h == IntPtr.Zero)
         {
+            _flySlide?.Stop();
             SettingsPopup.IsOpen = false;
-            ResetFlyout();
             return;
         }
         try
         {
-            Motion.Play(() => { if (gen == _flyGen) { SettingsPopup.IsOpen = false; ResetFlyout(); } },
-                (SettingsPanel, OpacityProperty, Motion.Tween(null, 0, 120, Motion.Quad)),
-                (Motion.Translate(SettingsPanel), TranslateTransform.YProperty, Motion.Spline(null, 14, 120, Motion.Accelerate)));
+            var r = WindowSlide.Rect(h);
+            if (_flyRestY == int.MinValue) _flyRestY = r.Top;
+            FlySlide.Run(r.Left, _flyRestY + FlyOffset, 120, CubicBezier.Accelerate,
+                () => { if (gen == _flyGen) SettingsPopup.IsOpen = false; });
         }
-        catch { SettingsPopup.IsOpen = false; ResetFlyout(); }
+        catch { _flySlide?.Stop(); SettingsPopup.IsOpen = false; }
     }
 
+    /// <summary>Clears any content animation left on the panel (older builds animated it directly).</summary>
     private void ResetFlyout()
     {
         Motion.Set(SettingsPanel, OpacityProperty, 1);
-        Motion.Set(Motion.Translate(SettingsPanel), TranslateTransform.YProperty, 0);
+        SettingsPanel.RenderTransform = Transform.Identity;
     }
 
     private static bool IsWithin(DependencyObject? d, DependencyObject ancestor)
@@ -834,7 +859,7 @@ public partial class MainWindow : Window
         _settings.ReduceMotion = ReduceMotionToggle.IsChecked == true;
         Motion.Enabled = !_settings.ReduceMotion;
         _settings.Save();
-        if (_settings.ReduceMotion) { ResetCard(); ResetFlyout(); Motion.Set(ProfileChip, OpacityProperty, 1); }
+        if (_settings.ReduceMotion) { ResetFlyout(); Motion.Set(ProfileChip, OpacityProperty, 1); }
     }
 
     private void SelectSwatch(byte[] c)

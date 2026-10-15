@@ -2,6 +2,17 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.8.8 (2026-10-15), untested
+- Window slide fix, from Amine's 30 fps screen recording of v0.8.7: open and close had zero in-between frames (pop in,
+  pop out). The storyboards ran, but WPF never presented the frames of content moving inside the transparent (layered)
+  window.
+  - The whole window now moves natively (`Services/WindowSlide.cs`, `SetWindowPos` once per frame, time based,
+    cubic-bezier curves). DWM moves the already-drawn window, so no WPF repaint is needed for the motion.
+  - Open: parked below the screen, drawn there, then rises out of the bottom edge in 250 ms (decelerate).
+    Close: drops back past the edge in 170 ms (accelerate), then hides. Re-click mid-slide reverses from where it is.
+  - Gear flyout: its popup window slides 14 DIP natively (160 ms in, 120 ms out); the fade is gone.
+  - `ClipHost` and the card transform code removed. Per-frame hook only during a slide; idle cost unchanged.
+
 ## v0.8.7 (2026-10-15), untested
 - Tray left click toggles: opens the window, or slides it back to the tray when it's already open (minimized restores).
 - Tray right-click menu drawn in the app's look (`Services/TrayMenu.cs`, custom `ToolStripRenderer`): text in the accent
