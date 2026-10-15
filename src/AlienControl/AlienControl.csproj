@@ -10,10 +10,22 @@
     <AssemblyName>AlienControl</AssemblyName>
     <RootNamespace>AlienControl</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.9.13</Version>
+    <Version>0.9.14</Version>
     <Product>Alien Controls</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!-- Publish (dotnet publish -r win-x64): one framework-dependent exe, ReadyToRun-precompiled for fast start.
+       No compression (it unpacks into RAM) and no trimming (WPF/WPF-UI reflection breaks). -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,7 +42,7 @@
 
   <!-- T-Troll's alienfan-cli / alienfx-cli binaries (and their DLLs) are dropped in tools/ and shipped next to the exe. -->
   <ItemGroup>
-    <None Include="tools\**\*" Exclude="tools\README.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="tools\**\*" Exclude="tools\README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
 
 </Project>

@@ -41,7 +41,7 @@
 - Direct WMI sensor reads instead of spawning alienfan-cli in the sensor loop (biggest CPU win).
 - Done in v0.9.13: mute/mic/touchpad from callbacks instead of polling, memory trim in the tray.
 - Keyboard backlight timeout when idle; effect speed; map keyboard columns for the rainbow wave.
-- Trimmed, ReadyToRun publish. Target: under 0.3% CPU idle and 60 MB RAM.
+- Done in v0.9.14: single-file ReadyToRun publish (no trimming, no compression). Idle target met in v0.9.13.
 
 ## Not planned
 - Overlay / FPS counter, driver updater, XMP toggle (stock RAM has no XMP profile).

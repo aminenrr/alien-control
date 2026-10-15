@@ -2,7 +2,13 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
-## v0.9.13 (2026-10-15), untested
+## v0.9.14 (2026-10-15), untested
+- **One exe**: the artifact is a single `AlienControl.exe` (framework-dependent, still needs the .NET 8 Desktop
+  Runtime) plus `tools/`. Precompiled with ReadyToRun so it starts and opens faster (less JIT on first use).
+- No compression (it unpacks into RAM) and no trimming (WPF / WPF-UI use reflection). English-only resources.
+- Settings stay in `%AppData%\AlienControl`; alienfan-cli / alienfx-cli stay as files in `tools/`.
+
+## v0.9.13 (2026-10-15), confirmed (0% CPU, ~20 MB open, a few MB in the tray, was 98 MB)
 - **Idle trim**. Status keys are event driven: speaker / mic mute from Windows audio callbacks (cached endpoints,
   re-bound when the default device changes), touchpad (F12) from a registry change notification. The 1 s poll that
   created two COM audio objects every second is gone; a 30 s safety net stays.
