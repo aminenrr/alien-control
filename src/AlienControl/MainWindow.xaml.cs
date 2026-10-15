@@ -404,7 +404,7 @@ public partial class MainWindow : Window
                 var ind = new System.Collections.Generic.Dictionary<int, bool>(_indicators);
                 double hueBase = t;
                 _fx.SendFrame(i => HsvToRgb(wave ? hueBase + KeyColumn(i) * 15 : hueBase, 1), ind, _settings.Brightness);
-                t = (t + (wave ? 6 : 3)) % 360;
+                t = (t + (wave ? 10 : 6)) % 360; // v0.6.3: about 1.7x faster (user found it slow)
                 try { await Task.Delay(50, token); } catch { break; }
             }
         }, token);
