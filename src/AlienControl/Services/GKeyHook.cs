@@ -7,7 +7,7 @@ namespace AlienControl.Services;
 /// <summary>
 /// Global low-level keyboard hook for the G-key (F1 G-Mode key on the m15 R7).
 /// AWCC used to catch this key; without it nothing answers, so the app does.
-/// Install on the UI thread (it needs a message loop, which WPF provides).
+/// Always enabled (v0.8: no off switch). Install on the UI thread (it needs a message loop, which WPF provides).
 /// </summary>
 public sealed class GKeyHook : IDisposable
 {
@@ -35,7 +35,6 @@ public sealed class GKeyHook : IDisposable
 
     public int Vk { get; set; }
     public int Scan { get; set; }   // 0 = any
-    public bool Enabled { get; set; } = true;
 
     /// <summary>Raised when the G-key goes down (debounced).</summary>
     public event Action? Pressed;
@@ -68,7 +67,7 @@ public sealed class GKeyHook : IDisposable
                 LearnNext = null;
                 learn((int)k.vkCode, (int)k.scanCode);
             }
-            else if (Enabled && k.vkCode == Vk && (Scan == 0 || k.scanCode == Scan))
+            else if (k.vkCode == Vk && (Scan == 0 || k.scanCode == Scan))
             {
                 // Key repeat fires many downs; one toggle per press.
                 var now = DateTime.UtcNow;
