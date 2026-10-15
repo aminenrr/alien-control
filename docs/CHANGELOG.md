@@ -2,6 +2,18 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.0 (2026-10-15), untested
+- GPU row is live. It shows the real mode (which GPU drives the panel, live; NVIDIA's Auto flag from the registry),
+  read on show, after a change and on display changes. No polling.
+- iGPU only: in-window "RTX in use" dialog (Cancel / Refresh / Switch anyway) listing apps holding RTX memory, then
+  pnputil disables the RTX. Blocked while the RTX drives the screen (switch to Optimus first).
+- Optimus / dGPU only: NVIDIA has no API, so the app opens the NVIDIA Control Panel (Manage display mode) and the row
+  follows once the screen switches. From iGPU only, Optimus just re-enables the RTX.
+- Ultimate: Dell BIOS HybridGraphics, dialog with Cancel / Restart later / Restart now. In Ultimate, iGPU only and
+  dGPU only are disabled; Optimus turns hybrid back on (restart). Hint shows "Ultimate/Optimus after restart" while pending;
+  picking a hybrid mode while Ultimate is queued just undoes it. The RTX is re-enabled first if it was off.
+- GPU report now includes NVIDIA's InternalMux flags.
+
 ## v0.8.10 (2026-10-15), untested
 - Accent fix: the line icons (Legend section icons) kept the old accent until a second click on the swatch. After an
   accent change the window now re-reads every icon's color binding and repaints it once (one-shot walk, no timer).

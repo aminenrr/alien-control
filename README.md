@@ -91,11 +91,13 @@ Balanced (On, 240 Hz), Performance (Aggressive, 240 Hz). Custom changes nothing.
 The header shows the current profile as a small read-only chip next to the model badge ("● BALANCED" in Legend,
 "● Balanced" in Fluent), tinted like the tray icon. It follows tray picks, mode buttons and refresh rate changes.
 
-### GPU mode (preview)
+### GPU mode
 
-The iGPU only / Optimus / dGPU only / Ultimate buttons are visual only in v0.8 and switch nothing yet.
-The header shows the detected mode; **Check Ultimate support** shows and copies a GPU / BIOS report.
-Before iGPU only disables the RTX, the app will list apps still using it (planned warning below).
+The row lights the real mode (Auto shows as "Auto · screen on Intel/RTX" in the hint).
+- **iGPU only** turns the RTX off after an in-window "RTX in use" check. Not available while the RTX drives the screen.
+- **Optimus / dGPU only** open NVIDIA's own "Manage display mode" setting (NVIDIA has no API for it); the row follows.
+- **Ultimate** sets the Dell BIOS graphics switch and asks to restart. In Ultimate only Optimus (back, restart) is clickable.
+**Check Ultimate support** shows and copies a GPU / BIOS report.
 
 | Legend | Fluent |
 |---|---|

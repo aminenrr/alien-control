@@ -219,14 +219,14 @@
                         </Grid>
                         <Border Style="{DynamicResource Track}">
                             <UniformGrid Columns="4">
-                                <RadioButton x:Name="GpuIgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuPreview_Click"
-                                             Tag="{DynamicResource Icon.IGpu}" Content="iGPU only" ToolTip="Coming soon: RTX off, Intel only. Best battery." />
-                                <RadioButton x:Name="GpuOptimus" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuPreview_Click" IsChecked="True"
-                                             Tag="{DynamicResource Icon.Optimus}" Content="Optimus" ToolTip="Coming soon: hybrid, Intel drives the screen and the RTX wakes when needed." />
-                                <RadioButton x:Name="GpuDgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuPreview_Click"
-                                             Tag="{DynamicResource Icon.DGpu}" Content="dGPU only" ToolTip="Coming soon: NVIDIA Advanced Optimus 'NVIDIA GPU only' display mode." />
-                                <RadioButton x:Name="GpuUltimate" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuPreview_Click"
-                                             Tag="{DynamicResource Icon.Ultimate}" Content="Ultimate" ToolTip="Coming soon: MUX through the Dell BIOS. Needs a restart." />
+                                <RadioButton x:Name="GpuIgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" ToolTipService.ShowOnDisabled="True"
+                                             Tag="{DynamicResource Icon.IGpu}" Content="iGPU only" ToolTip="RTX off, Intel only. Best battery. External ports wired to the RTX go dark." />
+                                <RadioButton x:Name="GpuOptimus" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" ToolTipService.ShowOnDisabled="True" IsChecked="True"
+                                             Tag="{DynamicResource Icon.Optimus}" Content="Optimus" ToolTip="Hybrid: Intel drives the screen and the RTX wakes when needed." />
+                                <RadioButton x:Name="GpuDgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" ToolTipService.ShowOnDisabled="True"
+                                             Tag="{DynamicResource Icon.DGpu}" Content="dGPU only" ToolTip="The RTX drives the screen (NVIDIA 'GPU only' display mode, no restart). Opens NVIDIA's display mode setting." />
+                                <RadioButton x:Name="GpuUltimate" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" ToolTipService.ShowOnDisabled="True"
+                                             Tag="{DynamicResource Icon.Ultimate}" Content="Ultimate" ToolTip="Dell BIOS: Intel GPU off, the RTX drives everything. Needs a restart." />
                             </UniformGrid>
                         </Border>
                         <Button x:Name="GpuCheckButton" Style="{DynamicResource LinkButton}" Margin="0,6,0,0" HorizontalAlignment="Left"
@@ -493,6 +493,24 @@
                     </Popup>
                 </Grid>
             </Border>
+
+            <!-- v0.9.0: in-window GPU dialog ("RTX in use", restart), styled per theme through PopupPanel. -->
+            <Grid x:Name="GpuDialogLayer" Grid.RowSpan="4" Visibility="Collapsed" Background="#B8000000">
+                <Border Style="{DynamicResource PopupPanel}" Margin="22,0" VerticalAlignment="Center" UseLayoutRounding="True"
+                        TextOptions.TextFormattingMode="Display" RenderOptions.ClearTypeHint="Enabled">
+                    <StackPanel>
+                        <TextBlock x:Name="GpuDlgTitle" Style="{DynamicResource PopupTitle}" Margin="0,0,0,10" TextWrapping="Wrap" />
+                        <TextBlock x:Name="GpuDlgBody" Style="{DynamicResource BodyText}" TextWrapping="Wrap" />
+                        <TextBlock x:Name="GpuDlgListTitle" Style="{DynamicResource FooterText}" Margin="0,12,0,4" Visibility="Collapsed" />
+                        <ItemsControl x:Name="GpuDlgList" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding StringFormat='•  {0}'}" Style="{DynamicResource BodyText}" Margin="0,1" /></DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <WrapPanel x:Name="GpuDlgButtons" HorizontalAlignment="Right" Margin="0,16,0,0" />
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
     </Border>
     </Grid>

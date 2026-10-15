@@ -51,6 +51,56 @@ public static class GpuMode
         return list;
     }
 
+    /// <summary>
+    /// v0.9.0: full GPU state for the row. Kind comes from the adapters + which GPU drives the panel (live, works with any
+    /// driver). Auto = NVIDIA "Automatic Select", read from the flag NVIDIA writes after every switch (Procmon 2026-10-15).
+    /// BiosUltimate = what the BIOS will boot into (null if unreadable); differs from Kind == Ultimate until a restart.
+    /// </summary>
+    public sealed record State(GpuModeKind Kind, bool Auto, bool? BiosUltimate)
+    {
+        public bool PendingRestart => BiosUltimate is bool b && b != (Kind == GpuModeKind.Ultimate);
+    }
+
+    private const string AceKey = @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters\Global\NvHybrid\Persistence\ACE";
+
+    /// <summary>NVIDIA's own record of the display mode. Null values when the key isn't there (another driver layout).</summary>
+    public static (bool? Auto, int? MuxState) ReadNvidiaFlags()
+    {
+        try
+        {
+            using var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(AceKey);
+            if (k is null) return (null, null);
+            int? auto = k.GetValue("InternalMuxIsAutomaticMode") is int a ? a : null;
+            int? mux = k.GetValue("InternalMuxState") is int m ? m : null;
+            return (auto is null ? null : auto == 1, mux);
+        }
+        catch { return (null, null); }
+    }
+
+    /// <summary>Reads everything. withBios = also ask the BIOS (slower, only on window show and after a change).</summary>
+    public static State Read(bool withBios)
+    {
+        var kind = Current(Adapters());
+        bool auto = kind is GpuModeKind.Optimus or GpuModeKind.DGpuOnly && ReadNvidiaFlags().Auto == true;
+        bool? bios = null;
+        if (withBios)
+        {
+            var attr = FindGraphicsAttribute();
+            if (attr is not null)
+            {
+                bool on = attr.Current.StartsWith("Enable", StringComparison.OrdinalIgnoreCase) || attr.Current.Equals("On", StringComparison.OrdinalIgnoreCase);
+                bios = attr.MuxMeansOn ? on : !on;
+            }
+        }
+        return new State(kind, auto, bios);
+    }
+
+    /// <summary>Restarts Windows now (after a BIOS graphics change).</summary>
+    public static void RestartNow()
+    {
+        try { Process.Start(new ProcessStartInfo("shutdown.exe", "/r /t 0") { CreateNoWindow = true, UseShellExecute = false }); } catch { }
+    }
+
     public static GpuModeKind Current(List<Adapter> a)
     {
         var intel = a.FirstOrDefault(x => x.IsIntel);
@@ -58,7 +108,9 @@ public static class GpuMode
         if (nv is null) return GpuModeKind.Unknown;
         if (intel is null || !intel.Ok) return GpuModeKind.Ultimate; // BIOS hid the iGPU: MUX on
         if (nv.Disabled) return GpuModeKind.IGpuOnly;
-        if (InternalPanelOnNvidia() == true) return GpuModeKind.DGpuOnly; // Advanced Optimus "NVIDIA GPU only"
+        var panel = InternalPanelOnNvidia();
+        if (panel is null) panel = ReadNvidiaFlags().MuxState is int m ? m == 2 : null;   // fallback: NVIDIA's record (2 = RTX)
+        if (panel == true) return GpuModeKind.DGpuOnly; // Advanced Optimus "NVIDIA GPU only" (or Auto with the RTX on the panel)
         return GpuModeKind.Optimus;
     }
 
@@ -114,7 +166,7 @@ public static class GpuMode
         return null;
     }
 
-    /// <summary>Opens the NVIDIA Control Panel (Display > Manage display mode lives there). Not wired in v0.8.</summary>
+    /// <summary>Opens the NVIDIA Control Panel (Display > Manage display mode lives there). NVIDIA has no API for the switch.</summary>
     public static string? OpenNvidiaDisplayMode()
     {
         try
@@ -227,6 +279,8 @@ public static class GpuMode
         foreach (var a in Adapters()) sb.AppendLine($"Adapter: {a.Name} | code {a.ErrorCode} | {a.PnpId}");
         sb.AppendLine($"Mode: {Current(Adapters())}");
         sb.AppendLine($"Internal panel on NVIDIA (Advanced Optimus 'NVIDIA GPU only'): {InternalPanelOnNvidia()?.ToString() ?? "unknown"}");
+        var (fa, fm) = ReadNvidiaFlags();
+        sb.AppendLine($"NVIDIA flags: InternalMuxIsAutomaticMode={fa?.ToString() ?? "missing"}, InternalMuxState={fm?.ToString() ?? "missing"}");
         var g = FindGraphicsAttribute();
         sb.AppendLine(g is null
             ? "Ultimate (MUX) from Windows: NOT possible - no hybrid/MUX attribute in Dell BIOS WMI."

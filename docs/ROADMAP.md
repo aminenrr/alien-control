@@ -5,7 +5,7 @@
   If they still look dead, next suspect is the `AllowsTransparency` layered window dropping frames.
 
 ## Next after the bugs
-- GPU modes: Procmon recordings (below), then wire the row.
+- GPU modes: wired in v0.9.0 (option A), waiting on a laptop test.
 - Ultimate: the BIOS exposes `HybridGraphics = Disabled/Enabled` through Dell BIOS WMI (no BIOS password on this laptop),
   so Ultimate = set `Disabled` + restart, Optimus = `Enabled` + restart. Wired together with the GPU row.
 - Talk about: notifications when a preset changes, and automatic preset on AC vs battery.
@@ -15,6 +15,7 @@
 - v0.8.8 native window slide (open/close actually animates).
 - v0.8.9 profile CPU boost, minimize slide.
 - v0.8.10 accent icon fix.
+- v0.9.0 GPU row (iGPU only, NVIDIA display mode hand-off, Ultimate via BIOS + restart).
 - v0.8.6 animations (Quick Settings slide, timings to tune by eye).
 - v0.8.0 to v0.8.2 (themes, gear menu, profiles, power readout, chip, animations) not yet run on the laptop.
 - "Check Ultimate support" report: gives the exact Dell BIOS attribute for MUX and the right RAPL counter instance.

@@ -10,7 +10,7 @@
     <AssemblyName>AlienControl</AssemblyName>
     <RootNamespace>AlienControl</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.8.10</Version>
+    <Version>0.9.0</Version>
     <Product>Alien Controls</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
