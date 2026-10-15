@@ -137,3 +137,7 @@ CPU-Z Stress CPU (all 20 threads), read in HWiNFO, on AC. ThrottleStop closed (w
 
 - PL1/PL2 static are 115 W in every mode. Only Battery lowers the dynamic PL1 (Intel DTT).
 - Every non-Battery preset is thermally limited at ~90 W / 96 °C, so scores are the same, even at 100% fans. Amine has TCC set to 95 °C in BIOS (on a cooling pad), so the CPU is designed to ride that ceiling; the 115 W limit is never reached.
+
+### GPU in Quiet (measured 2026-10-15)
+- `nvidia-smi -q -d POWER` reads Current/Default Power Limit 125 W, Max 150 W in Quiet too, but under FurMark (GL, 1440p) Quiet holds the GPU at ~52–53 W, core ~210 MHz, fans 0%.
+- `nvidia-smi -q -d PERFORMANCE` during that load: SW Power Cap **Active** and SW Thermal Slowdown **Active** (GPU only 52 °C), no HW slowdown/power brake. Dell's platform sets a software power cap plus a low temperature target in Quiet; it isn't reachable from alienfan-cli.
