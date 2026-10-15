@@ -233,6 +233,7 @@ public static class GpuMode
             : $"Ultimate (MUX) from Windows: possible via '{g.Name}' = {g.Current} [{string.Join("/", g.Possible)}]");
         var x = DellBios.FindExpressCharge();
         sb.AppendLine(x is null ? "ExpressCharge: not exposed" : $"ExpressCharge: '{x.Name}' = {x.Current} [{string.Join("/", x.Possible)}]");
+        sb.AppendLine($"BIOS passwords: {DellBios.PasswordState() ?? "unknown (wmisecurity not exposed)"}");
         sb.AppendLine(PowerMeter.Describe());
         try
         {
@@ -242,7 +243,7 @@ public static class GpuMode
                 using (o)
                 {
                     n++;
-                    sb.AppendLine($"BIOS: {o["AttributeName"]} = {(o["CurrentValue"] as string[])?.FirstOrDefault()} [{string.Join("/", (o["PossibleValue"] as string[]) ?? Array.Empty<string>())}]");
+                    sb.AppendLine($"BIOS: {o["AttributeName"]} = {DellBios.First(o["CurrentValue"])} [{string.Join("/", (o["PossibleValue"] as string[]) ?? Array.Empty<string>())}]");
                 }
             if (n == 0) sb.AppendLine("BIOS WMI: no attributes");
         }
