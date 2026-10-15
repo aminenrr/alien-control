@@ -8,7 +8,7 @@ public class HidProbe : Form {
   [StructLayout(LayoutKind.Sequential)] struct RIDL { public IntPtr h; public uint type; }
   [StructLayout(LayoutKind.Sequential)] struct HDR { public uint type, size; public IntPtr dev, w; }
   [StructLayout(LayoutKind.Sequential)] struct INFO { public uint cb, type; public uint vid, pid, ver; public ushort page, usage; public uint pad1, pad2; }
-  [DllImport("user32.dll")] static extern bool RegisterRawInputDevices(RID[] r, uint n, uint cb);
+  [DllImport("user32.dll", SetLastError = true)] static extern bool RegisterRawInputDevices(RID[] r, uint n, uint cb);
   [DllImport("user32.dll")] static extern uint GetRawInputDeviceList([Out] RIDL[] l, ref uint n, uint cb);
   [DllImport("user32.dll")] static extern uint GetRawInputDeviceInfo(IntPtr h, uint cmd, ref INFO d, ref uint cb);
   [DllImport("user32.dll")] static extern uint GetRawInputData(IntPtr h, uint cmd, byte[] d, ref uint cb, uint hcb);
@@ -24,11 +24,12 @@ public class HidProbe : Form {
       GetRawInputDeviceInfo(d.h, 0x2000000b, ref i, ref cb);
       string s = string.Format("{0:X4}:{1:X4} page 0x{2:X4} usage 0x{3:X2}", i.vid, i.pid, i.page, i.usage);
       names[d.h] = s; Console.WriteLine("found  " + s);
-      if (i.page == 0x0D || (i.page == 1 && i.usage == 2)) continue;   // touchpad / mouse spam
+      if (i.page == 0x0D || i.usage == 0 || (i.page == 1 && i.usage == 2)) continue;   // touchpad / mouse spam
       if (pairs.Add(((uint)i.page << 16) | i.usage)) regs.Add(new RID { Page = i.page, Usage = i.usage, Flags = 0x100, Target = Handle });
     }
-    Console.WriteLine(RegisterRawInputDevices(regs.ToArray(), (uint)regs.Count, (uint)Marshal.SizeOf(typeof(RID)))
-      ? "Listening. Press F2, F3, F4 (media mode, no Fn). Close the PowerShell window to stop." : "Register failed.");
+    foreach (var r in regs) Console.WriteLine(string.Format("listen page 0x{0:X4} usage 0x{1:X2}: {2}", r.Page, r.Usage,
+      RegisterRawInputDevices(new[] { r }, 1, (uint)Marshal.SizeOf(typeof(RID))) ? "ok" : "failed " + Marshal.GetLastWin32Error()));
+    Console.WriteLine("Press F2, F3, F4 (media mode, no Fn). Close the window to stop.");
   }
   protected override void WndProc(ref Message m) {
     if (m.Msg == 0x00FF) {
