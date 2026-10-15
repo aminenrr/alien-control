@@ -8,6 +8,7 @@ Tool versions used: alienfan-cli 9.6.0.1, alienfx-cli 9.6.2.
 
 Probe: systemID 83886594, 2 fans, 13 sensors, 6 power states, G-Mode, XMP. No TCC, no ACPI lights.
 `setgpu` (GPU power limit) is **not** in this version's command list, so the GPU limit UI was removed in v0.2.
+Rechecked 2026-10-15 against alienfx-tools HEAD (8171ac3, 2026-10-14): the current WMI-based SDK v2 has `SetGPU` commented out; only the legacy V1 build (ACPI kernel driver, needs test-signing) still has it. The docs' `setgpu` line is stale. GPU stays at the BIOS default (125 W, Max 150 W with Dynamic Boost) in every mode; AWCC's 45 W Quiet cap is its own separate call.
 
 ### Power modes
 `getpower` prints the raw BIOS value (`Power mode: Level 160 (a0)`), while `setpower` takes an **index**:
