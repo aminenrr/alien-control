@@ -71,6 +71,8 @@ The gear menu also holds **Detect key** for the G-key and the experimental **Fas
 Right-click the tray icon: Battery (amber), Quiet (green), Balanced (cyan), Performance (red), Custom (white).
 A profile sets the power mode and refresh rate (Battery/Quiet 60 Hz, Balanced/Performance 240 Hz; Custom changes
 nothing). Profiles never touch the GPU mode and never use Ultimate.
+The header shows the current profile as a small read-only chip next to the model badge ("● BALANCED" in Legend,
+"● Balanced" in Fluent), tinted like the tray icon. It follows tray picks, mode buttons and refresh rate changes.
 
 ### GPU mode (preview)
 
@@ -97,6 +99,7 @@ RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemor
 
 ## Status
 
+v0.8.1: read-only current-profile chip in the header, tinted like the tray icon.
 v0.8: redesign with Legend and Fluent themes, gear settings menu, G-key always on, Battery power mode, refresh rate 60/240 Hz,
 power readout, tray profiles with tinted icon, experimental Faster charging, GPU row renamed (preview only) with the Ultimate support check.
 v0.7: click the RAM card for a quick clean, right-click for a deep clean. GPU modes Eco / Standard / Ultimate (MUX via Dell BIOS WMI when exposed) / Optimized.
