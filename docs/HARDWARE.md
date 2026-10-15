@@ -45,6 +45,13 @@ There is **no** MUX/GPU-switch method in the AWCC WMI, so MUX (Ultimate) has to 
 (`root\dcim\sysman\biosattributes`). The exact attribute name is still to be confirmed from the in-app
 "Check Ultimate support" report.
 
+### BIOS attributes (Dell BIOS WMI, from the v0.8.0 report)
+- `HybridGraphics` [Disabled/Enabled]: the MUX. Disabled = RTX drives the panel (Ultimate), Enabled = Optimus. Restart needed.
+- `PrimaryBattChargeCfg` [Adaptive/Standard/Express/PrimAcUse/Custom], `AdvBatteryChargeCfg`, `AWThermalManagement`
+  [Balanced/Battery/Quiet/Performance], `SpeedShift`, plus the usual boot/security/device toggles.
+- No BIOS password is set on this laptop, so WMI writes need no credentials.
+- RAPL counter instances: `..._20_0` reads the package power (e.g. 131 = 13.1 W) and is the one the app picks.
+
 ### XMP
 The probe lists XMP, but the stock memory is JEDEC DDR5-4800 with no XMP profile, so an XMP toggle does nothing here. Dropped.
 
