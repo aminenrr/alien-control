@@ -183,7 +183,6 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Border Style="{StaticResource StatCard}" Padding="10,6">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -193,11 +192,62 @@
                             <Button Style="{StaticResource Swatch}" Background="#FF4D6A" Tag="255,77,106" Click="Color_Click" ToolTip="Red" />
                             <Button Style="{StaticResource Swatch}" Background="#3CFF7A" Tag="60,255,122" Click="Color_Click" ToolTip="Green" />
                             <Button Style="{StaticResource Swatch}" Background="#FFFFFF" Tag="255,255,255" Click="Color_Click" ToolTip="White" />
+                            <Button x:Name="CustomSwatch" Style="{StaticResource Swatch}" Click="CustomSwatch_Click" ToolTip="Custom color">
+                                <Button.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#FF0000" Offset="0" />
+                                        <GradientStop Color="#FFFF00" Offset="0.2" />
+                                        <GradientStop Color="#00FF00" Offset="0.4" />
+                                        <GradientStop Color="#00FFFF" Offset="0.6" />
+                                        <GradientStop Color="#0000FF" Offset="0.8" />
+                                        <GradientStop Color="#FF00FF" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Button.Background>
+                            </Button>
+                            <Popup x:Name="CustomPopup" PlacementTarget="{Binding ElementName=CustomSwatch}" Placement="Top"
+                                   StaysOpen="False" AllowsTransparency="True" VerticalOffset="-6">
+                                <Border Background="#F2151A22" BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="10" Padding="14" Width="280">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,10">
+                                            <TextBlock Text="Custom color" Foreground="#E6EDF3" FontSize="13" VerticalAlignment="Center" />
+                                            <Border x:Name="CustomPreview" Width="40" Height="22" CornerRadius="6" HorizontalAlignment="Right"
+                                                    BorderBrush="#30FFFFFF" BorderThickness="1" Background="#00E5FF" />
+                                        </Grid>
+                                        <TextBlock Text="Hue" Foreground="#8B96A5" FontSize="11" />
+                                        <Border CornerRadius="5" Height="10" Margin="6,4,6,0">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#FF0000" Offset="0" />
+                                                    <GradientStop Color="#FFFF00" Offset="0.1667" />
+                                                    <GradientStop Color="#00FF00" Offset="0.3333" />
+                                                    <GradientStop Color="#00FFFF" Offset="0.5" />
+                                                    <GradientStop Color="#0000FF" Offset="0.6667" />
+                                                    <GradientStop Color="#FF00FF" Offset="0.8333" />
+                                                    <GradientStop Color="#FF0000" Offset="1" />
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                        </Border>
+                                        <Slider x:Name="HueSlider" Minimum="0" Maximum="360" Value="186" IsMoveToPointEnabled="True" ValueChanged="CustomColor_Changed" />
+                                        <TextBlock Text="Saturation" Foreground="#8B96A5" FontSize="11" Margin="0,6,0,0" />
+                                        <Slider x:Name="SatSlider" Minimum="0" Maximum="100" Value="100" IsMoveToPointEnabled="True" ValueChanged="CustomColor_Changed" />
+                                        <Button Content="Apply" HorizontalAlignment="Stretch" Margin="0,8,0,0" Click="CustomApply_Click" Style="{StaticResource CardButton}" />
+                                    </StackPanel>
+                                </Border>
+                            </Popup>
                         </StackPanel>
                     </Border>
-                    <Button Grid.Column="1" Style="{StaticResource CardButton}" Content="Breathe" Click="Breathe_Click" />
-                    <Button Grid.Column="2" Style="{StaticResource CardButton}" Content="Wave" Click="Wave_Click" />
-                    <Button Grid.Column="3" Style="{StaticResource CardButton}" Content="Off" Click="LightsOff_Click" />
+                    <ComboBox x:Name="EffectBox" Grid.Column="1" Width="150" Margin="8,0,0,0" VerticalAlignment="Stretch"
+                              VerticalContentAlignment="Center" ToolTip="Lighting effect" SelectionChanged="Effect_Changed">
+                        <ComboBoxItem Content="Static" Tag="0" />
+                        <ComboBoxItem Content="Breathing" Tag="2" />
+                        <ComboBoxItem Content="Wave" Tag="3" />
+                        <ComboBoxItem Content="Dual-color wave" Tag="4" />
+                        <ComboBoxItem Content="Pulse" Tag="8" />
+                        <ComboBoxItem Content="Mixed pulse" Tag="9" />
+                        <ComboBoxItem Content="Night Rider" Tag="10" />
+                        <ComboBoxItem Content="Laser" Tag="11" />
+                    </ComboBox>
+                    <Button Grid.Column="2" Style="{StaticResource CardButton}" Content="Off" Click="LightsOff_Click" />
                 </Grid>
                 <Slider x:Name="BrightnessSlider" Minimum="0" Maximum="100" Value="80" Margin="6,12,6,0"
                         IsMoveToPointEnabled="True" PreviewMouseUp="Brightness_Commit" ValueChanged="Brightness_Changed" />
@@ -212,7 +262,7 @@
                         <ui:ToggleSwitch x:Name="StartupToggle" Click="Startup_Click" />
                         <TextBlock Text="Run on startup" Margin="10,0,0,0" VerticalAlignment="Center" Foreground="#C9D2DC" FontSize="13" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.5.3" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    <TextBlock x:Name="VersionText" Text="v0.6" HorizontalAlignment="Center" VerticalAlignment="Center"
                                Foreground="{StaticResource MutedText}" FontSize="12" />
                     <Button Style="{StaticResource CardButton}" Padding="18,7" Margin="0" Content="Quit" HorizontalAlignment="Right" Click="Quit_Click" />
                 </Grid>
