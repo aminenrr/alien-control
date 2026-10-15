@@ -110,5 +110,27 @@ public sealed class AlienFx
         return _cli.RunAsync($"{chassis} {kb}");
     }
 
+    /// <summary>Firmware color-cycle on the chassis lights (APIv4 spectrum/rainbow action), power button skipped.</summary>
+    public Task<CliResult> SetChassisCycleAsync(bool rainbow)
+    {
+        var act = rainbow ? "rainbow" : "spectrum";
+        var cmds = _s.ChassisLights.Where(i => i != Settings.PowerButtonLight)
+            .Select(i => $"setaction={_s.ChassisDevice},{i},{act},255,0,0");
+        return _cli.RunAsync($"setglobal={_s.KeyboardDevice},0,1 " + string.Join(" ", cmds));
+    }
+
+    /// <summary>One software-animation frame: every key its own color (status keys white if on).</summary>
+    public bool SendFrame(System.Func<int, byte[]> colorOf, IReadOnlyDictionary<int, bool> indicatorsOn, int brightness)
+    {
+        var w = Dim(_s.IndicatorOnColor, brightness);
+        var keys = new List<(byte, byte, byte, byte)>(_s.KeyboardLightCount);
+        for (int i = 0; i < _s.KeyboardLightCount; i++)
+        {
+            var c = indicatorsOn.TryGetValue(i, out var on) && on ? w : Dim(colorOf(i), brightness);
+            keys.Add(((byte)i, c[0], c[1], c[2]));
+        }
+        try { return _hid.SetKeys(keys); } catch { return false; }
+    }
+
     public Task<CliResult> StatusAsync() => _cli.RunAsync("status");
 }
