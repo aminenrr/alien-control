@@ -32,15 +32,27 @@
                 <Border Style="{DynamicResource HeaderPattern}" />
                 <Border Style="{DynamicResource HeaderBar}">
                     <Grid>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <!-- left side gets whatever the buttons leave (never overlaps them) -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" ClipToBounds="True">
                             <Image Source="Assets/logo.png" Style="{DynamicResource LogoImage}" VerticalAlignment="Center"
                                    RenderOptions.BitmapScalingMode="HighQuality" />
                             <TextBlock Text="{DynamicResource Str.Title}" Style="{DynamicResource BrandText}" />
                             <Border Style="{DynamicResource ModelBadge}">
                                 <TextBlock Text="m15 R7" Style="{DynamicResource ModelText}" />
                             </Border>
+                            <!-- v0.8.1: read-only current tray profile; tint + text set by UpdateProfileChip -->
+                            <Border x:Name="ProfileChip" Style="{DynamicResource ProfileChip}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse x:Name="ProfileChipDot" Style="{DynamicResource ProfileChipDot}" />
+                                    <TextBlock x:Name="ProfileChipText" Style="{DynamicResource ProfileChipText}" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                             <Button Style="{DynamicResource HeaderButton}" Content="{DynamicResource Icon.Minimize}" Click="Minimize_Click" ToolTip="Minimize" />
                             <Button Style="{DynamicResource HeaderButton}" Content="{DynamicResource Icon.Close}" Click="Close_Click" ToolTip="Hide to tray" />
                         </StackPanel>
@@ -408,7 +420,7 @@
                         <CheckBox x:Name="StartupToggle" Style="{DynamicResource ToggleBox}" Click="Startup_Click" VerticalAlignment="Center" />
                         <TextBlock Text="Run on startup" Margin="9,0,0,0" Style="{DynamicResource FooterText}" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.8.0" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
+                    <TextBlock x:Name="VersionText" Text="v0.8.1" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="SettingsButton" Style="{DynamicResource GhostButton}" Padding="7,5" Margin="0,0,6,0" Click="Settings_Click" ToolTip="Settings">
                             <ContentControl Style="{DynamicResource ButtonIcon}" Margin="0" Content="{DynamicResource Icon.Settings}" />
