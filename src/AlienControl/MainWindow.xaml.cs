@@ -139,6 +139,7 @@ public partial class MainWindow : Window
         UpdateProfileChip(CurrentProfile);
         VersionText.Text = "v" + (typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1");
         StartupToggle.IsChecked = Startup.IsEnabled();
+        InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
 
         if (!_fan.IsAvailable || !_fx.IsAvailable)
             Status("Put alienfan-cli.exe and alienfx-cli.exe in the tools folder next to AlienControl.exe.");
@@ -314,7 +315,7 @@ public partial class MainWindow : Window
         Hide();
     }
 
-    public void AllowClose() { StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
+    public void AllowClose() { ResetOcOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _indicatorTimer.Stop(); }
 
     // ---------- status keys ----------
 
@@ -381,6 +382,7 @@ public partial class MainWindow : Window
 
         var g = await _fan.GetGModeAsync();
         _gmodeOn = g == true;
+        await SyncOcAsync();
         if (_gmodeOn) { ModeGMode.IsChecked = true; SetHint(PowerHint, "G-Mode"); return; }
 
         var raw = await _fan.GetPowerRawAsync();
@@ -503,6 +505,7 @@ public partial class MainWindow : Window
         }
         Report(r);
         UpdateProfileFromState();
+        await SyncOcAsync();
         await SyncIndicatorsAsync();
     }
 
@@ -523,6 +526,7 @@ public partial class MainWindow : Window
         }
         if (IsVisible) await RefreshStateAsync();
         UpdateProfileFromState();
+        await SyncOcAsync();
         await SyncIndicatorsAsync();
     }
 
@@ -840,6 +844,7 @@ public partial class MainWindow : Window
         ApplyAccent(_lastColor);
         foreach (var (tb, t) in _hints) tb.Text = IsLegend ? t.Legend : t.Fluent;
         UpdateProfileChip(CurrentProfile);   // Legend caps vs Fluent title case
+        UpdateOcUi();
         Dispatcher.BeginInvoke(new Action(SnapToCorner), DispatcherPriority.Loaded);
     }
 
@@ -1194,6 +1199,7 @@ public partial class MainWindow : Window
             if (err is not null) Status(err);
         }
         if (IsVisible) { RefreshDisplayRate(); await RefreshStateAsync(); }
+        await SyncOcAsync();
         await SyncIndicatorsAsync();
     }
 

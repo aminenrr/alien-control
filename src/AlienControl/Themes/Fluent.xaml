@@ -31,6 +31,8 @@
     <sys:String x:Key="Str.Settings">Settings</sys:String>
     <sys:String x:Key="Str.GpuCheck">Check Ultimate support</sys:String>
     <sys:String x:Key="Str.Theme">Theme</sys:String>
+    <sys:String x:Key="Str.GpuOc">GPU Overclock</sys:String>
+    <sys:String x:Key="Str.OcKeep">Keep these clocks?</sys:String>
 
     <SolidColorBrush x:Key="TextPrimary" Color="#FFFFFF" />
     <SolidColorBrush x:Key="TextBody" Color="#FFFFFF" />
@@ -39,6 +41,7 @@
     <SolidColorBrush x:Key="RedAccent" Color="#FF6B7F" />
 
     <SolidColorBrush x:Key="AccentBrush" Color="#4CC2FF" />
+    <SolidColorBrush x:Key="OcWarnBrush" Color="#FCE100" />
     <SolidColorBrush x:Key="AccentBorder" Color="#804CC2FF" />
     <SolidColorBrush x:Key="AccentFaint" Color="#2E4CC2FF" />
     <SolidColorBrush x:Key="AccentGlow" Color="#554CC2FF" />

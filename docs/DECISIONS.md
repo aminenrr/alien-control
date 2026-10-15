@@ -75,3 +75,12 @@ Why things are the way they are. Newest decisions win.
   path first (driver independent) and NVIDIA's registry flags only for Auto / fallback.
 - The "RTX in use" warning will be an in-window overlay styled per theme (Cancel / Refresh / Switch anyway),
   not a plain Windows message box. Built when the buttons get wired.
+
+## GPU overclock (2026-10-15)
+- AWCC-like core / memory offsets, max +300 each, no MSI Afterburner. Amine runs +200 / +200, so that is the default.
+- **G-Mode on AC only** (Amine's call, for safety). Leaving G-Mode, unplugging or quitting = +0.
+- NVML `nvmlDeviceSetClockOffsets` (legacy VfOffset calls are Not Supported here). Memory offset counts double in NVML,
+  so the UI shows AWCC MHz and sends memory x2.
+- Safety: 20 s keep-or-revert after Apply, "pending" flag saved before the write so a crash comes back at +0.
+  No stress test, no voltage curve, power limit or fan control. Profiles never change GPU mode.
+- Layout (Amine): Core and Memory side by side, Keep / Revert replace the button row, to keep the window short.

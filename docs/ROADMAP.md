@@ -11,6 +11,7 @@
 - Talk about: notifications when a preset changes, and automatic preset on AC vs battery.
 
 ## Waiting on hardware tests
+- v0.9.7 GPU overclock row (Apply / Keep / Revert, G-Mode on AC only, reset on leave / unplug / quit / unfinished test).
 - v0.8.7 tray toggle and themed tray menu.
 - v0.8.8 native window slide (open/close actually animates).
 - v0.8.9 profile CPU boost, minimize slide.

@@ -229,7 +229,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ===== 03 Refresh rate ===== -->
+                <!-- ===== 03 GPU overclock (v0.9.7): NVML clock offsets, G-Mode on AC only, 20 s keep-or-revert ===== -->
                 <Border Style="{DynamicResource SectionPanel}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
@@ -238,6 +238,75 @@
                                 <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="03" Style="{DynamicResource SectionNum}" />
+                            <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.GMode}" />
+                            <TextBlock Grid.Column="2" Text="{DynamicResource Str.GpuOc}" Style="{DynamicResource SectionTitle}" />
+                            <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
+                            <TextBlock x:Name="OcHint" Grid.Column="4" Style="{DynamicResource SectionHint}" />
+                        </Grid>
+                        <Border Style="{DynamicResource LightPanel}">
+                            <StackPanel>
+                                <!-- v0.9.7 (Amine): Core and Memory side by side so the window stays short -->
+                                <Grid x:Name="OcBody">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <Grid>
+                                            <TextBlock Text="Core" Style="{DynamicResource BodyText}" />
+                                            <TextBlock x:Name="OcCoreValue" Text="+200 MHz" HorizontalAlignment="Right" FontWeight="SemiBold"
+                                                       Style="{DynamicResource BodyText}" Foreground="{DynamicResource AccentBrush}" />
+                                        </Grid>
+                                        <Slider x:Name="OcCoreSlider" Style="{DynamicResource LightSlider}" Margin="0,6,0,0" Minimum="0" Maximum="300" Value="200"
+                                                TickFrequency="25" IsSnapToTickEnabled="True" SmallChange="25" LargeChange="25" IsMoveToPointEnabled="True"
+                                                ValueChanged="Oc_Changed" ToolTip="Core offset, 0 to +300 MHz in 25 MHz steps" />
+                                        <Grid Margin="0,1,0,0">
+                                            <TextBlock Text="0" Style="{DynamicResource ValueSmall}" />
+                                            <TextBlock Text="300" HorizontalAlignment="Right" Style="{DynamicResource ValueSmall}" />
+                                        </Grid>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <Grid>
+                                            <TextBlock Text="Memory" Style="{DynamicResource BodyText}" />
+                                            <TextBlock x:Name="OcMemValue" Text="+200 MHz" HorizontalAlignment="Right" FontWeight="SemiBold"
+                                                       Style="{DynamicResource BodyText}" Foreground="{DynamicResource AccentBrush}" />
+                                        </Grid>
+                                        <Slider x:Name="OcMemSlider" Style="{DynamicResource LightSlider}" Margin="0,6,0,0" Minimum="0" Maximum="300" Value="200"
+                                                TickFrequency="25" IsSnapToTickEnabled="True" SmallChange="25" LargeChange="25" IsMoveToPointEnabled="True"
+                                                ValueChanged="Oc_Changed" ToolTip="Memory offset, 0 to +300 MHz in 25 MHz steps (AWCC scale)" />
+                                        <Grid Margin="0,1,0,0">
+                                            <TextBlock Text="0" Style="{DynamicResource ValueSmall}" />
+                                            <TextBlock Text="300" HorizontalAlignment="Right" Style="{DynamicResource ValueSmall}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+                                <!-- one row: Reset · Active · Apply, or during a test Revert · countdown · Keep -->
+                                <Grid Margin="0,10,0,0">
+                                    <Button x:Name="OcResetButton" Style="{DynamicResource GhostButton}" HorizontalAlignment="Left" MinWidth="76"
+                                            Content="Reset" Click="OcReset_Click" ToolTip="Back to stock clocks (+0 / +0)" />
+                                    <TextBlock x:Name="OcActive" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource ValueSmall}" />
+                                    <StackPanel x:Name="OcConfirm" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                                        <TextBlock Text="{DynamicResource Str.OcKeep}" HorizontalAlignment="Center" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource OcWarnBrush}" Style="{DynamicResource ValueSmall}" />
+                                        <TextBlock x:Name="OcCountdown" HorizontalAlignment="Center" Margin="0,2,0,0" Style="{DynamicResource ValueSmall}" />
+                                    </StackPanel>
+                                    <Button x:Name="OcApplyButton" Style="{DynamicResource GhostButton}" HorizontalAlignment="Right" MinWidth="76"
+                                            Content="Apply" Foreground="{DynamicResource AccentBrush}" Click="OcApply_Click"
+                                            ToolTip="Try these offsets: keep them within 20 s or they go back to +0" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== 04 Refresh rate ===== -->
+                <Border Style="{DynamicResource SectionPanel}">
+                    <StackPanel>
+                        <Grid Style="{DynamicResource SectionHeader}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="04" Style="{DynamicResource SectionNum}" />
                             <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Display}" />
                             <TextBlock Grid.Column="2" Text="{DynamicResource Str.Refresh}" Style="{DynamicResource SectionTitle}" />
                             <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
@@ -252,7 +321,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ===== 04 CPU boost (AC) ===== -->
+                <!-- ===== 05 CPU boost (AC) ===== -->
                 <Border Style="{DynamicResource SectionPanelTop}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
@@ -260,7 +329,7 @@
                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="04" Style="{DynamicResource SectionNum}" />
+                            <TextBlock Text="05" Style="{DynamicResource SectionNum}" />
                             <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Cpu}" />
                             <TextBlock Grid.Column="2" Text="{DynamicResource Str.CpuBoost}" Style="{DynamicResource SectionTitle}" />
                             <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
@@ -277,7 +346,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ===== 05 Fans ===== -->
+                <!-- ===== 06 Fans ===== -->
                 <Border Style="{DynamicResource SectionPanelBottom}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
@@ -285,7 +354,7 @@
                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="05" Style="{DynamicResource SectionNum}" />
+                            <TextBlock Text="06" Style="{DynamicResource SectionNum}" />
                             <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Fan}" />
                             <TextBlock Grid.Column="2" Text="{DynamicResource Str.Fans}" Style="{DynamicResource SectionTitle}" />
                             <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
@@ -300,7 +369,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ===== 06 Lighting ===== -->
+                <!-- ===== 07 Lighting ===== -->
                 <Border Style="{DynamicResource SectionPanel}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
@@ -308,7 +377,7 @@
                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="06" Style="{DynamicResource SectionNum}" />
+                            <TextBlock Text="07" Style="{DynamicResource SectionNum}" />
                             <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Light}" />
                             <TextBlock Grid.Column="2" Text="{DynamicResource Str.Lighting}" Style="{DynamicResource SectionTitle}" />
                             <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />

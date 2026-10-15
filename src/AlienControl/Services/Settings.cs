@@ -63,6 +63,14 @@ public sealed class Settings
     /// Null after a cancel (BIOS back to what's running).</summary>
     public DateTime? GpuSwitchSetUtc { get; set; }
 
+    // v0.9.7 GPU overclock (G-Mode on AC only). OcCore / OcMem = AWCC-style MHz (0..300), the last kept values.
+    // OcOn = kept with "Keep" and reapplied when G-Mode is on and plugged in. OcPending = a test was written but not
+    // kept yet: still true at launch means the app or driver died mid-test, so the offsets go back to 0.
+    public int OcCore { get; set; } = 200;
+    public int OcMem { get; set; } = 200;
+    public bool OcOn { get; set; } = false;
+    public bool OcPending { get; set; } = false;
+
     /// <summary>UI theme: "Legend" (default) or "Fluent".</summary>
     public string Theme { get; set; } = "Legend";
 

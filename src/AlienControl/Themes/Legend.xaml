@@ -31,6 +31,8 @@
     <sys:String x:Key="Str.Settings">S E T T I N G S</sys:String>
     <sys:String x:Key="Str.GpuCheck">CHECK ULTIMATE SUPPORT</sys:String>
     <sys:String x:Key="Str.Theme">Theme</sys:String>
+    <sys:String x:Key="Str.GpuOc">G P U   O V E R C L O C K</sys:String>
+    <sys:String x:Key="Str.OcKeep">KEEP THESE CLOCKS?</sys:String>
 
     <SolidColorBrush x:Key="TextPrimary" Color="#F2F6F9" />
     <SolidColorBrush x:Key="TextBody" Color="#A9B4BF" />
@@ -40,6 +42,7 @@
 
     <!-- default accent (MainWindow.ApplyAccent overrides these at app level) -->
     <SolidColorBrush x:Key="AccentBrush" Color="#00E5FF" />
+    <SolidColorBrush x:Key="OcWarnBrush" Color="#FFB020" />
     <SolidColorBrush x:Key="AccentBorder" Color="#8000D8F0" />
     <SolidColorBrush x:Key="AccentFaint" Color="#2E00E5FF" />
     <SolidColorBrush x:Key="AccentGlow" Color="#5500E5FF" />

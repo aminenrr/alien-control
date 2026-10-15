@@ -193,6 +193,7 @@ def legend():
         "GpuMode": sp("GPU MODE"), "Refresh": sp("REFRESH RATE"), "CpuBoost": sp("CPU BOOST"), "Fans": sp("FANS"),
         "Lighting": sp("LIGHTING"), "CpuBoostHint": "AC", "FxPrefix": "FX", "Settings": sp("SETTINGS"),
         "GpuCheck": "CHECK ULTIMATE SUPPORT", "Theme": "Theme",
+        "GpuOc": sp("GPU OVERCLOCK"), "OcKeep": "KEEP THESE CLOCKS?",
     }
     hexpat = "M7,0 L21,0 L28,12 L21,24 L7,24 L0,12 Z"
     return HEAD.format(name="Legend") + f'''
@@ -211,6 +212,7 @@ def legend():
 
     <!-- default accent (MainWindow.ApplyAccent overrides these at app level) -->
     <SolidColorBrush x:Key="AccentBrush" Color="#00E5FF" />
+    <SolidColorBrush x:Key="OcWarnBrush" Color="#FFB020" />
     <SolidColorBrush x:Key="AccentBorder" Color="#8000D8F0" />
     <SolidColorBrush x:Key="AccentFaint" Color="#2E00E5FF" />
     <SolidColorBrush x:Key="AccentGlow" Color="#5500E5FF" />
@@ -715,6 +717,7 @@ def fluent():
         "Vram": "VRAM", "Clean": "Clean", "Perf": "Performance Mode", "GpuMode": "GPU Mode", "Refresh": "Refresh Rate",
         "CpuBoost": "CPU Boost", "Fans": "Fans", "Lighting": "Lighting", "CpuBoostHint": "Plugged in",
         "FxPrefix": "Effect", "Settings": "Settings", "GpuCheck": "Check Ultimate support", "Theme": "Theme",
+        "GpuOc": "GPU Overclock", "OcKeep": "Keep these clocks?",
     }
     seg = lambda key, red=False, base=None: ""
     return HEAD.format(name="Fluent") + f'''
@@ -732,6 +735,7 @@ def fluent():
     <SolidColorBrush x:Key="RedAccent" Color="#FF6B7F" />
 
     <SolidColorBrush x:Key="AccentBrush" Color="#4CC2FF" />
+    <SolidColorBrush x:Key="OcWarnBrush" Color="#FCE100" />
     <SolidColorBrush x:Key="AccentBorder" Color="#804CC2FF" />
     <SolidColorBrush x:Key="AccentFaint" Color="#2E4CC2FF" />
     <SolidColorBrush x:Key="AccentGlow" Color="#554CC2FF" />

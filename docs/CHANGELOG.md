@@ -2,6 +2,16 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
+## v0.9.7 (2026-10-15), untested
+- New **GPU Overclock** section (03, under GPU Mode): Core and Memory sliders side by side, +0 to +300 MHz in 25 MHz
+  steps, default +200 / +200. AWCC-style values; memory is sent to NVML x2 (calibrated in Control).
+- Works only in **G-Mode on AC**; greyed out otherwise. Leaving G-Mode, unplugging or quitting puts +0 back;
+  entering G-Mode on AC reapplies the kept offsets; after sleep they are written again.
+- Apply starts a 20 s keep-or-revert (the button row turns into Revert · countdown · Keep). No answer = +0.
+  A test that never finished (crash, driver reset) is reset to +0 at the next launch.
+- No stress test, voltage, power limit or fan controls. Services/GpuOc.cs (nvmlDeviceGet/SetClockOffsets, P0,
+  driver range checked before every write, NVML opened only per call). Sections 03 to 06 renumbered 04 to 07.
+
 ## v0.9.6 (2026-10-15), untested
 - Removed the disabled "Custom curve…" fan button. Fans row is Auto / Max Boost.
 
