@@ -112,6 +112,7 @@ public partial class App : Application
     public void ShowMain()
     {
         if (_window is null) return;
+        _window.PrepareShow();   // v0.8.2: cancels a hide animation that is still running
         _window.Show();
         if (_window.WindowState == WindowState.Minimized) _window.WindowState = WindowState.Normal;
         _window.SnapToCorner();
