@@ -151,3 +151,9 @@ CPU-Z Stress CPU (all 20 threads), read in HWiNFO, on AC. ThrottleStop closed (w
   - So **memory offset is in 2x units** (NVML +200 = +100 shown, the same scale AWCC uses: 7000 to 7300 for +300). Core is 1:1, but under load it can gain less than the full offset because it sits near the power wall.
   - The app shows AWCC-style MHz and sends memory x2 to NVML.
   - v0.9.7 app check (Control, G-Mode, UI +200 / +200 = NVML +200 / +400): core 1665, memory 7201, 171 FPS (stock 161). Leaving G-Mode returns to stock.
+
+## Macro keys (F2..F6 media mode = Macro A..E)
+Probe `dev/hid-probe.ps1` (Raw Input, 2026-10-15). Not seen by the LL keyboard hook. They arrive on the
+keyboard's consumer collection **0D62:CABC, usage page 0x0C, usage 0x01**, report ID 0x02:
+- F2 press `02-51-00`, F3 `02-52-00`, F4 `02-53-00` (F5/F6 likely 0x54/0x55, unverified); release `02-00-00`.
+- Readable with RegisterRawInputDevices (RIDEV_INPUTSINK), no admin, no polling. Windows does nothing with them by default.
