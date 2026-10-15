@@ -15,10 +15,12 @@
             <SolidColorBrush x:Key="MutedText" Color="#8A95A3" />
             <SolidColorBrush x:Key="CardBg" Color="#FF23272E" />
             <SolidColorBrush x:Key="CardBorder" Color="#FF2E333B" />
+            <!-- Accent brushes are replaced at runtime to follow the lighting color (MainWindow.ApplyAccent). -->
             <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,0">
                 <GradientStop Color="{StaticResource AccentCyan}" Offset="0" />
                 <GradientStop Color="{StaticResource AccentPurple}" Offset="1" />
             </LinearGradientBrush>
+            <SolidColorBrush x:Key="AccentBrush" Color="#00D8F0" />
 
             <!-- Stat tile -->
             <Style x:Key="StatCard" TargetType="Border">
@@ -62,7 +64,7 @@
             <Style x:Key="StatBar" TargetType="ProgressBar">
                 <Setter Property="Height" Value="3" />
                 <Setter Property="Margin" Value="0,8,0,0" />
-                <Setter Property="Foreground" Value="{StaticResource AccentGradient}" />
+                <Setter Property="Foreground" Value="{DynamicResource AccentGradient}" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="ProgressBar">
@@ -120,7 +122,7 @@
                                     <Setter TargetName="Bd" Property="Background" Value="{StaticResource CardHover}" />
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#00D8F0" />
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -148,8 +150,8 @@
                                     <Setter TargetName="Bd" Property="Background" Value="{StaticResource CardHover}" />
                                 </Trigger>
                                 <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#00D8F0" />
-                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource CyanChecked}" />
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CyanChecked}" />
                                     <Setter Property="Foreground" Value="White" />
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
@@ -181,9 +183,9 @@
                                     <Setter TargetName="Bd" Property="Background" Value="{StaticResource CardHover}" />
                                 </Trigger>
                                 <Trigger Property="IsChecked" Value="True">
-                                    <Setter TargetName="Bd" Property="BorderBrush" Value="#00D8F0" />
-                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource CyanChecked}" />
-                                    <Setter TargetName="Glyph" Property="Foreground" Value="#00E5FF" />
+                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CyanChecked}" />
+                                    <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource AccentBrush}" />
                                     <Setter Property="Foreground" Value="White" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
