@@ -433,7 +433,7 @@
                         <CheckBox x:Name="StartupToggle" Style="{DynamicResource ToggleBox}" Click="Startup_Click" VerticalAlignment="Center" />
                         <TextBlock Text="Run on startup" Margin="9,0,0,0" Style="{DynamicResource FooterText}" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.8.4" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
+                    <TextBlock x:Name="VersionText" Text="v0.8.5" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="SettingsButton" Style="{DynamicResource GhostButton}" Padding="7,5" Margin="0,0,6,0" Click="Settings_Click" ToolTip="Settings">
                             <ContentControl Style="{DynamicResource ButtonIcon}" Margin="0" Content="{DynamicResource Icon.Settings}" />
@@ -483,18 +483,6 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="GKeyText" Text="G-key (F1) toggles G-Mode" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Margin="0,0,8,0" />
                                     <Button Grid.Column="1" Style="{DynamicResource GhostButton}" Content="Detect key" Click="GKeyDetect_Click" />
-                                </Grid>
-
-                                <Grid x:Name="ExpressRow" Margin="0,14,0,0" Visibility="Collapsed">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Text="Faster charging" Style="{DynamicResource FooterText}" />
-                                        <TextBlock x:Name="ExpressText" Text="Experimental · Dell ExpressCharge (BIOS)" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <CheckBox x:Name="ExpressToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="Express_Click" />
                                 </Grid>
                             </StackPanel>
                         </Border>
