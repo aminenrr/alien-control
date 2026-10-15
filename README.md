@@ -1,11 +1,21 @@
 # Alien Controls
 
+> [!CAUTION]
+> ## 🚨 Read this first
+> **This is a personal project, purpose-built for my own Alienware m15 R7.** There are no plans to support other laptops
+> for now. It drives fans, power modes, the BIOS GPU switch and GPU clocks directly, so on any other model it may do the
+> wrong thing.
+>
+> **I am not responsible for any damage to your laptop, your data or anything else. You use it entirely at your own risk.**
+> **Read the code and understand what it does before you run it.**
+>
+> Better yet, treat it as a **proof of concept**: a starting point for more capable developers to build a proper
+> G-Helper-style tool for Alienware / Dell laptops. Unofficial, not affiliated with Dell or Alienware, and built with the
+> help of AI. See [Disclaimer](#disclaimer) and [AI disclosure](#ai-disclosure).
+
 A lightweight, G-Helper-style control panel for the **Alienware m15 R7**, built on top of
 [T-Troll's AlienFX Tools](https://github.com/T-Troll/alienfx-tools). It replaces Alienware
 Command Center, whose background services keep *WMI Provider Host* busy.
-
-> Unofficial fan project, not affiliated with Dell or Alienware. Built with the help of AI and tested only on my own m15 R7.
-> See [Disclaimer](#disclaimer) and [AI disclosure](#ai-disclosure).
 
 | Legend theme | Fluent theme |
 |---|---|
