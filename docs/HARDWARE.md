@@ -121,3 +121,18 @@ is done in software (colors scaled by level/255) since v0.5.3. At startup the ap
 - In Ultimate (BIOS HybridGraphics = Disabled) the Intel Iris Xe still shows in Device Manager / Win32_PnPEntity with
   no error, so "iGPU missing" can't detect Ultimate. The BIOS value is used instead, corrected for a change the app made
   after the current boot.
+
+## CPU power per preset (measured 2026-10-15, v0.9.6)
+
+CPU-Z Stress CPU (all 20 threads), read in HWiNFO, on AC. ThrottleStop closed (with its PL boxes ticked it writes its own 40/41 W limits, which is what an earlier reading showed).
+
+| Preset (app CPU boost) | PL1 Dynamic | CPU package | Max temp | CPU fan | CPU-Z MT |
+|---|---|---|---|---|---|
+| Battery (Off) | 45 W | ~32 W | 62 °C | low | 3836 |
+| Quiet (Efficient, 3.0 GHz cap) | 75–115 W | ~88–90 W | 96 °C, thermal throttling | 23% | 6104 |
+| Balanced (On) | 115 W | ~64–90 W | 96 °C, thermal throttling | 17% | 6113 |
+| Performance (Aggressive) | 115 W | ~91 W | 97 °C, thermal throttling | 40% | 6117 |
+| G-Mode (Aggressive) | 115 W | ~87 W | 97 °C, thermal throttling | 100% | 6008 |
+
+- PL1/PL2 static are 115 W in every mode. Only Battery lowers the dynamic PL1 (Intel DTT).
+- Every non-Battery preset is thermally limited at ~90 W / 96 °C, so scores are the same; even 100% fans don't help. The limit is heat transfer from the die, not the preset or fans.
