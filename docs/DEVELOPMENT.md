@@ -60,3 +60,8 @@ They need the icon SVGs and fonts (Selawik, Cascadia Mono / JetBrains Mono) loca
 - Never let a profile change GPU mode or trigger a restart.
 - Keep idle cost at zero: no timers while hidden, no looping animations.
 - Credit every third-party asset in the README; never copy GPL code.
+
+## Releases
+
+Tag `vX.Y.Z` and push it: `.github/workflows/release.yml` builds the zip and publishes a GitHub Release (tags with `-` become pre-releases).
+The release text comes from `docs/releases/<tag>.md`; start from `docs/releases/TEMPLATE.md`, which carries the standard disclaimer / AI line.

@@ -4,6 +4,9 @@ A lightweight, G-Helper-style control panel for the **Alienware m15 R7**, built 
 [T-Troll's AlienFX Tools](https://github.com/T-Troll/alienfx-tools). It replaces Alienware
 Command Center, whose background services keep *WMI Provider Host* busy.
 
+> Unofficial fan project, not affiliated with Dell or Alienware. Built with the help of AI and tested only on my own m15 R7.
+> See [Disclaimer](#disclaimer) and [AI disclosure](#ai-disclosure).
+
 | Legend theme | Fluent theme |
 |---|---|
 | ![Legend theme](docs/screenshots/legend.png) | ![Fluent theme](docs/screenshots/fluent.png) |
@@ -142,6 +145,33 @@ by T-Troll and contributors (MIT license).
 Legend theme icons: [Tabler Icons](https://tabler.io/icons) (MIT license). Fluent theme icons: Fluent System Icons via
 [WPF-UI](https://github.com/lepoco/wpfui) (MIT), fan icon from [Phosphor](https://phosphoricons.com) (MIT).
 RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemoryCleaner) and GPU modes from [G-Helper](https://github.com/seerge/g-helper). Both ideas are reimplemented here, and no code was copied.
+
+## Disclaimer
+
+This project is not affiliated with or endorsed by Dell, Alienware, NVIDIA, Intel or Microsoft, or by the alienfx-tools
+developers. It contains no Dell or Alienware software: the hardware is driven by T-Troll's alienfx-tools, which you
+download yourself from their release page.
+
+The app changes low-level settings: power modes and fans through the embedded controller, CPU boost, the Dell BIOS
+graphics switch and NVIDIA GPU clock offsets. It was tested only on one Alienware m15 R7 (i7-12700H, RTX 3070 Ti
+Laptop); other models or BIOS versions may behave differently or not work. GPU overclocking can make games or the
+system unstable. Use it at your own risk.
+
+Alienware is a trademark of Dell Inc. NVIDIA, GeForce and RTX are trademarks of NVIDIA Corporation. Intel is a
+trademark of Intel Corporation. Windows is a trademark of Microsoft. They are named here only to describe what the
+app works with.
+
+## AI disclosure
+
+This project was built with the help of AI (Hark). AI was used to read alienfx-tools and Dell's interfaces to find how
+to control the laptop, to work out the hardware details in [docs/HARDWARE.md](docs/HARDWARE.md) together with probe
+scripts I ran on the laptop (power mode map, light IDs, the macro keys, the GPU overclock limits), and to help write and
+debug the code, the theme generator, the docs and the design mockups. The README screenshots are real, except the
+plug / unplug toasts, which were recreated from a real toast. I tested every feature myself on my own laptop
+(see [docs/RC-CHECKLIST.md](docs/RC-CHECKLIST.md)).
+
+AI written code can contain mistakes, so please read the code before running it, especially because the app runs as
+administrator and talks to the BIOS, the fans and the GPU.
 
 ## License
 
