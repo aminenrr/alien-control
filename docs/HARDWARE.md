@@ -135,4 +135,4 @@ CPU-Z Stress CPU (all 20 threads), read in HWiNFO, on AC. ThrottleStop closed (w
 | G-Mode (Aggressive) | 115 W | ~87 W | 97 °C, thermal throttling | 100% | 6008 |
 
 - PL1/PL2 static are 115 W in every mode. Only Battery lowers the dynamic PL1 (Intel DTT).
-- Every non-Battery preset is thermally limited at ~90 W / 96 °C, so scores are the same; even 100% fans don't help. The limit is heat transfer from the die, not the preset or fans.
+- Every non-Battery preset is thermally limited at ~90 W / 96 °C, so scores are the same, even at 100% fans. Amine has TCC set to 95 °C in BIOS (on a cooling pad), so the CPU is designed to ride that ceiling; the 115 W limit is never reached.
