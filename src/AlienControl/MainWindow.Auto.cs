@@ -84,6 +84,7 @@ public partial class MainWindow
         if (modeSwitch) await Task.Delay((int)(1500 - since));
         if (_settings.Toasts) Toast.Show(IsLegend, p, sub, cycle, Motion.Enabled, modeSwitch ? 2200 : 1600);
         if (_settings.ToastSound) Sounds.Play(sound);
+        if (!IsVisible) _ = TrimSoonAsync(_showGen);   // v0.9.13: the toast window's memory goes back once it's gone
     }
 
     private void AutoPreset_Click(object sender, RoutedEventArgs e)

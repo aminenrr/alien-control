@@ -39,7 +39,7 @@
 ## Later
 - Long-term: Faster charging (Dell ExpressCharge via `PrimaryBattChargeCfg`), removed from the UI in v0.8.5.
 - Direct WMI sensor reads instead of spawning alienfan-cli in the sensor loop (biggest CPU win).
-- Mute/mic state from audio endpoint callbacks instead of polling.
+- Done in v0.9.13: mute/mic/touchpad from callbacks instead of polling, memory trim in the tray.
 - Keyboard backlight timeout when idle; effect speed; map keyboard columns for the rainbow wave.
 - Trimmed, ReadyToRun publish. Target: under 0.3% CPU idle and 60 MB RAM.
 

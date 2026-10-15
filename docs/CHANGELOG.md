@@ -2,7 +2,14 @@
 
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 
-## v0.9.12 (2026-10-15), untested
+## v0.9.13 (2026-10-15), untested
+- **Idle trim**. Status keys are event driven: speaker / mic mute from Windows audio callbacks (cached endpoints,
+  re-bound when the default device changes), touchpad (F12) from a registry change notification. The 1 s poll that
+  created two COM audio objects every second is gone; a 30 s safety net stays.
+- Memory goes back to Windows ~3 s after the window hides, after a toast, and once after starting to the tray
+  (compacting GC + working-set trim). Baseline before: 0.1% CPU, 98.1 MB (Task Manager).
+
+## v0.9.12 (2026-10-15), confirmed
 - Toast fix: it came out huge (rows stretched, window several times too tall at 125%). Now sized by hand to its content.
 - Unplug toast was missing (sound played): after a refresh-rate change the toast and sound wait ~1.5 s for the screen
   to settle and stay up 2.2 s; if the display changes while a toast is up (rate change, Advanced Optimus moving the

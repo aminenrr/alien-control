@@ -127,6 +127,7 @@ v0.9.9: white G-Mode, violet Custom, G-Mode = Aggressive CPU boost.
 v0.9.10: F2 (media mode) cycles Quiet / Balanced / Performance, F2 lit in the preset color.
 v0.9.11: auto preset on AC / battery, top-right toasts with sound for F1, F2 and plug / unplug.
 v0.9.12: toast size fix, unplug toast survives the display change.
+v0.9.13: idle trim (event-driven status keys, memory trim in the tray).
 v0.8.10: icons take a new accent on the first click; "Performance" fits in Legend.
 v0.8.9: profiles set CPU boost, minimize slides into the screen edge.
 v0.8.8: window open/close slide moves the window itself (native), fixing the slide that never showed.

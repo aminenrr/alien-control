@@ -24,7 +24,10 @@ public partial class MainWindow : Window
     private bool _f2Dirty;                        // F2 tint changed; next keyboard sync writes a frame
     private int _lastPowerIndex;
     private byte[] _lastColor = { 0, 229, 255 };
-    private readonly DispatcherTimer _indicatorTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    // v0.9.13: status keys are event driven (StateWatch); this is only a slow safety net (was 1 s polling)
+    private readonly DispatcherTimer _indicatorTimer = new() { Interval = TimeSpan.FromSeconds(30) };
+    private StateWatch? _watch;
+    private int _watchQueued;
     private readonly System.Collections.Generic.Dictionary<int, bool> _indicators = new();
     private bool _lightsManaged;   // true once the app has set a color (keyboard left firmware mode)
     private bool _indicatorBusy;
@@ -80,6 +83,18 @@ public partial class MainWindow : Window
         SelectEffectInBox();
         // Status-key watcher: in-process reads only (no CLI) unless a state changes.
         _indicatorTimer.Tick += async (_, _) => await SyncIndicatorsAsync();
+        _watch = new StateWatch();
+        _watch.Changed += () =>
+        {
+            // coalesce bursts (a volume drag fires dozens of callbacks)
+            if (System.Threading.Interlocked.Exchange(ref _watchQueued, 1) == 1) return;
+            Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                await Task.Delay(80);
+                System.Threading.Interlocked.Exchange(ref _watchQueued, 0);
+                await SyncIndicatorsAsync();
+            }));
+        };
         Dispatcher.BeginInvoke(new Action(async () => await StartupLightingAsync()));
 
         _poll.Interval = TimeSpan.FromSeconds(Math.Max(1, _settings.PollSeconds));
@@ -322,9 +337,33 @@ public partial class MainWindow : Window
         _showGen++;
         Slide.Stop();
         Hide();
+        _ = TrimSoonAsync(_showGen);
     }
 
-    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _macro.Dispose(); _indicatorTimer.Stop(); }
+    // ---------- v0.9.13 idle trim: give memory back while the app sits in the tray ----------
+    [DllImport("kernel32.dll")] private static extern bool SetProcessWorkingSetSize(IntPtr proc, IntPtr min, IntPtr max);
+
+    private async Task TrimSoonAsync(int gen)
+    {
+        await Task.Delay(3000);
+        if (gen != _showGen || IsVisible) return;   // reopened meanwhile
+        TrimMemory();
+    }
+
+    private static void TrimMemory()
+    {
+        try
+        {
+            System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            GC.WaitForPendingFinalizers();
+            using var p = System.Diagnostics.Process.GetCurrentProcess();
+            SetProcessWorkingSetSize(p.Handle, new IntPtr(-1), new IntPtr(-1));
+        }
+        catch { }
+    }
+
+    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _macro.Dispose(); _indicatorTimer.Stop(); _watch?.Dispose(); }
 
     // ---------- status keys ----------
 
@@ -344,6 +383,7 @@ public partial class MainWindow : Window
             _lightsManaged = true;
         }
         _indicatorTimer.Start();
+        if (!IsVisible) _ = TrimSoonAsync(_showGen);   // started to tray: trim once things have settled
     }
 
     /// <summary>Reads current states into _indicators; returns the keys whose state changed.</summary>
@@ -357,8 +397,8 @@ public partial class MainWindow : Window
             _indicators[key] = v;
         }
         Set(_settings.GModeKey, _gmodeOn);
-        Set(_settings.SpeakerMuteKey, SystemState.SpeakerMuted());
-        Set(_settings.MicMuteKey, SystemState.MicMuted());
+        Set(_settings.SpeakerMuteKey, _watch?.SpeakerMuted() ?? SystemState.SpeakerMuted());
+        Set(_settings.MicMuteKey, _watch?.MicMuted() ?? SystemState.MicMuted());
         Set(_settings.TouchpadKey, SystemState.TouchpadOff());
         return changed;
     }
