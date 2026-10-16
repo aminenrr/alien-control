@@ -3,7 +3,7 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.1.0-beta.1 (2026-10-16), untested
+## v1.1.0-beta.1 (2026-10-16), confirmed
 - Sensors (CPU / GPU temp, both fans) are read straight from the Alienware WMI (`AWCCWmiMethodFunction.Thermal_Information`)
   instead of starting `alienfan-cli temp rpm` every 2 s. Read-only, IDs found with `dev/wmi-probe.ps1`
   (fans 0x32 / 0x33, temps 0x01 / 0x06). Falls back to alienfan-cli automatically if WMI fails.
