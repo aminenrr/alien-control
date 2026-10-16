@@ -503,13 +503,19 @@
             <!-- Footer: Run on startup · version · settings + Quit -->
             <Border Grid.Row="3" Style="{DynamicResource FooterBar}">
                 <Grid>
+                    <!-- v1.1 beta.3: three columns so the view button never touches "Run on startup" (Fluent text is wider) -->
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <CheckBox x:Name="StartupToggle" Style="{DynamicResource ToggleBox}" Click="Startup_Click" VerticalAlignment="Center" />
                         <TextBlock Text="Run on startup" Margin="9,0,0,0" Style="{DynamicResource FooterText}" />
                     </StackPanel>
                     <!-- v1.1: compact / full view switch (tray + F3 open compact, F4 opens full) -->
-                    <Button x:Name="ViewButton" Style="{DynamicResource GhostButton}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                            MinWidth="124" Click="ViewButton_Click" ToolTip="Switch between the compact and the full view">
+                    <Button x:Name="ViewButton" Grid.Column="1" Style="{DynamicResource GhostButton}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Margin="8,0" Click="ViewButton_Click" ToolTip="Switch between the compact and the full view">
                         <StackPanel Orientation="Horizontal">
                             <Path x:Name="ViewButtonIcon" Width="9" Height="14" Margin="0,0,8,0" VerticalAlignment="Center" Stretch="Uniform"
                                   StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
@@ -517,7 +523,7 @@
                             <TextBlock x:Name="ViewButtonText" Text="Full menu" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="SettingsButton" Style="{DynamicResource GhostButton}" Padding="7,5" Margin="0,0,6,0" Click="Settings_Click" ToolTip="Settings">
                             <ContentControl Style="{DynamicResource ButtonIcon}" Margin="0" Content="{DynamicResource Icon.Settings}" />
                         </Button>

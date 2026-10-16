@@ -3,12 +3,13 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.1.0-beta.3 (2026-10-16), untested
+## v1.1.0-beta.3 (2026-10-16), confirmed
 - Compact view: the tray and F3 always open a short window (sensors, power, performance mode, lighting colors + Off).
   F4 opens the full menu. A long footer button (where the version was) flips Full menu / Compact both ways; the
   version moved to the right of the status line. The window stays anchored to its corner when it grows or shrinks.
 - F3 / F4 logic: the key for the view already shown hides it, the other key switches the open window to its view.
   Same gear toggle as before ("F3 / F4 open the app").
+- Fix (re-tagged): the footer uses three columns, so the view button no longer touches "Run on startup" in Fluent.
 
 ## v1.1.0-beta.2 (2026-10-16), withdrawn
 - Tried a native Windows 11 Acrylic backdrop for Fluent. It didn't look good enough and added some CPU and RAM, so it was
