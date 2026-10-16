@@ -3,6 +3,11 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.1.1 (2026-10-16), untested
+- Startup apps / Task Manager now show "Alien Controls" (with a space) instead of "AlienControl" (exe file description).
+- The run-on-startup task is now called "Alien Controls". An old "AlienControl" task is swapped for the new one
+  automatically on first start (same settings: highest privileges, at logon, `--tray`).
+
 ## v1.1.0 (2026-10-16), stable
 Everything from the 1.1 betas, all confirmed on the m15 R7:
 - Compact view: tray and F3 open compact, F4 / footer button the full menu (beta.3).

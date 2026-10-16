@@ -9,9 +9,23 @@ namespace AlienControl.Services;
 /// </summary>
 public static class Startup
 {
-    private const string TaskName = "AlienControl";
+    private const string TaskName = "Alien Controls";
+    private const string OldTaskName = "AlienControl"; // name used up to 1.1.0
 
-    public static bool IsEnabled() => Schtasks($"/Query /TN \"{TaskName}\"") == 0;
+    public static bool IsEnabled()
+    {
+        Migrate();
+        return Exists(TaskName);
+    }
+
+    /// <summary>Up to 1.1.0 the task was "AlienControl": swap it for "Alien Controls" (same settings).</summary>
+    private static void Migrate()
+    {
+        if (!Exists(OldTaskName)) return;
+        if (Exists(TaskName) || SetEnabled(true)) Schtasks($"/Delete /TN \"{OldTaskName}\" /F");
+    }
+
+    private static bool Exists(string name) => Schtasks($"/Query /TN \"{name}\"") == 0;
 
     public static bool SetEnabled(bool enable)
     {
