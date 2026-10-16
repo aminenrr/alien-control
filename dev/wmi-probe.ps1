@@ -13,17 +13,24 @@ function TI([int]$op, [int]$arg) {
   $r = Invoke-CimMethod -InputObject $inst -MethodName Thermal_Information -Arguments @{ $inName = $v }
   [uint32]$r.$outName
 }
+function TQ([int]$op, [int]$arg) { try { TI $op $arg } catch { $null } }
 $desc = TI 2 0
 "sysdesc: 0x{0:X8}" -f $desc
+$fans = $desc -band 0xFF; $temps = ($desc -shr 8) -band 0xFF; $unk = ($desc -shr 16) -band 0xFF; $profs = ($desc -shr 24) -band 0xFF
+"fans=$fans temps=$temps unknown=$unk profiles=$profs"
 $ids = @()
-for ($i = 0; $i -lt 16; $i++) { $id = TI 3 $i; if ($id -eq 0xFFFFFFFF) { break }; $ids += ($id -band 0xFF) }
-"resource ids: " + (($ids | ForEach-Object { '0x{0:X2}' -f $_ }) -join ' ')
+for ($i = 0; $i -lt ($fans + $temps); $i++) {
+  $id = TQ 3 $i
+  if ($null -eq $id) { "index ${i}: failed"; continue }
+  "index ${i}: raw 0x{0:X8}" -f $id
+  $ids += ($id -band 0xFF)
+}
 foreach ($id in $ids) {
-  $t = TI 4 $id; $rpm = TI 5 $id; $mx = TI 9 $id
+  $t = TQ 4 $id; $rpm = TQ 5 $id; $mx = TQ 9 $id
   "id 0x{0:X2}: temp={1} rpm={2} maxrpm={3}" -f $id, $t, $rpm, $mx
 }
 $sw = [Diagnostics.Stopwatch]::StartNew()
-for ($k = 0; $k -lt 20; $k++) { foreach ($id in $ids) { $null = TI 4 $id; $null = TI 5 $id } }
+for ($k = 0; $k -lt 20; $k++) { foreach ($id in $ids) { $null = TQ 4 $id; $null = TQ 5 $id } }
 "20 full WMI reads: {0} ms each" -f [int]($sw.ElapsedMilliseconds / 20)
 $cli = Get-ChildItem -Path . , .\tools -Filter alienfan-cli.exe -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($cli) {
