@@ -3,6 +3,10 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.1.0-beta.4 (2026-10-16), untested
+- Gear toggle "Show in taskbar" (on by default). Off: no taskbar button, the app only lives in the tray, and the
+  minimize button slides it back to the tray.
+
 ## v1.1.0-beta.3 (2026-10-16), confirmed
 - Compact view: the tray and F3 always open a short window (sensors, power, performance mode, lighting colors + Off).
   F4 opens the full menu. A long footer button (where the version was) flips Full menu / Compact both ways; the

@@ -571,6 +571,19 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
+                                        <TextBlock Text="Show in taskbar" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Off: the app only lives in the tray" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="TaskbarToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="Taskbar_Click" ToolTip="Show the window's button on the taskbar" />
+                                </Grid>
+
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
                                         <TextBlock Text="F2 cycles presets" Style="{DynamicResource FooterText}" />
                                         <TextBlock Text="Quiet, Balanced, Performance" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                     </StackPanel>

@@ -69,6 +69,8 @@ public partial class MainWindow : Window
         UpdateGKeyText();
         F2PresetsToggle.IsChecked = _settings.F2Presets;
         F3OpensToggle.IsChecked = _settings.F3Opens;
+        TaskbarToggle.IsChecked = _settings.ShowInTaskbar;
+        ShowInTaskbar = _settings.ShowInTaskbar;
         _macro.Pressed += k =>
         {
             if (k == 0) Dispatcher.BeginInvoke(new Action(async () => await CyclePresetAsync()));
@@ -237,6 +239,7 @@ public partial class MainWindow : Window
     /// The restore position is left below the screen, so a restore (taskbar, tray, Alt+Tab) slides it back up.</summary>
     private void Minimize_Click(object sender, RoutedEventArgs e)
     {
+        if (!ShowInTaskbar) { HideToTray(); return; }   // v1.1: no taskbar button to restore from
         CloseSettings(instant: true);
         if (!Motion.Enabled || _hiding) { WindowState = WindowState.Minimized; return; }
         int gen = ++_showGen;
@@ -1357,6 +1360,13 @@ public partial class MainWindow : Window
         var had = _fx.KeyOverrides.TryGetValue(key, out var old) ? old : null;
         if (c is null) _fx.KeyOverrides.Remove(key); else _fx.KeyOverrides[key] = c;
         if (!(had ?? Array.Empty<byte>()).AsSpan().SequenceEqual(c ?? Array.Empty<byte>())) _f2Dirty = true;
+    }
+
+    private void Taskbar_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.ShowInTaskbar = TaskbarToggle.IsChecked == true;
+        _settings.Save();
+        ShowInTaskbar = _settings.ShowInTaskbar;
     }
 
     private void F3Opens_Click(object sender, RoutedEventArgs e)

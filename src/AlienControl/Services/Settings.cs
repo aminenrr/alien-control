@@ -91,6 +91,8 @@ public sealed class Settings
 
     /// <summary>v0.9.16: F3 (Macro B, media mode) opens / hides the window, like a handheld's quick menu. Default on.</summary>
     public bool F3Opens { get; set; } = true;
+    /// <summary>v1.1: off = no taskbar button, the app only lives in the tray (minimize hides to the tray).</summary>
+    public bool ShowInTaskbar { get; set; } = true;
 
     /// <summary>v0.9.11: unplug -> Battery, plug in -> AcPreset (Amine: on by default).</summary>
     public bool AutoPreset { get; set; } = true;
