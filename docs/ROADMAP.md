@@ -10,7 +10,7 @@
 
 ## 1.1
 - [x] 1.1.0-beta.1 Direct WMI sensors: temps and fans read straight from WMI (probe first), alienfan-cli kept for commands and as fallback.
-- [ ] 1.1.0-beta.2 Fluent Acrylic: Quick Settings style blur, accent still follows the laptop lights, solid fallback. Legend unchanged.
+- [-] 1.1.0-beta.2 Fluent Acrylic: tried and dropped (see Not planned).
 - [ ] 1.1.0-beta.3 Compact view: always opens compact (header, sensors, power, performance mode, lighting row). A long footer button flips Full menu / Compact, and the version label moves above it. F3 = compact, F4 = full.
 - [ ] 1.1.0-rc1 full regression, then 1.1.0 release.
 
@@ -21,6 +21,7 @@
 - Maybe: faster charging (Dell ExpressCharge via `PrimaryBattChargeCfg`), removed from the UI in v0.8.5.
 
 ## Not planned
+- Fluent Acrylic / see-through blur: tried in 1.1.0-beta.2 (native Windows 11 backdrop). It didn't look good enough and cost extra CPU and RAM, so it was removed.
 - Overlay / FPS counter, driver updater, XMP toggle (stock RAM has no XMP profile).
 - NVIDIA private-call reverse engineering (GPU OC stays on public NVML offsets), forking or editing alienfx-tools.
 - Profiles that change the GPU mode or use Ultimate.

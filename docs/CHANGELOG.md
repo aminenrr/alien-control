@@ -3,12 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.1.0-beta.2 (2026-10-16), untested
-- Fluent theme: native Windows 11 Acrylic backdrop (the Quick Settings see-through blur) instead of the flat gray card.
-  Accent still follows the laptop lights; Legend unchanged. Gear: "Transparency" toggle (on by default).
-- How: Acrylic needs a normal (non-layered) window, so with it on the window is built with the glass frame extended
-  over it and DWM draws the rounded corners, border and shadow. Turning it on / off or switching between Legend and
-  Fluent restarts the app (settings kept). Windows 11 22H2+; Windows shows solid when Transparency effects are off.
+## v1.1.0-beta.2 (2026-10-16), withdrawn
+- Tried a native Windows 11 Acrylic backdrop for Fluent. It didn't look good enough and added some CPU and RAM, so it was
+  reverted and the pre-release removed. Fluent stays solid.
 
 ## v1.1.0-beta.1 (2026-10-16), confirmed
 - Sensors (CPU / GPU temp, both fans) are read straight from the Alienware WMI (`AWCCWmiMethodFunction.Thermal_Information`)

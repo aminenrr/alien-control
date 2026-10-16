@@ -86,12 +86,6 @@
             </Setter.Value>
         </Setter>
     </Style>
-    <!-- v1.1 Acrylic: DWM draws the blur, corners, border and shadow; the card only adds a light dark tint. -->
-    <Style x:Key="WindowCardAcrylic" TargetType="Border">
-        <Setter Property="CornerRadius" Value="0" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="Background" Value="#26000000" />
-    </Style>
     <Style x:Key="TopLine" TargetType="Border"><Setter Property="Visibility" Value="Collapsed" /></Style>
     <Style x:Key="HeaderBar" TargetType="Border">
         <Setter Property="Height" Value="40" />
