@@ -56,15 +56,16 @@
                             <Border Style="{DynamicResource ModelBadge}">
                                 <TextBlock Text="m15 R7" Style="{DynamicResource ModelText}" />
                             </Border>
-                            <!-- v0.8.1: read-only current tray profile; tint + text set by UpdateProfileChip -->
-                            <Border x:Name="ProfileChip" Style="{DynamicResource ProfileChip}">
-                                <StackPanel Orientation="Horizontal">
-                                    <Ellipse x:Name="ProfileChipDot" Style="{DynamicResource ProfileChipDot}" />
-                                    <TextBlock x:Name="ProfileChipText" Style="{DynamicResource ProfileChipText}" />
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <!-- v1.1 beta.5 (Amine): preset button replaces the header chip; icon + color of the active preset -->
+                            <Button x:Name="PresetButton" Style="{DynamicResource HeaderButton}" Click="PresetButton_Click" />
+                            <Popup x:Name="PresetPopup" PlacementTarget="{Binding ElementName=PresetButton}" Placement="Bottom"
+                                   StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" Closed="PresetPopup_Closed">
+                                <Border x:Name="PresetPanel" Style="{DynamicResource PopupPanel}" Width="196" Padding="6" UseLayoutRounding="True">
+                                    <StackPanel x:Name="PresetList" />
+                                </Border>
+                            </Popup>
                             <Button Style="{DynamicResource HeaderButton}" Content="{DynamicResource Icon.Minimize}" Click="Minimize_Click" ToolTip="Minimize" />
                             <Button Style="{DynamicResource HeaderButton}" Content="{DynamicResource Icon.Close}" Click="Close_Click" ToolTip="Hide to tray" />
                         </StackPanel>

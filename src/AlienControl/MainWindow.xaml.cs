@@ -995,7 +995,7 @@ public partial class MainWindow : Window
         _settings.ReduceMotion = ReduceMotionToggle.IsChecked == true;
         Motion.Enabled = !_settings.ReduceMotion;
         _settings.Save();
-        if (_settings.ReduceMotion) { ResetFlyout(); Motion.Set(ProfileChip, OpacityProperty, 1); }
+        if (_settings.ReduceMotion) { ResetFlyout(); Motion.Set(PresetButton, OpacityProperty, 1); }
     }
 
     private void SelectSwatch(byte[] c)
@@ -1393,17 +1393,14 @@ public partial class MainWindow : Window
         var col = Color.FromRgb(t.R, t.G, t.B);
         SolidColorBrush B(byte a) { var b = new SolidColorBrush(Color.FromArgb(a, col.R, col.G, col.B)); b.Freeze(); return b; }
         var label = Profiles.Label(p);
-        // v0.8.2: the new colour fades in (v0.8.6: Opacity 0.2 -> 1, 250 ms) when the profile actually changes on screen.
         bool changed = _chipProfile is { } prev && prev != p;
         _chipProfile = p;
-        if (changed && Motion.Enabled && ProfileChip.IsVisible)
-            Motion.Play(null, (ProfileChip, OpacityProperty, Motion.Tween(0.2, 1, 250, Motion.Quad)));
-        ProfileChipText.Text = IsLegend ? label.ToUpperInvariant() : label;
-        ProfileChipText.Foreground = B(255);
-        ProfileChipDot.Fill = B(255);
-        ProfileChip.BorderBrush = B(0x66);   // ~40%
-        ProfileChip.Background = B(0x17);    // ~9%
-        ProfileChip.ToolTip = $"Profile: {label} ({Profiles.Describe(p)})";
+        if (changed && Motion.Enabled && PresetButton.IsVisible)
+            Motion.Play(null, (PresetButton, OpacityProperty, Motion.Tween(0.2, 1, 250, Motion.Quad)));
+        PresetButton.Content = TryFindResource(Profiles.IconKey(p));
+        PresetButton.Foreground = B(255);
+        PresetButton.ToolTip = $"Preset: {label} ({Profiles.Describe(p)}). Click to change";
+        if (PresetPopup.IsOpen) BuildPresetList();
     }
 
     /// <summary>After a manual change: the profile that matches mode + refresh rate, otherwise Custom.</summary>

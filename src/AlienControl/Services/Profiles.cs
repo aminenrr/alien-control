@@ -11,6 +11,13 @@ public static class Profiles
 {
     public static string Label(TrayProfile p) => p == TrayProfile.GMode ? "G-Mode" : p.ToString();
 
+    /// <summary>Theme icon resource for a preset (Custom has no icon of its own: the gear).</summary>
+    public static string IconKey(TrayProfile p) => p switch
+    {
+        TrayProfile.Battery => "Icon.Battery", TrayProfile.Quiet => "Icon.Quiet", TrayProfile.Balanced => "Icon.Balanced",
+        TrayProfile.Performance => "Icon.Performance", TrayProfile.GMode => "Icon.GMode", _ => "Icon.Settings",
+    };
+
     public static string Describe(TrayProfile p) => p switch
     {
         TrayProfile.Battery => "Battery Saver power mode, CPU boost Off, 60 Hz",

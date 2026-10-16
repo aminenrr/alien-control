@@ -3,6 +3,11 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.1.0-beta.5 (2026-10-16), untested
+- The header preset chip is gone. A header button (left of minimize) shows the active preset's icon in its color;
+  clicking it opens a list of Battery, Quiet, Balanced, Performance and Custom, each with icon + color, the active one
+  marked. Both themes. Battery is greyed on AC with Auto preset, like the mode button.
+
 ## v1.1.0-beta.4 (2026-10-16), untested
 - Gear toggle "Show in taskbar" (on by default). Off: no taskbar button, the app only lives in the tray, and the
   minimize button slides it back to the tray.

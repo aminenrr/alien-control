@@ -13,6 +13,7 @@
 - [-] 1.1.0-beta.2 Fluent Acrylic: tried and dropped (see Not planned).
 - [x] 1.1.0-beta.3 Compact view: always opens compact (header, sensors, power, performance mode, lighting row). A long footer button flips Full menu / Compact, and the version label moves above it. F3 = compact, F4 = full (macro index 2, 02-53).
 - [ ] 1.1.0-beta.4 Show in taskbar toggle (off = tray only).
+- [ ] 1.1.0-beta.5 Header preset button + preset list (replaces the chip).
 - [ ] 1.1.0-rc1 full regression, then 1.1.0 release.
 
 ## Later
