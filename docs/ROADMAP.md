@@ -12,9 +12,9 @@
 - [x] 1.1.0-beta.1 Direct WMI sensors: temps and fans read straight from WMI (probe first), alienfan-cli kept for commands and as fallback.
 - [-] 1.1.0-beta.2 Fluent Acrylic: tried and dropped (see Not planned).
 - [x] 1.1.0-beta.3 Compact view: always opens compact (header, sensors, power, performance mode, lighting row). A long footer button flips Full menu / Compact, and the version label moves above it. F3 = compact, F4 = full (macro index 2, 02-53).
-- [ ] 1.1.0-beta.4 Show in taskbar toggle (off = tray only).
-- [ ] 1.1.0-beta.5 Header preset button + preset list (replaces the chip).
-- [ ] 1.1.0-rc1 full regression, then 1.1.0 release.
+- [x] 1.1.0-beta.4 Show in taskbar toggle (off = tray only).
+- [x] 1.1.0-beta.5 Header preset button + preset list (replaces the chip).
+- [x] 1.1.0 released 2026-10-16 (each beta was confirmed on the laptop, so no separate rc).
 
 ## Later
 - Keyboard backlight timeout when idle; effect speed; map keyboard columns for the rainbow wave.

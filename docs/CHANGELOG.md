@@ -3,12 +3,20 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.1.0-beta.5 (2026-10-16), untested
+## v1.1.0 (2026-10-16), stable
+Everything from the 1.1 betas, all confirmed on the m15 R7:
+- Compact view: tray and F3 open compact, F4 / footer button the full menu (beta.3).
+- Temps and fans read straight from AWCC WMI, CLI fallback (beta.1).
+- Show in taskbar toggle, off = tray only (beta.4).
+- Header preset button + preset list instead of the chip (beta.5).
+- Fluent Acrylic (beta.2) was tried and dropped.
+
+## v1.1.0-beta.5 (2026-10-16), confirmed
 - The header preset chip is gone. A header button (left of minimize) shows the active preset's icon in its color;
   clicking it opens a list of Battery, Quiet, Balanced, Performance and Custom, each with icon + color, the active one
   marked. Both themes. Battery is greyed on AC with Auto preset, like the mode button.
 
-## v1.1.0-beta.4 (2026-10-16), untested
+## v1.1.0-beta.4 (2026-10-16), confirmed
 - Gear toggle "Show in taskbar" (on by default). Off: no taskbar button, the app only lives in the tray, and the
   minimize button slides it back to the tray.
 

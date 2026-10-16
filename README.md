@@ -66,15 +66,15 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 
 ## Features
 
-- **F3** opens / hides the app from anywhere, games included (borderless).
-- Presets from the tray, the window or **F2**: Battery, Quiet, Balanced, Performance (power mode, CPU boost, refresh rate), plus Custom.
+- **Compact view** (v1.1): the tray and **F3** open a short window (sensors, power, modes, light colors); **F4** or the footer button opens the full menu. F3 / F4 hide it again, games included (borderless).
+- Presets from the tray, the header preset button, the window or **F2**: Battery, Quiet, Balanced, Performance (power mode, CPU boost, refresh rate), plus Custom.
 - **F1 G-Mode**: fans max, Aggressive CPU boost, optional GPU overclock (core / memory offsets, AC only, keep-or-revert test).
 - **Auto preset**: Battery when unplugged, your last preset when plugged back in.
-- Fans, temps and CPU / GPU / total power readout while the window is open.
+- Fans, temps and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
 - Per-key keyboard color and effects, chassis lights, status keys (G-Mode, mutes, touchpad) lit by the app.
 - GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt).
 - Small top-right toasts with soft sounds for F1, F2 and plug / unplug.
-- Two themes (Legend, Fluent), Reduce motion, Reset settings. One exe, ~0% CPU and a few MB of RAM in the tray.
+- Two themes (Legend, Fluent), Reduce motion, Show in taskbar (off = tray only), Reset settings. One exe, ~0% CPU and a few MB of RAM in the tray.
 
 ## Idle cost
 
@@ -173,12 +173,12 @@ You can undo this anytime by setting the services back to Automatic.
 
 1. Double-click `AlienControl.exe` and accept the admin prompt (fan and power control need admin).
    Windows SmartScreen may warn because the exe isn't signed: click **More info → Run anyway**.
-2. The window opens and the app lives in the tray (the Alienhead icon).
+2. The compact window opens and the app lives in the tray (the Alienhead icon). Click **Full menu** for every setting.
 3. Turn on **Run on startup** at the bottom of the window. It starts with Windows, in the tray, without an admin prompt.
 
 ### 6. Check the hotkeys
 
-- **F1** toggles G-Mode, **F2** cycles the presets, **F3** opens / hides the app.
+- **F1** toggles G-Mode, **F2** cycles the presets, **F3** opens / hides the compact view, **F4** the full menu.
 - If F1 does nothing, open the gear menu (next to Quit), click **Detect key**, and press F1 once.
 
 ### Updating
@@ -221,11 +221,11 @@ The accent follows the lighting color.
 
 Since v0.8.2 there are a few subtle, one-shot animations: since v0.8.6 the window slides up out of the bottom edge when shown
 and back down before hiding to the tray, like the Windows 11 Quick Settings flyout; buttons fade their hover and shrink slightly when pressed, a newly selected mode grows its
-underline and pulses once, the profile chip fades to its new color, and the gear menu slides up. They animate
+underline and pulses once, the preset button fades to its new color, and the gear menu slides up. They animate
 only opacity and scale/position, are capped at 60 fps, never loop and never run while the window is hidden.
 **Reduce motion** in the gear menu turns all of them off (saved in settings, off by default).
 
-The gear menu also holds **Detect key** for the G-key, **Reduce motion**, F2 / auto preset / notification toggles,
+The gear menu also holds **Detect key** for the G-key, **Reduce motion**, F2 / F3-F4 / auto preset / notification / Show in taskbar toggles,
 **Reset settings** (back to defaults and restart; startup, BIOS and GPU mode untouched) and the version / credits line.
 
 ### Tray profiles
@@ -234,8 +234,8 @@ Left-click the tray icon to open the window, or to slide it back to the tray whe
 Right-click it for the menu, drawn in the active theme with accent-colored text (v0.8.7): Battery (amber), Quiet (green), Balanced (cyan), Performance (red), Custom (violet); G-Mode shows white.
 A profile sets the power mode, CPU boost and refresh rate: Battery (boost Off, 60 Hz), Quiet (Efficient, 240 Hz),
 Balanced (On, 240 Hz), Performance (Aggressive, 240 Hz). Custom changes nothing. Profiles never touch the GPU mode and never use Ultimate.
-The header shows the current profile as a small read-only chip next to the model badge ("● BALANCED" in Legend,
-"● Balanced" in Fluent), tinted like the tray icon. It follows tray picks, mode buttons and refresh rate changes.
+The header has a preset button next to minimize (v1.1): the active preset's icon in its color. Click it for the list of
+presets, each with its icon and color. It follows tray picks, mode buttons, F2 and refresh rate changes.
 
 ### GPU mode
 
@@ -310,7 +310,7 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**v1.0.0: first stable release**, tested on my m15 R7. Download it from the
+**v1.1.0** (compact view, direct WMI sensors, preset button, tray-only option), tested on my m15 R7. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the
 [CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md).
 
