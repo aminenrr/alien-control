@@ -16,7 +16,7 @@
 
 ## Later
 - Keyboard backlight timeout when idle; effect speed; map keyboard columns for the rainbow wave.
-- Maybe: bind F4..F6 (Macro C..E, codes 02-53 .. 02-55).
+- Maybe: bind F5..F6 (Macro D..E, codes 02-54 .. 02-55).
 - Maybe: toasts over fullscreen-exclusive games. Idea: detect it (`SHQueryUserNotificationState`) and fall back to the sound plus a short keyboard flash in the preset color. No in-game overlay or DLL injection.
 - Maybe: faster charging (Dell ExpressCharge via `PrimaryBattChargeCfg`), removed from the UI in v0.8.5.
 
