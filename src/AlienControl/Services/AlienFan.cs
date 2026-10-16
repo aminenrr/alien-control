@@ -13,11 +13,19 @@ public sealed class AlienFan
 {
     private readonly CliRunner _cli = new("alienfan-cli.exe");
 
+    private readonly AwccSensors _wmi = new();
+
     public bool IsAvailable => _cli.IsAvailable;
 
-    /// <summary>Reads temperatures and fan RPMs in a single CLI call (one ACPI probe).</summary>
+    /// <summary>True while sensors come straight from WMI (v1.1); false once it fell back to alienfan-cli.</summary>
+    public bool SensorsViaWmi => !_wmi.Disabled;
+
+    /// <summary>Reads temperatures and fan RPMs: WMI first (no process spawn), alienfan-cli as fallback.</summary>
     public async Task<SensorSnapshot> ReadSensorsAsync()
     {
+        var w = await Task.Run(_wmi.Read);
+        if (w is not null) return w;
+
         var r = await _cli.RunAsync("temp rpm");
         var snap = new SensorSnapshot();
         if (!r.Ok && r.Output.Length == 0) { snap.Error = r.Error; return snap; }

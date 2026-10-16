@@ -489,7 +489,7 @@ public partial class MainWindow : Window
         finally { _polling = false; }
     }
 
-    // v0.8.5: power has its own 1 s timer (perf counter + NVML are cheap; the 2 s sensor poll spawns alienfan-cli).
+    // v0.8.5: power has its own 1 s timer (perf counter + NVML are cheap; the 2 s sensor poll reads WMI since 1.1, alienfan-cli as fallback).
     private bool _powerBusy;
     private async Task RefreshPowerAsync()
     {

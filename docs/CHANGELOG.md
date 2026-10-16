@@ -3,6 +3,12 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.1.0-beta.1 (2026-10-16), untested
+- Sensors (CPU / GPU temp, both fans) are read straight from the Alienware WMI (`AWCCWmiMethodFunction.Thermal_Information`)
+  instead of starting `alienfan-cli temp rpm` every 2 s. Read-only, IDs found with `dev/wmi-probe.ps1`
+  (fans 0x32 / 0x33, temps 0x01 / 0x06). Falls back to alienfan-cli automatically if WMI fails.
+- Pre-release: v1.0.0 stays the Latest release.
+
 ## v1.0.0 (2026-10-15)
 - First stable release, same code as rc1. Presets + F2, F1 G-Mode with GPU OC, F3 quick open, auto preset on AC /
   battery, toasts + sounds, fans / sensors / power, per-key lighting and status keys, Optimus / Ultimate switch,
