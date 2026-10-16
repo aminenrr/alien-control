@@ -23,10 +23,13 @@ Needs the .NET 8 SDK on Windows (or `EnableWindowsTargeting` to compile-check on
 | File | Role |
 |---|---|
 | `App.xaml(.cs)` | tray icon, theme loading (`ApplyTheme`), accent (`ApplyAccent`), single window |
-| `MainWindow.xaml(.cs)` | the card UI, sensor loop (only while visible), hints, profile chip, gear flyout |
+| `MainWindow.xaml(.cs)` | the card UI, sensor loop (only while visible), hints, preset button, gear flyout |
+| `MainWindow.Compact.cs` | v1.1 compact / full view (`SetCompact`), footer view button, keeps the corner anchored on resize |
+| `MainWindow.Presets.cs` | v1.1 header preset button and its preset list popup |
+| `Services/AwccSensors.cs` | v1.1 direct WMI temps and fan RPM (`AWCCWmiMethodFunction.Thermal_Information`), CLI fallback in `AlienFan` |
 | `Motion.cs` | all animations (v0.8.2, values and spline curves updated in v0.8.6), disabled by Reduce motion. The window slide is native since v0.8.8: `MainWindow.xaml.cs` (`PrepareShow` / `PlayOpen` / `HideToTray`) drives `Services/WindowSlide.cs` |
 | `Services/WindowSlide.cs` | v0.8.8 native window slide: `SetWindowPos` per frame (Rendering + 15 ms backup timer, only while sliding), cubic-bezier curves |
-| `Themes/Legend.xaml`, `Themes/Fluent.xaml` | **generated** by `dev/gen_themes.py`; same keys in both. Edit the generator, never the XAML |
+| `Themes/Legend.xaml`, `Themes/Fluent.xaml` | **generated** by `dev/gen_themes.py`; same keys in both. Edit the generator (keep any hand edit to the XAML mirrored there) |
 | `Services/CliRunner.cs` | runs the T-Troll CLIs hidden and captures output |
 | `Services/AlienFan.cs` | power modes, G-Mode, CPU boost, fans, temps (parses raw `getpower` hex) |
 | `Services/AlienFx.cs` | chassis lighting through the CLI; filters the power button (ID 2) |

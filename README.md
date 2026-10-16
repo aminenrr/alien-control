@@ -50,9 +50,23 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 
 ## Screenshots
 
-| Legend theme | Fluent theme |
+### Compact view (tray, F3)
+
+| Legend | Fluent |
 |---|---|
-| ![Legend theme](docs/screenshots/legend.png) | ![Fluent theme](docs/screenshots/fluent.png) |
+| ![Compact view, Legend](docs/screenshots/compact-legend.png) | ![Compact view, Fluent](docs/screenshots/compact-fluent.png) |
+
+### Full menu (F4 or the Full menu button)
+
+| Legend | Fluent |
+|---|---|
+| ![Full menu, Legend](docs/screenshots/legend.png) | ![Full menu, Fluent](docs/screenshots/fluent.png) |
+
+### Preset button and settings
+
+| Preset list (header button) | Gear menu |
+|---|---|
+| ![Preset list](docs/screenshots/preset-menu.png) | ![Settings](docs/screenshots/settings.png) |
 
 ### Notifications (F1, F2, plug / unplug)
 
@@ -216,7 +230,7 @@ Two themes, switched in the gear menu (saved in settings, default **Legend**):
 - **Legend**: Alienware-style terminal look, mono numbers and icon section headers, tick bars, cyan accent.
 - **Fluent**: Windows 11 cards, segmented controls and rounded bars.
 
-Each theme is its own ResourceDictionary (`Themes/Legend.xaml`, `Themes/Fluent.xaml`); only the active one is loaded. No blur or Mica, and the app idles at ~0% CPU.
+Each theme is its own ResourceDictionary (`Themes/Legend.xaml`, `Themes/Fluent.xaml`); only the active one is loaded. No blur or Mica (a native Acrylic backdrop was tried in 1.1.0-beta.2 and dropped: it cost CPU and RAM for little gain), and the app idles at ~0% CPU.
 The accent follows the lighting color.
 
 Since v0.8.2 there are a few subtle, one-shot animations: since v0.8.6 the window slides up out of the bottom edge when shown

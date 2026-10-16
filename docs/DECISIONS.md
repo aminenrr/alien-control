@@ -84,3 +84,16 @@ Why things are the way they are. Newest decisions win.
 - Safety: 20 s keep-or-revert after Apply, "pending" flag saved before the write so a crash comes back at +0.
   No stress test, no voltage curve, power limit or fan control. Profiles never change GPU mode.
 - Layout (Amine): Core and Memory side by side, Keep / Revert replace the button row, to keep the window short.
+
+## 1.1 (2026-10-16)
+- Sensors: temps and fan RPM read straight from `AWCCWmiMethodFunction.Thermal_Information` (73 ms vs 181 ms for the CLI
+  for four reads). alienfan-cli stays for every command and as the fallback after an init failure or three errors.
+- Fluent Acrylic (Quick Settings blur) was built in beta.2 and **dropped** (Amine): it didn't look good enough and cost CPU and
+  RAM. Not planned anymore.
+- Compact view: the tray and F3 **always** open compact (no remembering the last view); F4 opens the full menu. The key for the
+  view already shown hides it, the other key switches. Compact = header, sensors, power, performance mode, lighting colors + Off
+  (no GPU mode). The version moved next to the status line so the footer center holds the Full menu / Compact button.
+- Show in taskbar toggle, default on. Off = tray only; minimize then hides to the tray.
+- The read-only header chip became a preset button (both themes): icon + color of the active preset, click for the list
+  Battery, Quiet, Balanced, Performance, Custom.
+- No rc for 1.1: each beta was confirmed on the laptop before the next one.
