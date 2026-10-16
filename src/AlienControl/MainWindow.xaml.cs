@@ -72,8 +72,11 @@ public partial class MainWindow : Window
         _macro.Pressed += k =>
         {
             if (k == 0) Dispatcher.BeginInvoke(new Action(async () => await CyclePresetAsync()));
-            else if (k == 1 && _settings.F3Opens) Dispatcher.BeginInvoke(new Action(() => ((App)Application.Current).ToggleMain()));   // v0.9.16
+            else if (k is 1 or 2 && _settings.F3Opens)   // v0.9.16 F3; v1.1: F3 compact, F4 full
+                Dispatcher.BeginInvoke(new Action(() => ((App)Application.Current).ToggleMain(full: k == 2)));
         };
+        SetCompact(true);
+        SizeChanged += OnSizeChangedKeepCorner;
         _macro.Install();
         SetHint(FanHint, "BIOS controlled", "BIOS");
         SetHint(GpuHint, "Optimus · RTX 3070 Ti", "OPTIMUS · 3070 Ti");

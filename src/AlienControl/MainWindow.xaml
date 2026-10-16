@@ -204,7 +204,7 @@
                 </Border>
 
                 <!-- ===== 02 GPU mode (preview: not wired yet) ===== -->
-                <Border Style="{DynamicResource SectionPanel}">
+                <Border x:Name="GpuSection" Style="{DynamicResource SectionPanel}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
                             <Grid.ColumnDefinitions>
@@ -230,7 +230,7 @@
                 </Border>
 
                 <!-- ===== 03 GPU overclock (v0.9.7): NVML clock offsets, G-Mode on AC only, 20 s keep-or-revert ===== -->
-                <Border Style="{DynamicResource SectionPanel}">
+                <Border x:Name="OcSection" Style="{DynamicResource SectionPanel}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
                             <Grid.ColumnDefinitions>
@@ -299,7 +299,7 @@
                 </Border>
 
                 <!-- ===== 04 Refresh rate ===== -->
-                <Border Style="{DynamicResource SectionPanel}">
+                <Border x:Name="RefreshSection" Style="{DynamicResource SectionPanel}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
                             <Grid.ColumnDefinitions>
@@ -322,7 +322,7 @@
                 </Border>
 
                 <!-- ===== 05 CPU boost (AC) ===== -->
-                <Border Style="{DynamicResource SectionPanelTop}">
+                <Border x:Name="CpuSection" Style="{DynamicResource SectionPanelTop}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
                             <Grid.ColumnDefinitions>
@@ -347,7 +347,7 @@
                 </Border>
 
                 <!-- ===== 06 Fans ===== -->
-                <Border Style="{DynamicResource SectionPanelBottom}">
+                <Border x:Name="FanSection" Style="{DynamicResource SectionPanelBottom}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
                             <Grid.ColumnDefinitions>
@@ -455,7 +455,7 @@
                                         </StackPanel>
                                     </Button>
                                 </Grid>
-                                <Grid Margin="0,10,0,0">
+                                <Grid x:Name="LightFxRow" Margin="0,10,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="12" />
@@ -489,7 +489,15 @@
                     </StackPanel>
                 </Border>
 
-                <TextBlock x:Name="StatusText" Margin="2,8,2,0" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Visibility="Collapsed" />
+                <!-- v1.1: status on the left, version on the right (the footer center holds the view button) -->
+                <Grid Margin="2,8,2,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="StatusText" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Visibility="Collapsed" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBlock x:Name="VersionText" Grid.Column="1" Text="v0.8.5" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
+                </Grid>
             </StackPanel>
 
             <!-- Footer: Run on startup · version · settings + Quit -->
@@ -499,7 +507,16 @@
                         <CheckBox x:Name="StartupToggle" Style="{DynamicResource ToggleBox}" Click="Startup_Click" VerticalAlignment="Center" />
                         <TextBlock Text="Run on startup" Margin="9,0,0,0" Style="{DynamicResource FooterText}" />
                     </StackPanel>
-                    <TextBlock x:Name="VersionText" Text="v0.8.5" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
+                    <!-- v1.1: compact / full view switch (tray + F3 open compact, F4 opens full) -->
+                    <Button x:Name="ViewButton" Style="{DynamicResource GhostButton}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            MinWidth="124" Click="ViewButton_Click" ToolTip="Switch between the compact and the full view">
+                        <StackPanel Orientation="Horizontal">
+                            <Path x:Name="ViewButtonIcon" Width="9" Height="14" Margin="0,0,8,0" VerticalAlignment="Center" Stretch="Uniform"
+                                  StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  Stroke="{Binding Foreground, ElementName=ViewButtonText}" Data="M0,4 L4,0 L8,4 M0,10 L4,14 L8,10" />
+                            <TextBlock x:Name="ViewButtonText" Text="Full menu" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="SettingsButton" Style="{DynamicResource GhostButton}" Padding="7,5" Margin="0,0,6,0" Click="Settings_Click" ToolTip="Settings">
                             <ContentControl Style="{DynamicResource ButtonIcon}" Margin="0" Content="{DynamicResource Icon.Settings}" />
@@ -561,8 +578,8 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
-                                        <TextBlock Text="F3 opens the app" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Press again to hide it. Works over borderless games" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                        <TextBlock Text="F3 / F4 open the app" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="F3 compact, F4 full menu. Press again to hide. Works over borderless games" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <CheckBox x:Name="F3OpensToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
                                               Click="F3Opens_Click" ToolTip="F3 (media mode, no Fn) opens / hides Alien Controls" />

@@ -95,17 +95,20 @@ public partial class App : Application
         {
             if (a.Button != WinForms.MouseButtons.Left || _window is null) return;
             if (_window.IsShownOpen) _window.HideToTray();
-            else ShowMain();
+            else ShowMain(full: false);   // v1.1: the tray always opens the compact view
         };
     }
 
-    /// <summary>v0.9.16 F3: open the window; open and focused = slide back to the tray; open behind a game = bring it up.</summary>
-    public void ToggleMain()
+    /// <summary>v0.9.16 F3: open the window; open and focused = slide back to the tray; open behind a game = bring it up.
+    /// v1.1: F3 = compact, F4 = full. Pressing the key of the view already shown (and focused) hides it; the other key
+    /// switches the open window to its view.</summary>
+    public void ToggleMain(bool full)
     {
         if (_window is null) return;
-        if (_window.IsShownOpen && _window.IsActive) _window.HideToTray();
-        else if (_window.IsShownOpen) { _window.Activate(); ForceForeground(); }
-        else ShowMain();
+        bool sameView = _window.IsCompact == !full;
+        if (_window.IsShownOpen && _window.IsActive && sameView) _window.HideToTray();
+        else if (_window.IsShownOpen) { _window.SetCompact(!full); _window.Activate(); ForceForeground(); }
+        else ShowMain(full);
     }
 
     /// <summary>v0.8.7: restyles the tray menu for the theme and accent (called by MainWindow on every change).</summary>
@@ -167,9 +170,10 @@ public partial class App : Application
         return Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? "") ?? SystemIcons.Application;
     }
 
-    public void ShowMain()
+    public void ShowMain(bool full = false)
     {
         if (_window is null) return;
+        if (!_window.IsVisible) _window.SetCompact(!full);   // v1.1: every open starts compact unless F4
         _window.PrepareShow();   // v0.8.2: cancels a hide animation that is still running
         _window.Show();
         if (_window.WindowState == WindowState.Minimized) _window.WindowState = WindowState.Normal;
