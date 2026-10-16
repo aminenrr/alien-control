@@ -59,6 +59,7 @@ public partial class MainWindow : Window
         ReduceMotionToggle.IsChecked = _settings.ReduceMotion;
         ThemeLegend.IsChecked = IsLegend;
         ThemeFluent.IsChecked = !IsLegend;
+        InitAcrylic();
         _fx = new AlienFx(_settings);
         _lastPowerIndex = _settings.BalancedPowerIndex;
 
@@ -224,7 +225,8 @@ public partial class MainWindow : Window
         catch { /* fall back to WorkArea */ }
         double w = ActualWidth > 0 ? ActualWidth : Width;
         double h = ActualHeight > 0 ? ActualHeight : 700;
-        return (right - w - 4, Math.Max(0, bottom - h - 4));
+        double gap = _acrylic ? 14 : 4;   // v1.1: no 10 DIP shadow margin with Acrylic
+        return (right - w - gap, Math.Max(0, bottom - h - gap));
     }
 
     protected override void OnContentRendered(EventArgs e) { base.OnContentRendered(e); SnapToCorner(); }
@@ -908,6 +910,7 @@ public partial class MainWindow : Window
         if (name == _settings.Theme) return;
         _settings.Theme = name;
         _settings.Save();
+        if (WantsAcrylic != _acrylic) { ((App)Application.Current).Restart(); return; }   // v1.1: window type changes
         App.ApplyTheme(name);   // swaps the one theme dictionary in App.Resources
         ApplyAccent(_lastColor);
         foreach (var (tb, t) in _hints) tb.Text = IsLegend ? t.Legend : t.Fluent;

@@ -209,12 +209,17 @@ public partial class App : Application
     }
 
     /// <summary>v0.9.15 Reset settings: clean exit (OC +0, boost restored), delete settings.json, start again with the window open.</summary>
-    public void RestartFresh()
+    /// <summary>v1.1: restart keeping settings (Acrylic needs a different kind of window).</summary>
+    public void Restart() => RestartCore(fresh: false);
+
+    public void RestartFresh() => RestartCore(fresh: true);
+
+    private void RestartCore(bool fresh)
     {
         if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); _tray = null; }
         if (_tintHandle != IntPtr.Zero) { DestroyIcon(_tintHandle); _tintHandle = IntPtr.Zero; }
         _window?.AllowClose();
-        Settings.Delete();   // after AllowClose, which can still save
+        if (fresh) Settings.Delete();   // after AllowClose, which can still save
         try
         {
             var exe = Environment.ProcessPath;

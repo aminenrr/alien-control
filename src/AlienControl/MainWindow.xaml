@@ -535,6 +535,19 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel>
+                                        <TextBlock Text="Transparency" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Fluent only: see-through blur like Quick Settings (restarts the app)" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="FluentAcrylicToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="FluentAcrylic_Click" ToolTip="Windows 11 22H2 or newer" />
+                                </Grid>
+
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
                                         <TextBlock Text="Reduce motion" Style="{DynamicResource FooterText}" />
                                         <TextBlock Text="Turns off all animations" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                     </StackPanel>

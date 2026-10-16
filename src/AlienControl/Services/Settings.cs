@@ -100,6 +100,7 @@ public sealed class Settings
     public bool Toasts { get; set; } = true;
     /// <summary>v0.9.11: soft sound with those events (own toggle).</summary>
     public bool ToastSound { get; set; } = true;
+    public bool FluentAcrylic { get; set; } = true;   // v1.1: Fluent see-through backdrop (Win11 22H2+)
 
     /// <summary>v0.8.5: learned "rest of the laptop" power (W) for the AC total estimate. No migration needed.</summary>
     public double RestOfSystemW { get; set; } = 15;
