@@ -23,14 +23,19 @@ public sealed class AlienFan
     /// <summary>Reads temperatures and fan RPMs: WMI first (no process spawn), alienfan-cli as fallback.</summary>
     public async Task<SensorSnapshot> ReadSensorsAsync()
     {
-        var w = await Task.Run(_wmi.Read);
+        var w = await Task.Run(() => HardwareController.Run(_wmi.Read));
         if (w is not null) return w;
 
         var r = await _cli.RunAsync("temp rpm");
-        var snap = new SensorSnapshot();
-        if (!r.Ok && r.Output.Length == 0) { snap.Error = r.Error; return snap; }
+        if (!r.Ok && r.Output.Length == 0) return new SensorSnapshot { Error = r.Error };
+        return ParseSensors(r.Output);
+    }
 
-        foreach (var raw in r.Output.Split('\n'))
+    /// <summary>Parses "temp rpm" output (1.3.0-beta.1: static for the tests).</summary>
+    internal static SensorSnapshot ParseSensors(string output)
+    {
+        var snap = new SensorSnapshot();
+        foreach (var raw in output.Split('\n'))
         {
             var line = raw.Trim();
             // Fan lines: "Fan CPU 0 RPM: 3100" / "Fan GPU 1 RPM: 2950" / "Fan 2 RPM: 0"
@@ -53,9 +58,13 @@ public sealed class AlienFan
     public async Task<int?> GetPowerRawAsync()
     {
         var r = await _cli.RunAsync("getpower");
-        var m = Regex.Match(r.Output, @"Power mode:.*\(([0-9a-fA-F]+)\)");
-        if (!m.Success) return null;
-        return int.Parse(m.Groups[1].Value, NumberStyles.HexNumber);
+        return ParsePowerRaw(r.Output);
+    }
+
+    internal static int? ParsePowerRaw(string output)
+    {
+        var m = Regex.Match(output, @"Power mode:.*\(([0-9a-fA-F]+)\)");
+        return m.Success ? int.Parse(m.Groups[1].Value, NumberStyles.HexNumber) : null;
     }
 
     public Task<CliResult> SetPowerAsync(int index) => _cli.RunAsync($"setpower={index}");
@@ -63,9 +72,13 @@ public sealed class AlienFan
     public async Task<bool?> GetGModeAsync()
     {
         var r = await _cli.RunAsync("gmode");
-        var m = Regex.Match(r.Output, @"G-mode\s*(is\s*)?(On|Off)", RegexOptions.IgnoreCase);
-        if (!m.Success) return null;
-        return m.Groups[2].Value.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        return ParseGMode(r.Output);
+    }
+
+    internal static bool? ParseGMode(string output)
+    {
+        var m = Regex.Match(output, @"G-mode\s*(is\s*)?(On|Off)", RegexOptions.IgnoreCase);
+        return m.Success ? m.Groups[2].Value.Equals("On", System.StringComparison.OrdinalIgnoreCase) : null;
     }
 
     public Task<CliResult> SetGModeAsync(bool on) => _cli.RunAsync($"setgmode={(on ? 1 : 0)}");

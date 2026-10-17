@@ -86,7 +86,7 @@ public static class MemoryCleaner
                 var combine = new MEMORY_COMBINE_INFORMATION_EX();
                 NtSetSystemInformation(SystemCombinePhysicalMemoryInformation, ref combine, Marshal.SizeOf<MEMORY_COMBINE_INFORMATION_EX>());
             }
-            catch { /* Windows 8+ only; ignore */ }
+            catch (System.Exception __e) { AlienControl.Services.Log.Warn("MemoryCleaner.cs:89", __e); /* Windows 8+ only; ignore */ }
 
             double after = FreeBytes();
             double freed = Math.Max(0, (after - before) / (1024d * 1024 * 1024));

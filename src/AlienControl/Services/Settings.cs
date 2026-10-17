@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 
 namespace AlienControl.Services;
@@ -62,6 +63,8 @@ public sealed class Settings
     /// <summary>v0.9.3: when the app last wrote the BIOS graphics switch (UTC). Written after the last boot = not applied yet.
     /// Null after a cancel (BIOS back to what's running).</summary>
     public DateTime? GpuSwitchSetUtc { get; set; }
+    /// <summary>1.3.0-beta.1: Windows BootId when the switch was written (Fast Startup safe).</summary>
+    public int? GpuSwitchSetBootId { get; set; }
 
     // v0.9.7 GPU overclock (G-Mode on AC only). OcCore / OcMem = AWCC-style MHz (0..300), the last kept values.
     // OcOn = kept with "Keep" and reapplied when G-Mode is on and plugged in. OcPending = a test was written but not
@@ -102,62 +105,139 @@ public sealed class Settings
     public bool Toasts { get; set; } = true;
     /// <summary>v0.9.11: soft sound with those events (own toggle).</summary>
     public bool ToastSound { get; set; } = true;
+    /// <summary>1.3.0-beta.2: "Soft" (default, also for upgrades: the key is new) or "Classic" (the v1.2 chimes).</summary>
+    public string ChimePack { get; set; } = "Soft";
+    /// <summary>1.3.0-beta.2: "Pill" (top-center capsule, default, also for upgrades) or "Classic" (the v1.2 top-right card).</summary>
+    public string ToastStyle { get; set; } = "Pill";
 
     /// <summary>v0.8.5: learned "rest of the laptop" power (W) for the AC total estimate. No migration needed.</summary>
     public double RestOfSystemW { get; set; } = 15;
 
-    private static string FilePath =>
+    // 1.3.0-beta.1 keyboard backlight timeout (Part 2): minutes without input before the keys fade (0 = off).
+    public int KbdTimeoutMin { get; set; } = 0;
+    public bool KbdTimeoutBatteryOnly { get; set; } = false;
+    public bool KbdTimeoutPauseFullscreen { get; set; } = true;
+
+    // 1.3.0 animations: the beta's NormalWindow / NewSlideEngine toggles were removed after the A/B
+    // (old settings.json keys are ignored on load).
+    /// <summary>true = log frame gaps of every slide to crash.log.</summary>
+    public bool FrameLog { get; set; } = false;
+
+    internal static string FilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl", "settings.json");
 
     public static Settings Load()
     {
-        try
+        // 1.3.0-beta.1 (review #8): a torn settings.json falls back to settings.json.bak instead of defaults
+        // (defaults would also forget OcPending, the flag that undoes a crashed OC test).
+        foreach (var path in new[] { FilePath, FilePath + ".bak" })
         {
-            if (File.Exists(FilePath))
+            try
             {
-                var s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath));
-                if (s is not null && s.SettingsVersion >= CurrentVersion) return s;
-                if (s is not null && s.SettingsVersion is >= 2 and < CurrentVersion)
-                {
-                    // v2 sent the power button (ID 2) and missed half the ring (ID 1).
-                    if (s.SettingsVersion == 2) s.ChassisLights = new[] { 0, 1, 3 };
-                    // v3 mapped Performance to index 5 (a4), which is the G-Mode table.
-                    if (s.PerformancePowerIndex == 5) s.PerformancePowerIndex = 2;
-                    // v5 (app v0.8): the G-key is always on (GKeyEnabled and GpuOptimized are dropped and
-                    // ignored when read), Battery mode = index 3, theme defaults to Legend.
-                    if (s.BatteryPowerIndex <= 0) s.BatteryPowerIndex = 3;
-                    if (s.Theme is not ("Legend" or "Fluent")) s.Theme = "Legend";
-                    // v6 (app v0.8.2): adds ReduceMotion; older files have no key, so it reads as false (animations on).
-                    if (s.SettingsVersion < 6) s.ReduceMotion = false;
-                    s.SettingsVersion = CurrentVersion;
-                    s.Save();
-                    return s;
-                }
-                // Older file had guessed power indexes; replace with verified defaults.
+                if (!File.Exists(path)) continue;
+                var s = Parse(File.ReadAllText(path));
+                if (s is null) continue;
+                bool migrated = s.SettingsVersion < CurrentVersion;
+                s.Clamp();
+                if (migrated || path != FilePath) s.Save();
+                return s;
             }
+            catch (Exception ex) { Log.Warn($"Settings.Load {Path.GetFileName(path)}", ex); }
         }
-        catch { /* fall back to defaults */ }
         var d = new Settings();
         d.Save();
         return d;
     }
 
+    /// <summary>Reads + migrates one file. Null when it's unreadable or too old (guessed power indexes).</summary>
+    internal static Settings? Parse(string json)
+    {
+        var s = JsonSerializer.Deserialize<Settings>(json);
+        if (s is null) return null;
+        if (s.SettingsVersion >= CurrentVersion) return s;
+        if (s.SettingsVersion is < 2) return null;   // older file had guessed power indexes: verified defaults instead
+        // v2 sent the power button (ID 2) and missed half the ring (ID 1).
+        if (s.SettingsVersion == 2) s.ChassisLights = new[] { 0, 1, 3 };
+        // v3 mapped Performance to index 5 (a4), which is the G-Mode table.
+        if (s.PerformancePowerIndex == 5) s.PerformancePowerIndex = 2;
+        // v5 (app v0.8): the G-key is always on, Battery mode = index 3, theme defaults to Legend.
+        if (s.BatteryPowerIndex <= 0) s.BatteryPowerIndex = 3;
+        if (s.Theme is not ("Legend" or "Fluent")) s.Theme = "Legend";
+        // v6 (app v0.8.2): adds ReduceMotion; older files have no key, so it reads as false (animations on).
+        if (s.SettingsVersion < 6) s.ReduceMotion = false;
+        s.SettingsVersion = CurrentVersion;
+        return s;
+    }
+
+    /// <summary>1.3.0-beta.1 (review #7): settings.json is user-writable, so every value that reaches the hardware is
+    /// clamped to the known-good range for the m15 R7 (power indexes 1..5, raw a0..a5, 136 keys, 16 chassis lights,
+    /// never the power-button light).</summary>
+    internal void Clamp()
+    {
+        static int C(int v, int lo, int hi, int def) => v < lo || v > hi ? def : v;
+        var d = new Settings();
+        BatteryPowerIndex = C(BatteryPowerIndex, 1, 5, d.BatteryPowerIndex);
+        QuietPowerIndex = C(QuietPowerIndex, 1, 5, d.QuietPowerIndex);
+        BalancedPowerIndex = C(BalancedPowerIndex, 1, 5, d.BalancedPowerIndex);
+        PerformancePowerIndex = C(PerformancePowerIndex, 1, 4, d.PerformancePowerIndex);   // 5 = G-Mode table
+        if (PowerRawByIndex is null || PowerRawByIndex.Count != 5 || !PowerRawByIndex.All(kv => kv.Key is >= 1 and <= 5 && kv.Value is >= 0xA0 and <= 0xA5))
+            PowerRawByIndex = d.PowerRawByIndex;
+        MaxFanBoost = C(MaxFanBoost, 0, 100, d.MaxFanBoost);
+        FanMaxRpm = C(FanMaxRpm, 1000, 8000, d.FanMaxRpm);
+        KeyboardDevice = C(KeyboardDevice, 0, 3, d.KeyboardDevice);
+        KeyboardLightCount = C(KeyboardLightCount, 1, 136, d.KeyboardLightCount);
+        ChassisDevice = C(ChassisDevice, 0, 3, d.ChassisDevice);
+        ChassisLights = (ChassisLights ?? d.ChassisLights).Where(id => id is >= 0 and <= 15 && id != PowerButtonLight).Distinct().ToArray();
+        GModeKey = C(GModeKey, 0, 135, d.GModeKey);
+        TouchpadKey = C(TouchpadKey, 0, 135, d.TouchpadKey);
+        SpeakerMuteKey = C(SpeakerMuteKey, 0, 135, d.SpeakerMuteKey);
+        MicMuteKey = C(MicMuteKey, 0, 135, d.MicMuteKey);
+        WinLockKey = C(WinLockKey, 0, 135, d.WinLockKey);
+        F2Key = C(F2Key, 0, 135, d.F2Key);
+        Brightness = C(Brightness, 0, 255, d.Brightness);
+        if (IndicatorOnColor is not { Length: 3 }) IndicatorOnColor = d.IndicatorOnColor;
+        if (LastColor is not null && LastColor.Length != 3) LastColor = null;
+        if (LastEffect is not (0 or 2 or 3 or 4 or 8 or 9 or 10 or 11)) LastEffect = 0;
+        GKeyVk = C(GKeyVk, 1, 254, d.GKeyVk);
+        GKeyScan = C(GKeyScan, 0, 0x1FF, 0);
+        PollSeconds = C(PollSeconds, 1, 10, d.PollSeconds);
+        OcCore = C(OcCore, 0, GpuOc.MaxUi, 0);
+        OcMem = C(OcMem, 0, GpuOc.MaxUi, 0);
+        if (Theme is not ("Legend" or "Fluent")) Theme = "Legend";
+        if (Profile is not ("Battery" or "Quiet" or "Balanced" or "Performance" or "Custom")) Profile = "Custom";
+        if (AcPreset is not ("Quiet" or "Balanced" or "Performance")) AcPreset = "Balanced";
+        if (ChimePack is not ("Soft" or "Classic")) ChimePack = "Soft";
+        if (ToastStyle is not ("Pill" or "Classic")) ToastStyle = "Pill";
+        KbdTimeoutMin = KbdTimeoutMin is 0 or 1 or 2 or 5 or 10 ? KbdTimeoutMin : 0;
+        if (double.IsNaN(RestOfSystemW) || RestOfSystemW is < 0 or > 100) RestOfSystemW = d.RestOfSystemW;
+    }
+
     /// <summary>v0.9.15: removes settings.json (next Load writes defaults).</summary>
     public static void Delete()
     {
-        try { if (File.Exists(FilePath)) File.Delete(FilePath); } catch { /* non-fatal */ }
+        foreach (var f in new[] { FilePath, FilePath + ".bak", FilePath + ".tmp" })
+            try { if (File.Exists(f)) File.Delete(f); } catch (Exception ex) { Log.Warn("Settings.Delete", ex); }
     }
 
     private const int CurrentVersion = 6;
     public int SettingsVersion { get; set; } = CurrentVersion;
 
+    private static readonly object SaveGate = new();
+
     public void Save()
     {
+        lock (SaveGate)
         try
         {
+            // 1.3.0-beta.1 (review #8): atomic. Write .tmp, flush to disk, then swap it in and keep the old file as .bak.
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            var tmp = FilePath + ".tmp";
+            var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+            using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var w = new StreamWriter(fs)) { w.Write(json); w.Flush(); fs.Flush(true); }
+            if (File.Exists(FilePath)) File.Replace(tmp, FilePath, FilePath + ".bak", ignoreMetadataErrors: true);
+            else File.Move(tmp, FilePath);
         }
-        catch { /* non-fatal */ }
+        catch (Exception ex) { Log.Warn("Settings.Save", ex); }
     }
 }

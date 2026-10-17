@@ -114,3 +114,30 @@ Why things are the way they are. Newest decisions win.
 - View switch = card swap (fully off screen, switch, rise): the 40 px dip showed the height jump.
 - On open, alienfan-cli / BIOS reads are single-flight and reused for 20 s (stacked ACPI calls froze the PC).
 - No network, by rule: tools are run by full System32 path (Services/SysExe.cs).
+
+## 1.3 (2026-10-17)
+- One pre-release for everything (Amine: one checklist, one test session). Risky parts sit behind gear > Debug toggles.
+- CLI hash allowlist instead of "trust current files": settings.json is user-writable, so a stored override would
+  defeat the check. New alienfx-tools versions need a new app build with their hashes.
+- HardwareController is a queue for ACPI-level calls only (CLIs, AWCC WMI, BIOS WMI); the USB HID has its own lock.
+- Ultimate detection: BootId over TickCount64 (Fast Startup keeps the tick count running).
+- Keyboard timeout uses the existing G-key hook and mouse raw input registered only while dark: no new always-on hook.
+- GPU % comes from Windows' GPU Engine counters for the adapter with the most dedicated memory in use (the RTX),
+  never NVML, so it can't wake the RTX on battery.
+- WPF-UI bumped to 4.3.0; the app only uses its theme dictionaries and SymbolIcon. Fallback: latest 3.x.
+- beta.1 A/B on the laptop: the refresh-timed slide thread won over the 1.2 UI-thread slide, and the transparent
+  layered window won over a normal DWM window (rounded corners + native shadow felt worse). Both toggles removed.
+
+## 1.3.0-beta.2 (2026-10-17)
+- Settings as a page inside the main window, not a tabbed popup: five tabs don't fit in the 290 px popup, and the
+  popup was its own layered window (the beta.1 first-frame hitch). The page reuses the F3/F4 card swap. All tab panels
+  stay in the layout (Hidden), so the page height is the tallest tab and tabs never resize the window.
+- Run on startup stays in the footer AND in General (one setting): it's the one switch people look for on the main view.
+- Soft + Pill are the defaults for upgrades too (Amine is the only beta user and picked them). Classic keeps the 1.2 look and sound.
+- Only the active chime pack is cached; switching stops playback first, then frees the unmanaged buffers.
+- 1.3.0: Amine shipped beta.2 straight to stable (Soft chimes crackled, the rest fine). Sounds moved from PlaySound to
+  a one-buffer waveOut per sound: no app-side refill can starve, and the device is closed right after (zero idle).
+  Hardware ACPI calls can still stall the whole machine; the 150 ms gap keeps the attack clean.
+- The pill fades (instead of sliding) with Reduce motion / Windows animations off, as the directive asks; the
+  classic card stays instant there, as in 1.2.
+

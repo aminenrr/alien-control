@@ -54,8 +54,9 @@ public partial class MainWindow : Window
     {
         // Only the active theme dictionary is loaded; it must be there before the XAML resolves its keys.
         App.ApplyTheme(_settings.Theme);
-        Motion.Enabled = !_settings.ReduceMotion;   // v0.8.2: Reduce motion = no animations at all
+        Motion.Enabled = !_settings.ReduceMotion && Motion.WindowsAnimations;   // v0.8.2 Reduce motion; 1.3: + Windows Animation effects
         InitializeComponent();
+        ApplyWindowMode();   // 1.3.0-beta.1 debug: normal window / slide engine
         ReduceMotionToggle.IsChecked = _settings.ReduceMotion;
         ThemeLegend.IsChecked = IsLegend;
         ThemeFluent.IsChecked = !IsLegend;
@@ -65,7 +66,7 @@ public partial class MainWindow : Window
         // G-key hook: always on since v0.8 (no off switch); "Detect key" lives in the gear menu.
         _gkey = new GKeyHook(_settings.GKeyVk, _settings.GKeyScan);
         _gkey.Pressed += () => Dispatcher.BeginInvoke(new Action(async () => await ToggleGModeAsync()));
-        _gkey.Install();
+        InputThread.Invoke(() => _gkey.Install());   // 1.3.0-beta.1: own thread (review #4)
         UpdateGKeyText();
         F2PresetsToggle.IsChecked = _settings.F2Presets;
         F3OpensToggle.IsChecked = _settings.F3Opens;
@@ -79,7 +80,7 @@ public partial class MainWindow : Window
         };
         SetCompact(true);
         SizeChanged += OnSizeChangedKeepCorner;
-        _macro.Install();
+        InputThread.Invoke(() => _macro.Install());
         SetHint(FanHint, "BIOS controlled", "BIOS");
         SetHint(GpuHint, "Optimus · RTX 3070 Ti", "OPTIMUS · 3070 Ti");
 
@@ -143,18 +144,6 @@ public partial class MainWindow : Window
             }
         };
 
-        // v0.8.2 gear flyout (StaysOpen=True so it can animate out): close on outside click / deactivate / minimize.
-        PreviewMouseDown += (_, e) =>
-        {
-            // Clicks inside the flyout also route here (Popup is in the window's logical tree), so skip those.
-            var src = e.OriginalSource as DependencyObject;
-            if (SettingsPopup.IsOpen && !_settingsPinned && !IsWithin(src, SettingsButton) && !IsWithin(src, SettingsPanel))
-                CloseSettings();
-        };
-        Deactivated += (_, _) =>
-        {
-            if (SettingsPopup.IsOpen && !_settingsPinned && !SettingsPanel.IsMouseOver) CloseSettings();
-        };
         StateChanged += (_, _) =>
         {
             if (WindowState == WindowState.Minimized) CloseSettings(instant: true);
@@ -179,9 +168,17 @@ public partial class MainWindow : Window
                    ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1").Split('+')[0];
         VersionText.Text = "v" + ver;
         AboutText.Text = $"Alien Controls {ver}. Fans, power and lighting by alienfx-tools (T-Troll, MIT). Not made by Dell or Alienware. Personal project built with AI help, use at your own risk.";
-        StartupToggle.IsChecked = Startup.IsEnabled();
+        _ = Dispatcher.InvokeAsync(async () => StartupToggle.IsChecked = StartupToggle2.IsChecked = await Startup.IsEnabledAsync());   // 1.3.0-beta.1: off the UI thread (review #4)
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
         InitAuto(); // v0.9.11 auto preset + toasts
+        InitKbdTimeout();   // 1.3.0-beta.1
+        InitDebugToggles();
+        InitSettingsPage();   // 1.3.0-beta.2
+        _ = Task.Run(() => FolderSafety.UserWritable(AppContext.BaseDirectory)).ContinueWith(t =>
+        {
+            if (t.Result) Dispatcher.BeginInvoke(new Action(() =>
+                Status("Heads-up: this folder can be changed without admin rights. Move Alien Controls to C:\\Program Files\\Alien Controls.")));
+        });
 
         if (!_fan.IsAvailable || !_fx.IsAvailable)
             Status((_fan.IsAvailable ? "alienfx-cli.exe" : _fx.IsAvailable ? "alienfan-cli.exe" : "alienfan-cli.exe and alienfx-cli.exe")
@@ -230,7 +227,7 @@ public partial class MainWindow : Window
                 }
             }
         }
-        catch { /* fall back to WorkArea */ }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:238", __e); /* fall back to WorkArea */ }
         double w = ActualWidth > 0 ? ActualWidth : Width;
         double h = ActualHeight > 0 ? ActualHeight : 700;
         return (right - w - 4, Math.Max(0, bottom - h - 4));
@@ -244,7 +241,6 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e)
     {
         if (!ShowInTaskbar) { HideToTray(); return; }   // v1.1: no taskbar button to restore from
-        CloseSettings(instant: true);
         if (!Motion.Enabled || _hiding) { WindowState = WindowState.Minimized; return; }
         int gen = ++_showGen;
         try
@@ -268,7 +264,7 @@ public partial class MainWindow : Window
     // per frame): the compositor moves the already-drawn window, rising out of the bottom screen edge on open and
     // dropping back past it on hide. The per-frame hook lives only for the 250 / 170 ms of a slide.
 
-    private const int OpenMs = 250, HideMs = 150;   // 1.2.0-beta.3: hide 170 -> 150 ms
+    private const int OpenMs = 280, HideMs = 150;   // 1.3.0-beta.1: open 250 -> 280 ms with the softer Open curve   // 1.2.0-beta.3: hide 170 -> 150 ms
     private int _showGen;     // bumps on every show/hide so a stale hide never fires after a re-show
     private bool _hiding;
     private bool _minSlid;    // v0.8.9: minimized by sliding down; the restore slides it back up
@@ -300,6 +296,7 @@ public partial class MainWindow : Window
     /// <summary>Called when the window becomes visible.</summary>
     private void PlayOpen()
     {
+        Motion.Enabled = !_settings.ReduceMotion && Motion.WindowsAnimations;   // 1.3.0-beta.1: follows Windows live
         _showGen++;
         _hiding = false;
         if (!Motion.Enabled || !_openParked) { _openParked = false; Slide.Stop(); SnapToCorner(); return; }
@@ -320,14 +317,13 @@ public partial class MainWindow : Window
     {
         int gen = _showGen;
         var (x, y) = RestDevice();
-        Slide.Run(x, y, OpenMs, CubicBezier.Decelerate, () => { if (gen == _showGen && !_hiding) SnapToCorner(); });
+        Slide.Run(x, y, OpenMs, CubicBezier.Open, () => { if (gen == _showGen && !_hiding) SnapToCorner(); });
     }
 
     /// <summary>Slide down past the screen edge over 170 ms, THEN Hide(). Instant with Reduce motion or minimized;
     /// a one-shot 400 ms safety net hides it if the slide never reports back.</summary>
     public void HideToTray()
     {
-        CloseSettings(instant: true);
         if (!IsVisible) return;
         if (!Motion.Enabled || WindowState == WindowState.Minimized || _hiding) { HideNow(); return; }
         _hiding = true;
@@ -363,11 +359,11 @@ public partial class MainWindow : Window
     // ---------- v0.9.13 idle trim: give memory back while the app sits in the tray ----------
     [DllImport("kernel32.dll")] private static extern bool SetProcessWorkingSetSize(IntPtr proc, IntPtr min, IntPtr max);
 
-    private async Task TrimSoonAsync(int gen)
+    private async Task TrimSoonAsync(int gen, int delayMs = 60000)
     {
         // 1.2.0-beta.3: 60 s (was 3 s). Trimming right after a hide paged WPF out, so the next open had to fault it all
         // back in (sluggish F3/F4/tray opens). A quick reopen now stays warm; sitting in the tray still drops to a few MB.
-        await Task.Delay(60000);
+        await Task.Delay(delayMs);
         if (gen != _showGen || IsVisible) return;   // reopened meanwhile
         TrimMemory();
     }
@@ -380,10 +376,10 @@ public partial class MainWindow : Window
             using var p = System.Diagnostics.Process.GetCurrentProcess();
             SetProcessWorkingSetSize(p.Handle, new IntPtr(-1), new IntPtr(-1));
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:388", __e); }
     }
 
-    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _macro.Dispose(); _indicatorTimer.Stop(); _watch?.Dispose(); }
+    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); InputThread.Invoke(() => { _gkey.Dispose(); _macro.Dispose(); }); InputThread.Shutdown(); _indicatorTimer.Stop(); _watch?.Dispose(); }
 
     // ---------- status keys ----------
 
@@ -403,7 +399,9 @@ public partial class MainWindow : Window
             _lightsManaged = true;
         }
         _indicatorTimer.Start();
-        if (!IsVisible) _ = TrimSoonAsync(_showGen);   // started to tray: trim once things have settled
+        // started to tray: trim once things have settled. 1.3.0-beta.2: 10 s (was 60 s), so the first-start peak
+        // (~100 MB: theme, XAML, CLI + WMI reads) drops to a few MB right away instead of after a minute or more.
+        if (!IsVisible) _ = TrimSoonAsync(_showGen, 10000);
     }
 
     /// <summary>Reads current states into _indicators; returns the keys whose state changed.</summary>
@@ -510,6 +508,10 @@ public partial class MainWindow : Window
 
             if (SystemStats.Ram() is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
             if (_stats.Vram() is { } vram) SetMem(VramText, VramTextUnit, VramBar, vram.Used, vram.Total);
+            // 1.3.0-beta.1 CPU % / GPU %
+            if (_stats.CpuUsage() is { } cpuUse) { CpuUseText.Text = cpuUse.ToString("0"); CpuUseBar.Value = cpuUse; }
+            if (_gpu.Kind == GpuModeKind.IGpuOnly) { GpuUseText.Text = "Off"; GpuUseUnit.Text = ""; GpuUseBar.Value = 0; }
+            else if (_stats.GpuUsage() is { } gpuUse) { GpuUseText.Text = gpuUse.ToString("0"); GpuUseUnit.Text = " %"; GpuUseBar.Value = gpuUse; }
 
         }
         finally { _polling = false; }
@@ -522,7 +524,7 @@ public partial class MainWindow : Window
         if (_powerBusy) return;
         _powerBusy = true;
         try { ShowPower(await Task.Run(_power.Sample)); }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:530", __e); }
         finally { _powerBusy = false; }
     }
 
@@ -607,6 +609,7 @@ public partial class MainWindow : Window
         else
             Notify(new Toast.Info(CurrentProfile, "Icon.GMode", "G-Mode off", $"Back to {Profiles.Label(CurrentProfile)} · fans auto",
                 Toast.Right.SwitchOff, Lit: false), Sounds.Kind.GModeOff);
+        await Task.Delay(150);   // 1.3.0: like F2, the chime's attack plays before the ACPI calls start (crackle)
         if (current)
         {
             await _fan.SetGModeAsync(false);
@@ -627,20 +630,18 @@ public partial class MainWindow : Window
     private void GKeyDetect_Click(object sender, RoutedEventArgs e)
     {
         GKeyText.Text = "Press the G-key (F1) now…";
-        _settingsPinned = true;
         _gkey.LearnNext = (vk, scan) => Dispatcher.BeginInvoke(new Action(() =>
         {
             _settings.GKeyVk = _gkey.Vk = vk;
             _settings.GKeyScan = _gkey.Scan = scan;
             _settings.Save();
             UpdateGKeyText();
-            _settingsPinned = false;
             Status($"G-key set to key 0x{vk:X2} (scan 0x{scan:X2}).");
         }));
     }
 
     private void UpdateGKeyText() =>
-        GKeyText.Text = $"G-key (F1) toggles G-Mode · key 0x{_settings.GKeyVk:X2}";
+        GKeyText.Text = $"Key 0x{_settings.GKeyVk:X2}";
 
     private async void Cpu_Click(object sender, RoutedEventArgs e)
     {
@@ -843,12 +844,17 @@ public partial class MainWindow : Window
         if (_lightsManaged) await ApplyLightingAsync(_lastColor);
     }
 
-    private void Startup_Click(object sender, RoutedEventArgs e)
+    private async void Startup_Click(object sender, RoutedEventArgs e)
     {
-        bool want = StartupToggle.IsChecked == true;
-        if (!Startup.SetEnabled(want))
+        // 1.3.0-beta.2: the footer switch and the settings page row are the same setting
+        bool want = (sender as CheckBox ?? StartupToggle).IsChecked == true;
+        StartupToggle.IsChecked = StartupToggle2.IsChecked = want;
+        StartupToggle.IsEnabled = StartupToggle2.IsEnabled = false;
+        bool ok = await Startup.SetEnabledAsync(want);
+        StartupToggle.IsEnabled = StartupToggle2.IsEnabled = true;
+        if (!ok)
         {
-            StartupToggle.IsChecked = !want;
+            StartupToggle.IsChecked = StartupToggle2.IsChecked = !want;
             Status("Couldn't change the startup task.");
         }
     }
@@ -884,7 +890,7 @@ public partial class MainWindow : Window
         top.GradientStops.Add(new GradientStop(Color.FromRgb(0x7C, 0x4D, 0xFF), 0.82));
         top.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0x7C, 0x4D, 0xFF), 1));
         res["TopLineBrush"] = Freeze(top);
-        try { Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(col, Wpf.Ui.Appearance.ApplicationTheme.Dark); } catch { }
+        try { Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(col, Wpf.Ui.Appearance.ApplicationTheme.Dark); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:895", __e); }
         AccentColor = col;
         (Application.Current as App)?.UpdateTrayMenu(legend, col);   // v0.8.7: tray menu follows theme + accent
         // v0.8.10: line icons bind Stroke to their inherited TextElement.Foreground; WPF updated them one click late
@@ -943,67 +949,6 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(new Action(SnapToCorner), DispatcherPriority.Loaded);
     }
 
-    // ---------- gear flyout (v0.8.8: the popup's own window slides up 14 DIP natively, 160 ms decelerate;
-    // out 120 ms accelerate; instant with Reduce motion). Same reason as the main window: content animations
-    // inside a transparent window weren't being presented. ----------
-
-    private bool _settingsPinned;   // "Detect key" keeps the flyout open while it waits for the G-key
-    private int _flyGen;
-    private WindowSlide? _flySlide;
-    private int _flyRestY = int.MinValue;
-    private IntPtr FlyHwnd => (PresentationSource.FromVisual(SettingsPanel) as System.Windows.Interop.HwndSource)?.Handle ?? IntPtr.Zero;
-    private WindowSlide FlySlide => _flySlide ??= new WindowSlide(() => FlyHwnd);
-    private int FlyOffset => (int)Math.Round(14 * (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M22 ?? 1.0));
-
-    private void Settings_Click(object sender, RoutedEventArgs e)
-    {
-        if (SettingsPopup.IsOpen) CloseSettings();
-        else OpenSettings();
-    }
-
-    private void OpenSettings()
-    {
-        int gen = ++_flyGen;
-        bool reopening = SettingsPopup.IsOpen && FlySlide.Active;   // clicked again while it was sliding out
-        SettingsPopup.IsOpen = true;
-        ResetFlyout();
-        if (!Motion.Enabled) return;
-        var h = FlyHwnd;
-        if (h == IntPtr.Zero) return;
-        var r = WindowSlide.Rect(h);
-        if (!reopening || _flyRestY == int.MinValue) _flyRestY = r.Top;
-        if (!reopening) WindowSlide.Move(h, r.Left, _flyRestY + FlyOffset);
-        FlySlide.Run(r.Left, _flyRestY, 160, CubicBezier.Decelerate, null);
-    }
-
-    private void CloseSettings(bool instant = false)
-    {
-        if (!SettingsPopup.IsOpen) return;
-        int gen = ++_flyGen;
-        var h = FlyHwnd;
-        if (instant || !Motion.Enabled || !IsVisible || h == IntPtr.Zero)
-        {
-            _flySlide?.Stop();
-            SettingsPopup.IsOpen = false;
-            return;
-        }
-        try
-        {
-            var r = WindowSlide.Rect(h);
-            if (_flyRestY == int.MinValue) _flyRestY = r.Top;
-            FlySlide.Run(r.Left, _flyRestY + FlyOffset, 120, CubicBezier.Accelerate,
-                () => { if (gen == _flyGen) SettingsPopup.IsOpen = false; });
-        }
-        catch { _flySlide?.Stop(); SettingsPopup.IsOpen = false; }
-    }
-
-    /// <summary>Clears any content animation left on the panel (older builds animated it directly).</summary>
-    private void ResetFlyout()
-    {
-        Motion.Set(SettingsPanel, OpacityProperty, 1);
-        SettingsPanel.RenderTransform = Transform.Identity;
-    }
-
     private static bool IsWithin(DependencyObject? d, DependencyObject ancestor)
     {
         for (var x = d; x is not null; x = x is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(x) : LogicalTreeHelper.GetParent(x))
@@ -1014,9 +959,9 @@ public partial class MainWindow : Window
     private void ReduceMotion_Click(object sender, RoutedEventArgs e)
     {
         _settings.ReduceMotion = ReduceMotionToggle.IsChecked == true;
-        Motion.Enabled = !_settings.ReduceMotion;
+        Motion.Enabled = !_settings.ReduceMotion && Motion.WindowsAnimations;
         _settings.Save();
-        if (_settings.ReduceMotion) { ResetFlyout(); Motion.Set(PresetButton, OpacityProperty, 1); }
+        if (_settings.ReduceMotion) Motion.Set(PresetButton, OpacityProperty, 1);
     }
 
     private void SelectSwatch(byte[] c)
@@ -1060,7 +1005,6 @@ public partial class MainWindow : Window
 
     private async void ResetSettings_Click(object sender, RoutedEventArgs e)
     {
-        CloseSettings(instant: true);
         var pick = await ShowGpuDialog("Reset settings?",
             "Theme, toggles, colors, effect, G-key, OC values and presets go back to defaults, then the app restarts. "
             + "Run on startup, the BIOS and the GPU mode stay as they are. GPU OC goes back to +0.",
@@ -1117,7 +1061,8 @@ public partial class MainWindow : Window
     {
         var prev = _gpu;
         var setUtc = _settings.GpuSwitchSetUtc;
-        var st = await Task.Run(() => GpuMode.Read(withBios, setUtc));
+        var setBoot = _settings.GpuSwitchSetBootId;
+        var st = await Task.Run(() => GpuMode.Read(withBios, setUtc, setBoot));
         if (!withBios)
         {
             // only the BIOS read can tell Ultimate apart: keep what the last full read said
@@ -1212,6 +1157,9 @@ public partial class MainWindow : Window
     {
         int gen = ++_gpuNoteGen;
         _gpuNoteSticky = ms == 0;
+        // 1.3.0-beta.1: no resize mid-slide; the note waits until the slide lands (at most ~0.6 s)
+        for (int i = 0; i < 40 && (_slide?.Active == true || _viewSwitching || _openParked); i++) await Task.Delay(16);
+        if (gen != _gpuNoteGen) return;
         GpuNote.Text = text;
         GpuNote.Foreground = new System.Windows.Media.SolidColorBrush(color);
         GpuNote.Visibility = Visibility.Visible;
@@ -1345,7 +1293,7 @@ public partial class MainWindow : Window
         {
             if (!_gpu.PendingRestart) return;
             var undo = await Task.Run(() => GpuMode.SetUltimate(isUlt));
-            if (undo is null) { _settings.GpuSwitchSetUtc = null; _settings.Save(); }
+            if (undo is null) { _settings.GpuSwitchSetUtc = null; _settings.GpuSwitchSetBootId = null; _settings.Save(); }
             Status(undo ?? "Switch cancelled. No restart needed.");
             return;
         }
@@ -1362,6 +1310,7 @@ public partial class MainWindow : Window
         var err = await Task.Run(() => GpuMode.SetUltimate(toUlt));
         if (err is not null) { Status(err); return; }
         _settings.GpuSwitchSetUtc = DateTime.UtcNow;
+        _settings.GpuSwitchSetBootId = GpuMode.BootId();
         _settings.Save();
         if (pick == "now") { GpuMode.RestartNow(); return; }
         Status(toUlt ? "Ultimate is set. It takes effect after your next restart." : "Advanced Optimus is set. It takes effect after your next restart.");
@@ -1425,6 +1374,7 @@ public partial class MainWindow : Window
         Hz60.IsChecked = DisplayRefresh.IsActive(s, 60);
         Hz240.IsChecked = DisplayRefresh.IsActive(s, 240);
         SetHint(RefreshHint, $"{s.CurrentHz} Hz", $"{s.CurrentHz} Hz");
+        Motion.Fps = Math.Clamp(s.CurrentHz, 30, 240);   // 1.3.0-beta.1: storyboards follow the panel
         Hz60.ToolTip = Hz60.IsEnabled ? null : $"60 Hz isn't offered at {s.Width}x{s.Height}";
         Hz240.ToolTip = Hz240.IsEnabled ? null : $"240 Hz isn't offered at {s.Width}x{s.Height}";
     }
@@ -1518,13 +1468,7 @@ public partial class MainWindow : Window
         if (rate) Show();
     }
 
-    private static TrayProfile NextPreset(TrayProfile p) => p switch
-    {
-        TrayProfile.Quiet => TrayProfile.Balanced,
-        TrayProfile.Balanced => TrayProfile.Performance,
-        TrayProfile.Performance => OnAc ? TrayProfile.Quiet : TrayProfile.Battery,
-        _ => TrayProfile.Quiet,
-    };
+    private static TrayProfile NextPreset(TrayProfile p) => Profiles.NextPreset(p, OnAc);
 
     /// <summary>F2 key color for the shown preset; none (normal key color) in G-Mode, Battery, Custom or when off.</summary>
     private void UpdateF2Tint(TrayProfile p)

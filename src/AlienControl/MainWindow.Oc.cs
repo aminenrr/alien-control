@@ -46,6 +46,7 @@ public partial class MainWindow
             {
                 _ocApplied = null;                 // a sleep can reset the driver: write again once it has settled
                 await Task.Delay(3000);
+                await OnResumeAsync();
             }
             if (e.Mode != Microsoft.Win32.PowerModes.Suspend) await SyncOcAsync();
         }));
@@ -111,6 +112,52 @@ public partial class MainWindow
         ShowCpuBoost(ac);
     }
 
+    /// <summary>1.3.0-beta.1: everything Quit undoes before the process exits, async so the UI thread never blocks.
+    /// Review #9: the Quiet 3.0 GHz cap is cleared from the power plan. Review #10: iGPU only offers to turn the RTX back on.</summary>
+    public async Task PrepareExitAsync()
+    {
+        if (_gpu.Kind == GpuModeKind.IGpuOnly)
+        {
+            ((App)Application.Current).ShowMain(full: true);
+            var pick = await ShowGpuDialog("The RTX is still off",
+                "iGPU only stays on after Alien Controls quits (it survives restarts and uninstalling). Turn the RTX back on now?",
+                null, null, ("keep", "Keep it off", false), ("on", "Turn it on", true));
+            if (pick == "on") { _power.GpuOff = true; await GpuMode.SetDgpuEnabledAsync(true); }
+        }
+        if (_boostForced && RestoreLevels() is { } lv)
+        {
+            _boostForced = false;
+            try { await _fan.SetCpuBoostAsync(lv.Ac, lv.Dc); } catch (Exception ex) { Services.Log.Warn("Exit boost", ex); }
+        }
+        try { await CpuFreq.ApplyAsync(1, 1); }   // no cap on AC or battery
+        catch (Exception ex) { Services.Log.Warn("Exit CPU cap", ex); }
+    }
+
+    /// <summary>1.3.0-beta.1 (review #12): after sleep, check what the EC kept. The preset is re-applied only when the
+    /// BIOS power mode no longer matches it; lighting and status keys are re-sent (one frame, cheap). Each finding goes
+    /// to the local log so the checklist's resume probe can see what actually reset.</summary>
+    private async Task OnResumeAsync()
+    {
+        try
+        {
+            _stateReadUtc = DateTime.MinValue;   // next open re-reads everything
+            var raw = await _fan.GetPowerRawAsync();
+            var want = CurrentProfile;
+            int? wantIdx = want switch
+            {
+                TrayProfile.Battery => _settings.BatteryPowerIndex, TrayProfile.Quiet => _settings.QuietPowerIndex,
+                TrayProfile.Balanced => _settings.BalancedPowerIndex, TrayProfile.Performance => _settings.PerformancePowerIndex, _ => null,
+            };
+            bool g = await _fan.GetGModeAsync() == true;
+            bool presetLost = !g && wantIdx is int i && raw is int r && _settings.PowerRawByIndex.TryGetValue(i, out var exp) && exp != r;
+            Services.Log.Info("Resume", $"preset {want}, power raw {(raw is int v ? v.ToString("x") : "?")}, G-Mode {g}, re-apply {presetLost}");
+            if (presetLost) await ApplyProfileAsync(want);
+            if (_lightsManaged) { _f2Dirty = true; await ApplyLightingAsync(_lastColor); }
+            await SyncIndicatorsAsync();
+        }
+        catch (Exception ex) { Services.Log.Warn("Resume", ex); }
+    }
+
     /// <summary>Synchronous boost restore for Quit when G-Mode forced Aggressive.</summary>
     private void RestoreBoostOnExit()
     {
@@ -119,7 +166,7 @@ public partial class MainWindow
         if (RestoreLevels() is not { } lv) return;
         var (ac, dc) = lv;
         try { Task.Run(async () => { await _fan.SetCpuBoostAsync(ac, dc); await CpuFreq.ApplyAsync(ac, dc); }).Wait(4000); }
-        catch { /* exiting anyway */ }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Oc.cs:169", __e); /* exiting anyway */ }
     }
 
     /// <summary>Brings the driver in line with G-Mode + AC + the kept offsets. Cheap when nothing changes.</summary>
@@ -157,7 +204,7 @@ public partial class MainWindow
         _ocTimer.Stop();
         if (_ocTesting) { _settings.OcPending = false; _settings.Save(); }
         if (_ocApplied is (0, 0)) return;
-        try { GpuOc.Set(0, 0); } catch { /* exiting anyway */ }
+        try { GpuOc.Set(0, 0); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Oc.cs:207", __e); /* exiting anyway */ }
     }
 
     private void Oc_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)

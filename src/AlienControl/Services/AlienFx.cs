@@ -20,6 +20,7 @@ public sealed class AlienFx
     public bool IsAvailable => _cli.IsAvailable;
 
     private readonly KeyboardHid _hid = new();
+    public KeyboardHid Hid => _hid;
 
     /// <summary>Scales a color by brightness 0..255 (software dimming).</summary>
     public static byte[] Dim(byte[] c, int brightness) =>
@@ -74,7 +75,7 @@ public sealed class AlienFx
     /// </summary>
     public async Task ResetHardwareDimAsync()
     {
-        await Task.Run(() => { try { _hid.SetBrightness(255); } catch { } });
+        await Task.Run(() => { try { _hid.SetBrightness(255); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("AlienFx.cs:77", __e); } });
         await _cli.RunAsync($"setdim={_s.ChassisDevice},255");
     }
 

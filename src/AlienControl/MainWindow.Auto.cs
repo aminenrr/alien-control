@@ -45,9 +45,10 @@ public partial class MainWindow
     private async Task OnPowerLineAsync()
     {
         bool ac = OnAc;
-        if (ac == _wasAc || _autoBusy) return;   // StatusChange also fires for battery % changes
+        if (ac == _wasAc || _autoBusy) return;   // busy: the finally below re-checks   // StatusChange also fires for battery % changes
         _wasAc = ac;
         ApplyBatteryLock();
+        UpdateKbdTimer();   // 1.3.0-beta.1: "On battery only" timeout
         if (!_settings.AutoPreset) return;
         _autoBusy = true;
         try
@@ -56,10 +57,9 @@ public partial class MainWindow
             {
                 bool wasG = _gmodeOn || await _fan.GetGModeAsync() == true;
                 var cur = CurrentProfile;
-                _settings.AcPreset = !wasG && cur is TrayProfile.Quiet or TrayProfile.Balanced or TrayProfile.Performance
-                    ? cur.ToString() : nameof(TrayProfile.Balanced);
+                _settings.AcPreset = Profiles.RememberOnUnplug(cur, wasG).ToString();
                 _settings.Save();
-                if (cur == TrayProfile.Battery && !wasG) return;
+                if (!Profiles.SwitchOnUnplug(cur, wasG)) return;
                 await ApplyProfileAsync(TrayProfile.Battery);
                 Notify(new Toast.Info(TrayProfile.Battery, "Icon.Battery", "On battery",
                        wasG ? "G-Mode off · OC back to +0 · 60 Hz" : "Battery preset · 60 Hz · power saving", Toast.Right.Chip),
@@ -67,15 +67,15 @@ public partial class MainWindow
             }
             else
             {
-                if (CurrentProfile != TrayProfile.Battery || _gmodeOn) return;   // picked something else on battery: keep it
-                var p = Enum.TryParse<TrayProfile>(_settings.AcPreset, out var s) && s is TrayProfile.Quiet or TrayProfile.Balanced or TrayProfile.Performance
-                    ? s : TrayProfile.Balanced;
+                if (Profiles.RestoreOnPlug(CurrentProfile, _gmodeOn, _settings.AcPreset) is not { } p) return;   // picked something else on battery: keep it
                 await ApplyProfileAsync(p);
                 Notify(new Toast.Info(p, "Icon.Plug", "Plugged in", $"Back to {Profiles.Label(p)} · 240 Hz", Toast.Right.Chip),
                        Sounds.Kind.Plug);
             }
         }
         finally { _autoBusy = false; }
+        // 1.3.0-beta.1 (review #5): a quick unplug + replug during the switch was dropped; check the line again.
+        if (OnAc != _wasAc) await OnPowerLineAsync();
     }
 
     /// <summary>Toast + sound, each with its own gear toggle. v0.9.12: after a refresh-rate change (Battery 60 Hz <-> 240 Hz)
@@ -111,12 +111,14 @@ public partial class MainWindow
     {
         _settings.Toasts = ToastsToggle.IsChecked == true;
         _settings.Save();
+        UpdateSettingsDims();
     }
 
     private void ToastSound_Click(object sender, RoutedEventArgs e)
     {
         _settings.ToastSound = ToastSoundToggle.IsChecked == true;
         _settings.Save();
+        UpdateSettingsDims();
         if (_settings.ToastSound) Sounds.Play(Sounds.Kind.Balanced);   // let them hear it
     }
 }

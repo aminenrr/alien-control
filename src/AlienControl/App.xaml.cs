@@ -15,6 +15,8 @@ public partial class App : Application
     private MainWindow? _window;
     private readonly Dictionary<TrayProfile, WinForms.ToolStripMenuItem> _profileItems = new();
     private Icon? _baseIcon;
+    private System.Threading.Mutex? _single;
+    private System.Threading.EventWaitHandle? _showEvent;
     private IntPtr _tintHandle;
     private WinForms.ContextMenuStrip? _menu;
     private Font? _menuFont;
@@ -39,8 +41,24 @@ public partial class App : Application
         DispatcherUnhandledException += (_, a) => CrashLog("UI", a.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, a) => CrashLog("Domain", a.ExceptionObject as Exception);
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, a) => { CrashLog("Task", a.Exception); a.SetObserved(); };
-        // v0.9.15: started by Reset settings: give the old instance a moment to let go of the HID / hooks.
-        if (e.Args.Contains("--restarted", StringComparer.OrdinalIgnoreCase)) System.Threading.Thread.Sleep(1200);
+        // 1.3.0-beta.1 (review #1): single instance. A second copy wakes the first one's window and exits, so there's
+        // never two tray icons / two G-key hooks (F1 toggling twice, F2 skipping a preset).
+        _single = new System.Threading.Mutex(true, @"Local\AlienControls.SingleInstance", out bool first);
+        _showEvent = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, @"Local\AlienControls.Show");
+        if (!first)
+        {
+            // Reset settings starts a new copy while the old one is exiting: wait for it to let go.
+            bool restarted = e.Args.Contains("--restarted", StringComparer.OrdinalIgnoreCase);
+            try { first = restarted && _single.WaitOne(8000); } catch (System.Threading.AbandonedMutexException) { first = true; }
+            if (!first)
+            {
+                if (!e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase)) _showEvent.Set();
+                Shutdown();
+                return;
+            }
+        }
+        System.Threading.ThreadPool.RegisterWaitForSingleObject(_showEvent, (_, _) =>
+            Dispatcher.BeginInvoke(new Action(() => ShowMain())), null, -1, false);   // kernel wait, no polling
 
         _window = new MainWindow();
         _window.ProfileChanged += p => Dispatcher.BeginInvoke(new Action(() => ShowProfile(p)));
@@ -52,18 +70,7 @@ public partial class App : Application
             ShowMain();
     }
 
-    private static void CrashLog(string where, Exception? ex)
-    {
-        try
-        {
-            var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl");
-            System.IO.Directory.CreateDirectory(dir);
-            var f = System.IO.Path.Combine(dir, "crash.log");
-            if (System.IO.File.Exists(f) && new System.IO.FileInfo(f).Length > 256 * 1024) System.IO.File.Delete(f);
-            System.IO.File.AppendAllText(f, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {where}: {ex}\n\n");
-        }
-        catch { }
-    }
+    private static void CrashLog(string where, Exception? ex) => Log.Error(where, ex);
 
     private void CreateTray()
     {
@@ -123,6 +130,12 @@ public partial class App : Application
     {
         if (_window is null) return;
         bool sameView = _window.IsCompact == !full;
+        if (_window.SettingsShown && _window.IsShownOpen)   // 1.3.0-beta.2: on the settings page F3 / F4 just hide (or focus)
+        {
+            if (_window.IsActive) _window.HideToTray();
+            else { _window.Activate(); ForceForeground(); }
+            return;
+        }
         if (_window.IsShownOpen && _window.IsActive && sameView) _window.HideToTray();
         else if (_window.IsShownOpen)
         {
@@ -187,7 +200,7 @@ public partial class App : Application
             var res = GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"));
             if (res is not null) return new Icon(res.Stream, WinForms.SystemInformation.SmallIconSize);
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("App.xaml.cs:197", __e); }
         return Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? "") ?? SystemIcons.Application;
     }
 
@@ -225,8 +238,14 @@ public partial class App : Application
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] private static extern bool BringWindowToTop(IntPtr h);
 
-    public void Quit()
+    private bool _quitting;
+
+    public async void Quit()
     {
+        if (_quitting) return;
+        _quitting = true;
+        try { if (_window is not null) await _window.PrepareExitAsync(); }
+        catch (Exception ex) { Log.Warn("PrepareExit", ex); }
         if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); }
         if (_tintHandle != IntPtr.Zero) DestroyIcon(_tintHandle);
         _window?.AllowClose();
@@ -246,7 +265,7 @@ public partial class App : Application
             if (exe is not null)
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "--restarted") { UseShellExecute = false });
         }
-        catch { /* user can start it again */ }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("App.xaml.cs:262", __e); /* user can start it again */ }
         Shutdown();
     }
 }

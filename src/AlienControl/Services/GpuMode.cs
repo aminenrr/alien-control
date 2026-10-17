@@ -47,7 +47,7 @@ public static class GpuMode
                     list.Add(new Adapter(o["Name"]?.ToString() ?? "", o["PNPDeviceID"]?.ToString() ?? "",
                         Convert.ToInt32(o["ConfigManagerErrorCode"] ?? 0)));
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.cs:50", __e); }
         return list;
     }
 
@@ -79,7 +79,18 @@ public static class GpuMode
 
     /// <summary>Reads everything. withBios = also ask the BIOS (slower, only on window show and after a change).</summary>
     /// <param name="switchSetUtc">When the app last wrote the BIOS switch (Settings.GpuSwitchSetUtc).</param>
-    public static State Read(bool withBios, DateTime? switchSetUtc = null)
+    /// <summary>Windows' boot counter (Memory Management\PrefetchParameters\BootId), or null.</summary>
+    public static int? BootId()
+    {
+        try
+        {
+            using var k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters");
+            return k?.GetValue("BootId") is int v ? v : null;
+        }
+        catch (Exception ex) { Log.Warn("BootId", ex); return null; }
+    }
+
+    public static State Read(bool withBios, DateTime? switchSetUtc = null, int? switchSetBootId = null)
     {
         var kind = Current(Adapters());
         bool? bios = null;
@@ -97,8 +108,16 @@ public static class GpuMode
             // v0.9.3: on the m15 R7 the Intel GPU stays listed (and OK) in Ultimate, so the adapters can't tell
             // Ultimate from NVIDIA GPU only. The BIOS value can: it's what this boot used, unless the app changed it
             // after the boot (then the running mode is the other one).
-            var bootUtc = DateTime.UtcNow - TimeSpan.FromMilliseconds(Environment.TickCount64);
-            bool changedSinceBoot = switchSetUtc is DateTime t && t > bootUtc;
+            // 1.3.0-beta.1 (review #11): TickCount64 doesn't reset on a Fast Startup "shut down", so the boot is
+            // identified by Windows' BootId (bumped on every boot, Fast Startup included), saved at switch time.
+            // Falls back to the tick count when either id is missing.
+            bool changedSinceBoot;
+            if (switchSetBootId is int id && BootId() is int now) changedSinceBoot = switchSetUtc is not null && id == now;
+            else
+            {
+                var bootUtc = DateTime.UtcNow - TimeSpan.FromMilliseconds(Environment.TickCount64);
+                changedSinceBoot = switchSetUtc is DateTime t && t > bootUtc;
+            }
             bool runningUlt = changedSinceBoot ? !b : b;
             if (runningUlt) kind = GpuModeKind.Ultimate;
             else if (kind == GpuModeKind.Ultimate) kind = GpuModeKind.DGpuOnly;
@@ -110,18 +129,21 @@ public static class GpuMode
     /// <summary>Restarts Windows now (after a BIOS graphics change).</summary>
     public static void RestartNow()
     {
-        try { Process.Start(new ProcessStartInfo(SysExe.Get("shutdown.exe"), "/r /t 0") { CreateNoWindow = true, UseShellExecute = false }); } catch { }
+        try { Process.Start(new ProcessStartInfo(SysExe.Get("shutdown.exe"), "/r /t 0") { CreateNoWindow = true, UseShellExecute = false }); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.cs:132", __e); }
     }
 
-    public static GpuModeKind Current(List<Adapter> a)
+    public static GpuModeKind Current(List<Adapter> a) => Current(a, null, probePanel: true);
+
+    /// <summary>1.3.0-beta.1: testable core. panelOnNvidia = what the panel probe said (probePanel=false skips the probe).</summary>
+    internal static GpuModeKind Current(List<Adapter> a, bool? panelOnNvidia, bool probePanel)
     {
         var intel = a.FirstOrDefault(x => x.IsIntel);
         var nv = a.FirstOrDefault(x => x.IsNvidia);
         if (nv is null) return GpuModeKind.Unknown;
         if (intel is null || !intel.Ok) return GpuModeKind.Ultimate; // BIOS hid the iGPU: MUX on
         if (nv.Disabled) return GpuModeKind.IGpuOnly;
-        var panel = InternalPanelOnNvidia();
-        if (panel is null) panel = ReadNvidiaFlags().MuxState is int m ? m == 2 : null;   // fallback: NVIDIA's record (2 = RTX)
+        var panel = probePanel ? InternalPanelOnNvidia() : panelOnNvidia;
+        if (panel is null && probePanel) panel = ReadNvidiaFlags().MuxState is int m ? m == 2 : null;   // fallback: NVIDIA's record (2 = RTX)
         if (panel == true) return GpuModeKind.DGpuOnly; // Advanced Optimus "NVIDIA GPU only" (or Auto with the RTX on the panel)
         return GpuModeKind.Optimus;
     }
@@ -174,7 +196,7 @@ public static class GpuMode
                 return name.adapterDevicePath.Contains("VEN_10DE", StringComparison.OrdinalIgnoreCase);
             }
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.cs:196", __e); }
         return null;
     }
 
@@ -194,31 +216,9 @@ public static class GpuMode
     }
 
     /// <summary>Processes holding dedicated GPU memory (the RTX; the Intel iGPU uses shared memory).</summary>
-    public static List<string> AppsUsingDgpu()
-    {
-        var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-        try
-        {
-            var cat = new PerformanceCounterCategory("GPU Process Memory");
-            int self = Environment.ProcessId;
-            foreach (var inst in cat.GetInstanceNames())
-            {
-                // pid_1234_luid_0x..._phys_0
-                var parts = inst.Split('_');
-                if (parts.Length < 2 || parts[0] != "pid" || !int.TryParse(parts[1], out int pid) || pid == self) continue;
-                using var c = new PerformanceCounter("GPU Process Memory", "Dedicated Usage", inst, true);
-                if (c.RawValue < 16L * 1024 * 1024) continue;
-                try
-                {
-                    var p = Process.GetProcessById(pid).ProcessName;
-                    if (!p.Equals("dwm", StringComparison.OrdinalIgnoreCase)) names.Add(p);
-                }
-                catch { }
-            }
-        }
-        catch { }
-        return names.ToList();
-    }
+    /// <summary>Names only (1.3.0-beta.1: one loop, review #15).</summary>
+    public static List<string> AppsUsingDgpu() =>
+        AppsUsingDgpuDetailed().Select(a => a.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
 
     /// <summary>1.2.0-beta.2: like AppsUsingDgpu, with each app's dedicated memory in MB, biggest first.</summary>
     public static List<(string Name, long Mb)> AppsUsingDgpuDetailed()
@@ -241,10 +241,10 @@ public static class GpuMode
                     if (p.Equals("dwm", StringComparison.OrdinalIgnoreCase)) continue;
                     by[p] = (by.TryGetValue(p, out var v) ? v : 0) + bytes;
                 }
-                catch { }
+                catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.cs:241", __e); }
             }
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.cs:244", __e); }
         return by.OrderByDescending(x => x.Value).Select(x => (x.Key, x.Value / (1024 * 1024))).ToList();
     }
 
@@ -264,7 +264,7 @@ public static class GpuMode
                 await p.WaitForExitAsync();
             }
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.cs:264", __e); }
     }
 
     private static async Task<(bool Ok, string Output)> PnpUtil(string verb, string id)
@@ -302,7 +302,7 @@ public static class GpuMode
     /// <summary>Finds the BIOS attribute that controls hybrid graphics / the MUX, if Dell exposes one.</summary>
     public static BiosAttr? FindGraphicsAttribute()
     {
-        foreach (var a in DellBios.EnumAttributes())
+        foreach (var a in HardwareController.Run(DellBios.EnumAttributes))
         {
             string key = a.Name.Replace(" ", "").ToLowerInvariant();
             bool hybrid = HybridWords.Any(key.Contains);
@@ -328,7 +328,7 @@ public static class GpuMode
         var value = Pick(attr.Possible, attr.MuxMeansOn ? ultimate : !ultimate);
         if (value is null) return $"Unknown values for {attr.Name}: {string.Join(", ", attr.Possible)}";
         if (value.Equals(attr.Current, StringComparison.OrdinalIgnoreCase)) return null;
-        return DellBios.SetAttribute(attr.Name, value);
+        return HardwareController.Run(() => DellBios.SetAttribute(attr.Name, value));
     }
 
     /// <summary>Text report of display adapters and BIOS attributes, copied for debugging.</summary>

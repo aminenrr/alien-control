@@ -3,6 +3,66 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.3.0 (2026-10-18)
+Stable release of 1.3.0-beta.1 (confirmed on the m15 R7) and beta.2, plus:
+- **Chime crackle fix**: sounds no longer go through PlaySound. Each one is handed to waveOut as one prepared buffer
+  (nothing in the app refills it while it plays), opened per sound and closed when it ends (nothing stays open).
+  F1 now waits 150 ms after the chime starts before the ACPI calls, like F2 already did. WAV reader is defensive
+  (16-bit PCM, 1-2 channels, 8-96 kHz, max 4 MB).
+
+## v1.3.0-beta.2 (2026-10-17)
+**New**
+- Chime pack (gear > Alerts): **Soft** (new default, warm mallet + soft pad, 48 kHz) or **Classic** (the 1.2 chimes).
+  Same 7 sounds, `Assets/Sounds/{Soft,Classic}`. Switching stops playback and frees the old pack's buffers; a play
+  button previews Balanced, then G-Mode on.
+- Toast style (gear > Alerts): **Pill** (new default) or **Classic** (the 1.2 top-right card). The pill is a ~640 x 76
+  capsule at the top center of the main screen: round tinted icon tile, title + detail, G-Mode switch / F2 position
+  dots / preset chip. Drops in over 220 ms, slides back up over 160 ms (slide thread); with Reduce motion or Windows
+  animations off it fades instead. Test button shows a sample. Click-through, never takes focus, one window per show.
+- Settings page: the gear opens a page inside the main window (card swap, back arrow or Esc), five tabs (General,
+  Keys, Alerts, Backlight, Advanced), at most 5 rows each, fixed height (no scrolling, no jump between tabs).
+  Dependent rows dim (toast style, chime pack, timeout options). Run on startup is in General and the footer. The last
+  tab is remembered for the session. Left / Right switch tabs. Keyboard timeout is now a segmented Off / 1 / 2 / 5 / 10.
+- Upgrades from beta.1 get Soft + Pill (new keys), every other value is kept. Unknown values fall back to the defaults.
+
+**Fixes / changes since beta.1**
+- Beta A/B decided on the laptop: the new slide engine stays (the 1.2 UI-thread slide is removed) and the transparent
+  window stays (Normal window felt worse, removed). Both debug toggles are gone; Log frame gaps remains (Advanced).
+- Gear flyout hitch gone (the popup is replaced); every slide also waits one composition before its clock starts
+  (beta.1 log: 65-96 ms first-step gaps).
+- Starting to the tray trims memory after 10 s (was 60 s), so the first-start peak drops to a few MB sooner.
+- Checklist step 27 uses `powercfg /qh` (PROCFREQMAX is a hidden setting).
+
+## v1.3.0-beta.1 (2026-10-17), confirmed on the m15 R7
+**Fixes (code review)**
+- Single instance: a second copy opens the first one's window and exits (no double tray icon / double F1 / skipped F2).
+- Startup task is created from XML: no "AC power only", no "stop on battery", no 72 h limit. Old tasks are rebuilt.
+- Keyboard HID: one cached handle and one lock for every frame (no interleaved frames, no SetupDi search per frame).
+- The G-key hook and the macro keys run on their own input thread. schtasks and the exit clean-up are async.
+- Auto preset re-checks the power line after a switch (a quick unplug + replug is no longer dropped).
+- Security: `nvml.dll` only from System32; the CLIs must match alienfx-tools 9.6.x SHA-256 hashes and are held
+  open while running; a warning when the app folder is writable without admin; README recommends Program Files.
+- Settings: every hardware value clamped on load; atomic save (`.tmp` + replace + `.bak`, load falls back to `.bak`).
+- Quit clears the Quiet 3.0 GHz cap and offers to turn the RTX back on in iGPU only.
+- Ultimate detection uses Windows' BootId (Fast Startup safe) instead of the tick count.
+- Resume: the preset is re-applied if the EC lost it, lighting and status keys are re-sent, findings logged.
+- One HardwareController queue for both CLIs, AWCC WMI reads and BIOS WMI calls.
+- Unit tests (CLI parsing, GPU mode, settings migration/clamps, Auto preset, startup XML) run in CI.
+- One NVML declaration file, one "apps using the RTX" loop; every silent catch now logs a warn line to `crash.log`.
+- Actions pinned to SHAs, Dependabot, `SHA256SUMS` next to each release zip. WPF-UI 3.0.5 -> 4.3.0. README GPU section: three buttons.
+
+**New**
+- Keyboard light timeout (gear): Off / 1 / 2 / 5 / 10 min, On battery only, Not in fullscreen games. Fades the
+  hardware brightness, any key / mouse / touchpad input wakes it at once. Paused during Rainbow / Spectrum.
+- CPU % / GPU % row under the temps (GetSystemTimes; RTX 3D engine from Windows' GPU Engine counters, no NVML). Off in iGPU only.
+
+**Animations**
+- New slide engine: a short-lived thread steps every slide once per composition (DwmFlush), placed for the vblank it
+  shows on, with async SetWindowPos. Drives open/close, minimize, the card swap and the toasts (now a slide, not a fade).
+- Softer open curve (0.25, 1, 0.5, 1) at 280 ms; layout done off screen; no GC during a slide; storyboards at the
+  panel's refresh rate (was 60 fps); follows Windows' Animation effects too.
+- Debug toggles (gear > Debug): New slide engine, Normal window (rounded corners + native shadow, restart), Log frame gaps.
+
 ## v1.2.0 (2026-10-17), confirmed on the m15 R7
 Stable release of the 1.2.0 betas (all tested on the laptop):
 - **New toasts + chimes**: card toasts (tinted icon tile, title + detail, F2 pills / G-Mode switch / plug chip), both

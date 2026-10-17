@@ -19,15 +19,8 @@ public static class GpuOc
     private const int ClockGraphics = 0, ClockMem = 2, PState0 = 0;
 
     // nvmlClockOffset_v1: version, type, pstate, clockOffsetMHz, minClockOffsetMHz, maxClockOffsetMHz (24 bytes).
-    [StructLayout(LayoutKind.Sequential)]
-    private struct ClockOffset { public uint Version; public int Type; public int PState; public int Cur; public int Min; public int Max; }
-    private static readonly uint Ver1 = (uint)Marshal.SizeOf<ClockOffset>() | (1u << 24);
+    private static readonly uint Ver1 = (uint)Marshal.SizeOf<Nvml.ClockOffset>() | (1u << 24);
 
-    [DllImport("nvml.dll")] private static extern int nvmlInit_v2();
-    [DllImport("nvml.dll")] private static extern int nvmlShutdown();
-    [DllImport("nvml.dll")] private static extern int nvmlDeviceGetHandleByIndex_v2(uint index, out IntPtr device);
-    [DllImport("nvml.dll")] private static extern int nvmlDeviceGetClockOffsets(IntPtr device, ref ClockOffset o);
-    [DllImport("nvml.dll")] private static extern int nvmlDeviceSetClockOffsets(IntPtr device, ref ClockOffset o);
 
     private static readonly object Gate = new();
 
@@ -41,11 +34,11 @@ public static class GpuOc
         {
             try
             {
-                int r = nvmlInit_v2();
+                int r = Nvml.nvmlInit_v2();
                 if (r != 0) return $"GPU OC: NVIDIA driver not ready (NVML {r}).";
                 try
                 {
-                    r = nvmlDeviceGetHandleByIndex_v2(0, out var dev);
+                    r = Nvml.nvmlDeviceGetHandleByIndex_v2(0, out var dev);
                     if (r != 0) return $"GPU OC: RTX not found (NVML {r}).";
                     var err = Write(dev, ClockGraphics, coreMhz) ?? Write(dev, ClockMem, memMhz * 2);
                     if (err is not null && (coreMhz != 0 || memMhz != 0))
@@ -55,7 +48,7 @@ public static class GpuOc
                     }
                     return err;
                 }
-                finally { nvmlShutdown(); }
+                finally { Nvml.nvmlShutdown(); }
             }
             catch (DllNotFoundException) { return "GPU OC: nvml.dll not found (NVIDIA driver missing)."; }
             catch (EntryPointNotFoundException) { return "GPU OC: this NVIDIA driver is too old for clock offsets."; }
@@ -67,13 +60,13 @@ public static class GpuOc
     private static string? Write(IntPtr dev, int type, int nvmlMhz)
     {
         string name = type == ClockGraphics ? "core" : "memory";
-        var o = new ClockOffset { Version = Ver1, Type = type, PState = PState0 };
-        int r = nvmlDeviceGetClockOffsets(dev, ref o);
+        var o = new Nvml.ClockOffset { Version = Ver1, Type = type, PState = PState0 };
+        int r = Nvml.nvmlDeviceGetClockOffsets(dev, ref o);
         if (r != 0) return $"GPU OC: can't read the {name} offset (NVML {r}).";
         if (nvmlMhz < o.Min || nvmlMhz > o.Max) return $"GPU OC: {name} offset out of the driver's range ({o.Min}..{o.Max}).";
         if (o.Cur == nvmlMhz) return null;
         o.Version = Ver1; o.Type = type; o.PState = PState0; o.Cur = nvmlMhz;
-        r = nvmlDeviceSetClockOffsets(dev, ref o);
+        r = Nvml.nvmlDeviceSetClockOffsets(dev, ref o);
         return r == 0 ? null : $"GPU OC: driver refused the {name} offset (NVML {r}).";
     }
 }

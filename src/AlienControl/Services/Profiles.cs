@@ -1,3 +1,4 @@
+using System;
 using System.Drawing;
 
 namespace AlienControl.Services;
@@ -9,6 +10,32 @@ public enum TrayProfile { Battery, Quiet, Balanced, Performance, Custom, GMode }
 
 public static class Profiles
 {
+    // ---- 1.3.0-beta.1: the F2 cycle and the Auto preset state machine as pure functions (review #14 tests) ----
+
+    /// <summary>F2: Quiet > Balanced > Performance > Quiet (on battery Performance > Battery > Quiet).</summary>
+    public static TrayProfile NextPreset(TrayProfile p, bool onAc) => p switch
+    {
+        TrayProfile.Quiet => TrayProfile.Balanced,
+        TrayProfile.Balanced => TrayProfile.Performance,
+        TrayProfile.Performance => onAc ? TrayProfile.Quiet : TrayProfile.Battery,
+        _ => TrayProfile.Quiet,
+    };
+
+    /// <summary>Unplug: the preset to bring back on plug-in (the current one when it's an AC preset and G-Mode was off).</summary>
+    public static TrayProfile RememberOnUnplug(TrayProfile current, bool wasGMode) =>
+        !wasGMode && current is TrayProfile.Quiet or TrayProfile.Balanced or TrayProfile.Performance ? current : TrayProfile.Balanced;
+
+    /// <summary>Unplug: switch to Battery unless it's already on Battery with G-Mode off.</summary>
+    public static bool SwitchOnUnplug(TrayProfile current, bool wasGMode) => !(current == TrayProfile.Battery && !wasGMode);
+
+    /// <summary>Plug-in: the preset to restore, or null to keep what was picked on battery.</summary>
+    public static TrayProfile? RestoreOnPlug(TrayProfile current, bool gMode, string? saved)
+    {
+        if (current != TrayProfile.Battery || gMode) return null;
+        return Enum.TryParse<TrayProfile>(saved, out var s) && s is TrayProfile.Quiet or TrayProfile.Balanced or TrayProfile.Performance
+            ? s : TrayProfile.Balanced;
+    }
+
     public static string Label(TrayProfile p) => p == TrayProfile.GMode ? "G-Mode" : p.ToString();
 
     /// <summary>Theme icon resource for a preset (Custom has no icon of its own: the gear).</summary>

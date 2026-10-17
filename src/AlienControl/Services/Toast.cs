@@ -13,6 +13,7 @@ using System.Windows.Threading;
 namespace AlienControl.Services;
 
 /// <summary>
+/// 1.3.0-beta.2: two styles, <see cref="ToastStyle.Pill"/> (top-center capsule, default) and Classic (below).
 /// v1.2: themed notification card in the Dolby Controls style, top-right of the main screen (16 px in), ~1.6 s.
 /// 44 px icon tile tinted in the preset's color, title + detail line, state on the right (F2 pills, G-Mode switch,
 /// preset chip for plug / unplug). Never takes focus and is click-through. Created per show and closed after, so it
@@ -27,6 +28,11 @@ public static class Toast
     public sealed record Info(TrayProfile Tint, string IconKey, string Title, string Sub, Right Right = Right.None, bool Lit = true);
 
     private const int Inset = 16, HoldMs = 1600, InMs = 140, OutMs = 260, CardW = 360;
+    private const int PillInMs = 220, PillOutMs = 160, PillW = 640, PillH = 76;
+
+    public enum ToastStyle { Pill, Classic }
+    /// <summary>1.3.0-beta.2: Pill (top-center capsule, default) or Classic (the v1.2 top-right card).</summary>
+    public static ToastStyle Style { get; set; } = ToastStyle.Pill;
     private static Window? _w;
     private static bool _hooked;
     private static (bool legend, Info info, bool animate, int hold)? _last;
@@ -66,6 +72,75 @@ public static class Toast
             }));
         }
 
+        bool pill = Style == ToastStyle.Pill;
+        var root = pill ? BuildPill(app, legend, info) : BuildClassic(app, legend, info);
+        // 1.3.0-beta.1: the toast window itself drops in from above the screen and slides back up (refresh-timed
+        // thread) instead of fading a transparent window's opacity. beta.2: with Reduce motion / Windows animations
+        // off the pill fades only (the classic card stays instant, as in 1.2).
+        bool slide = animate;
+        bool fade = !animate && pill;
+
+        const int pad = 24;   // room for the shadow
+        // v0.9.12: size it by hand. SizeToContent came out ~4x too tall on the laptop (125% scaling), stretching the rows.
+        var content = new Border { Child = root, Padding = new Thickness(pad), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
+        content.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var size = content.DesiredSize;
+        var w = new Window
+        {
+            WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent,
+            Topmost = true, ShowInTaskbar = false, ShowActivated = false, Focusable = false, ResizeMode = ResizeMode.NoResize,
+            SizeToContent = SizeToContent.Manual, Width = Math.Ceiling(size.Width), Height = Math.Ceiling(size.Height),
+            MinWidth = 0, MinHeight = 0, IsHitTestVisible = false, Content = content,
+            Opacity = fade ? 0 : 1,
+        };
+        var mover = new WindowSlide(() => new WindowInteropHelper(w).Handle);
+        w.SourceInitialized += (_, _) =>
+        {
+            var h = new WindowInteropHelper(w).Handle;
+            SetWindowLong(h, GWL_EXSTYLE, GetWindowLong(h, GWL_EXSTYLE) | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
+        };
+        w.Loaded += (_, _) =>
+        {
+            var wa = SystemParameters.WorkArea;   // primary screen, minus a docked taskbar (top-docked included)
+            w.Left = pill ? Math.Round(wa.Left + (wa.Width - w.Width) / 2) : wa.Right - w.Width - Inset + pad;
+            w.Top = wa.Top + Inset - pad;
+            if (slide)
+            {
+                var h = new WindowInteropHelper(w).Handle;
+                var r = WindowSlide.Rect(h);
+                WindowSlide.Move(h, r.Left, r.Top - (r.Bottom - r.Top));
+                mover.Run(r.Left, r.Top, pill ? PillInMs : InMs + 120, CubicBezier.Open, null);
+            }
+            else if (fade) w.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(InMs)));
+        };
+        // park off screen until Loaded positions it (no flash at 0,0)
+        w.Left = -10000; w.Top = -10000;
+        _w = w;
+        w.Show();
+
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(holdMs + (pill ? PillInMs : InMs)) };
+        _timer.Tick += (_, _) =>
+        {
+            _timer?.Stop();
+            if ((!slide && !fade) || _w != w) { Close(); return; }
+            if (slide)
+            {
+                var h = new WindowInteropHelper(w).Handle;
+                var r = WindowSlide.Rect(h);
+                mover.Run(r.Left, r.Top - (r.Bottom - r.Top), pill ? PillOutMs : OutMs + 40, CubicBezier.Accelerate, () => { if (_w == w) Close(); });
+                return;
+            }
+            var fo = new DoubleAnimation(w.Opacity, 0, TimeSpan.FromMilliseconds(pill ? PillOutMs : OutMs));
+            fo.Completed += (_, _) => { if (_w == w) Close(); };
+            w.BeginAnimation(UIElement.OpacityProperty, fo);
+        };
+        _timer.Start();
+    }
+
+
+    /// <summary>v1.2 card (top-right): 44 px tile, title + detail, state on the right.</summary>
+    private static UIElement BuildClassic(Application app, bool legend, Info info)
+    {
         // theme colors (match the v2 mockup)
         var card = C(legend ? "#0F1318" : "#2A2C31");
         var border = C(legend ? "#1E252D" : "#34373D");
@@ -206,92 +281,144 @@ public static class Toast
             });
             root = host;
         }
+        return root;
+    }
 
-        const int pad = 24;   // room for the shadow
-        // v0.9.12: size it by hand. SizeToContent came out ~4x too tall on the laptop (125% scaling), stretching the rows.
-        var content = new Border { Child = root, Padding = new Thickness(pad), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top };
-        content.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var size = content.DesiredSize;
-        var w = new Window
-        {
-            WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent,
-            Topmost = true, ShowInTaskbar = false, ShowActivated = false, Focusable = false, ResizeMode = ResizeMode.NoResize,
-            SizeToContent = SizeToContent.Manual, Width = Math.Ceiling(size.Width), Height = Math.Ceiling(size.Height),
-            MinWidth = 0, MinHeight = 0, IsHitTestVisible = false, Content = content,
-            Opacity = animate ? 0 : 1,
-        };
-        w.SourceInitialized += (_, _) =>
-        {
-            var h = new WindowInteropHelper(w).Handle;
-            SetWindowLong(h, GWL_EXSTYLE, GetWindowLong(h, GWL_EXSTYLE) | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
-        };
-        w.Loaded += (_, _) =>
-        {
-            var wa = SystemParameters.WorkArea;
-            w.Left = wa.Right - w.Width - Inset + pad;
-            w.Top = wa.Top + Inset - pad;
-            if (animate) w.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(InMs)));
-        };
-        // park off screen until Loaded positions it (no flash at 0,0)
-        w.Left = -10000; w.Top = -10000;
-        _w = w;
-        w.Show();
+    /// <summary>1.3.0-beta.2 pill (Amine's handoff mockups toasts-legend.png / toasts-fluent.png): ~640 x 76 capsule,
+    /// round icon tile tinted in the preset color, title + detail, state on the right (G-Mode switch, F2 position dots,
+    /// preset chip). Legend: #0F1318 with a preset-tinted border and a soft glow under the icon. Fluent: #2A2C31 with a
+    /// neutral border and the Fluent accent switch.</summary>
+    private static UIElement BuildPill(Application app, bool legend, Info info)
+    {
+        var card = C(legend ? "#0F1318" : "#2A2C31");
+        var neutral = C(legend ? "#262E37" : "#3A3D44");
+        var txt = C(legend ? "#E6EDF3" : "#FFFFFF");
+        var subC = C(legend ? "#8A96A3" : "#A6ABB2");
+        var dim = C(legend ? "#4A5561" : "#6E7A86");
+        var tint = Col(info.Tint);
+        bool lit = info.Lit;
+        var ui = app.TryFindResource("UiFont") as FontFamily ?? new FontFamily("Segoe UI");
+        var accent = legend ? Colors.White : (app.TryFindResource("AccentBrush") as SolidColorBrush)?.Color ?? C("#4CC2FF");
 
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(holdMs + InMs) };
-        _timer.Tick += (_, _) =>
+        var g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        // round icon tile
+        var fg = lit ? tint : dim;
+        var icon = new ContentControl
         {
-            _timer?.Stop();
-            if (!animate || _w != w) { Close(); return; }
-            var fade = new DoubleAnimation(w.Opacity, 0, TimeSpan.FromMilliseconds(OutMs));
-            fade.Completed += (_, _) => { if (_w == w) Close(); };
-            w.BeginAnimation(UIElement.OpacityProperty, fade);
+            Content = app.TryFindResource(info.IconKey), Width = 22, Height = 22, Foreground = B(fg), Focusable = false,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
         };
-        _timer.Start();
+        TextElement.SetForeground(icon, B(fg));
+        g.Children.Add(new Border
+        {
+            Width = 48, Height = 48, CornerRadius = new CornerRadius(24),
+            Background = lit ? B(tint, legend ? 0.13 : 0.16) : B(neutral, 0.8),
+            VerticalAlignment = VerticalAlignment.Center, Child = icon,
+        });
+
+        var text = new StackPanel { Margin = new Thickness(16, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock
+        {
+            Text = info.Title, FontFamily = ui, FontSize = 18, FontWeight = FontWeights.SemiBold,
+            Foreground = B(lit ? txt : subC), TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        text.Children.Add(new TextBlock
+        {
+            Text = info.Sub, FontFamily = ui, FontSize = 13.5, Foreground = B(subC), Margin = new Thickness(0, 3, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        Grid.SetColumn(text, 1);
+        g.Children.Add(text);
+
+        FrameworkElement? right = null;
+        switch (info.Right)
+        {
+            case Right.Pills:
+            {
+                // three position dots (Quiet / Balanced / Performance), the active one stretched and tinted
+                var dots = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                foreach (var q in new[] { TrayProfile.Quiet, TrayProfile.Balanced, TrayProfile.Performance })
+                {
+                    bool on = q == info.Tint;
+                    dots.Children.Add(new Border
+                    {
+                        Width = on ? 18 : 6, Height = on ? 8 : 6, Margin = new Thickness(8, 0, 0, 0),
+                        CornerRadius = new CornerRadius(4), Background = on ? B(Col(q)) : B(dim, 0.7),
+                        VerticalAlignment = VerticalAlignment.Center,
+                    });
+                }
+                right = dots;
+                break;
+            }
+            case Right.SwitchOn or Right.SwitchOff:
+            {
+                bool on = info.Right == Right.SwitchOn;
+                var track = new Grid { Width = 52, Height = 26, VerticalAlignment = VerticalAlignment.Center };
+                track.Children.Add(new Border
+                {
+                    CornerRadius = new CornerRadius(13),
+                    Background = on ? B(accent) : B(neutral),
+                });
+                track.Children.Add(new System.Windows.Shapes.Ellipse
+                {
+                    Width = 18, Height = 18, Margin = new Thickness(4, 0, 4, 0),
+                    Fill = on ? B(C("#14181D")) : B(dim), VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = on ? HorizontalAlignment.Right : HorizontalAlignment.Left,
+                });
+                right = track;
+                break;
+            }
+            case Right.Chip:
+                right = new Border
+                {
+                    CornerRadius = new CornerRadius(13), BorderThickness = new Thickness(1), Height = 26,
+                    Background = B(tint, 0.12), BorderBrush = B(tint, 0.75), Padding = new Thickness(12, 0, 12, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Child = new TextBlock
+                    {
+                        Text = legend ? Profiles.Label(info.Tint).ToUpperInvariant() : Profiles.Label(info.Tint),
+                        FontFamily = ui, FontSize = legend ? 11 : 12.5, VerticalAlignment = VerticalAlignment.Center,
+                        FontWeight = legend ? FontWeights.Bold : FontWeights.SemiBold, Foreground = B(tint),
+                    },
+                };
+                break;
+        }
+        if (right is not null) { right.Margin = new Thickness(0, 0, 8, 0); Grid.SetColumn(right, 2); g.Children.Add(right); }
+
+        var capsule = new Border
+        {
+            Child = g, Width = PillW, Height = PillH, Padding = new Thickness(14, 0, 20, 0),
+            Background = B(card), BorderThickness = new Thickness(1),
+            BorderBrush = legend && lit ? B(tint, 0.55) : B(neutral),
+            CornerRadius = new CornerRadius(PillH / 2.0),
+            Effect = new DropShadowEffect { BlurRadius = 22, ShadowDepth = 6, Direction = 270, Opacity = 0.45, Color = Colors.Black },
+        };
+        if (!legend || !lit) return capsule;
+
+        // Legend: soft preset-colored glow under the icon side, drawn behind the capsule
+        var host = new Grid();
+        var glow = new RadialGradientBrush { GradientOrigin = new Point(0.5, 0.5) };
+        glow.GradientStops.Add(new GradientStop(Color.FromArgb(0x55, tint.R, tint.G, tint.B), 0));
+        glow.GradientStops.Add(new GradientStop(Color.FromArgb(0, tint.R, tint.G, tint.B), 1));
+        glow.Freeze();
+        host.Children.Add(new System.Windows.Shapes.Ellipse
+        {
+            Width = 220, Height = 34, Fill = glow, HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(18, 0, 0, -14),
+        });
+        host.Children.Add(capsule);
+        return host;
     }
 
     private static void Close()
     {
         _timer?.Stop(); _timer = null;
         var w = _w; _w = null;
-        try { w?.Close(); } catch { }
+        try { w?.Close(); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("Toast.cs:256", __e); }
     }
 }
 
-/// <summary>v0.9.11: soft notification sounds (embedded WAVs, played async from memory, no extra packages).
-/// v1.2: soft bell chimes (48 kHz mono, ~0.8 s, dev/chimes.py): one note per F2 preset (G5 / C6 / E6), G-Mode on
-/// C6-E6-G6, off G6-C6, plug E5-B5, unplug B5-E5.</summary>
-public static class Sounds
-{
-    public enum Kind { Quiet, Balanced, Performance, Unplug, Plug, GModeOn, GModeOff }
-
-    [DllImport("winmm.dll")] private static extern bool PlaySound(IntPtr data, IntPtr mod, uint flags);
-    private const uint SND_ASYNC = 0x1, SND_NODEFAULT = 0x2, SND_MEMORY = 0x4;
-    // unmanaged copies kept for the life of the app (async playback reads them after the call returns; ~600 KB if all are played)
-    private static readonly System.Collections.Generic.Dictionary<Kind, IntPtr> _buf = new();
-
-    public static void Play(Kind k)
-    {
-        try
-        {
-            if (!_buf.TryGetValue(k, out var p))
-            {
-                var name = k switch
-                {
-                    Kind.Quiet => "snd-quiet.wav", Kind.Balanced => "snd-balanced.wav", Kind.Performance => "snd-performance.wav",
-                    Kind.Unplug => "snd-unplug.wav", Kind.Plug => "snd-plug.wav",
-                    Kind.GModeOn => "snd-gmode-on.wav", _ => "snd-gmode-off.wav",
-                };
-                var res = Application.GetResourceStream(new Uri($"pack://application:,,,/Assets/{name}"));
-                if (res is null) return;
-                using var ms = new MemoryStream();
-                res.Stream.CopyTo(ms);
-                var bytes = ms.ToArray();
-                p = Marshal.AllocHGlobal(bytes.Length);
-                Marshal.Copy(bytes, 0, p, bytes.Length);
-                _buf[k] = p;
-            }
-            PlaySound(p, IntPtr.Zero, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
-        }
-        catch { }
-    }
-}

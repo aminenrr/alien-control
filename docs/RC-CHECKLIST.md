@@ -62,3 +62,14 @@ Tick every line on the laptop. Any ✗ goes back as a fix before 1.0.0.
 - [ ] Tray: 0% CPU, a few MB RAM after ~5 s
 - [ ] Open idle: ~20 MB, ~0% CPU
 - [ ] An hour in the tray: no growth, no crash
+
+## 1.3 additions
+- [ ] Second start of the exe opens the running window, no second tray icon
+- [ ] Startup task: Task Scheduler > Alien Controls > Conditions: "Start only if on AC" unticked; Settings: no 72 h limit
+- [ ] Keyboard light timeout fades and wakes (key, mouse, touchpad)
+- [ ] CPU % / GPU % row (GPU shows Off in iGPU only)
+- [ ] Quit in iGPU only asks to turn the RTX back on
+- [ ] Both themes after the WPF-UI 4 bump
+- [ ] Settings page: gear opens it, back / Esc returns, five tabs, no scrolling, dimmed dependent rows
+- [ ] Chime pack Soft / Classic: all 7 sounds, switch takes effect at once
+- [ ] Toast style Pill / Classic in both themes, Test button

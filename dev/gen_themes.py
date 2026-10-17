@@ -11,12 +11,14 @@ os.makedirs(OUT, exist_ok=True)
 TAB = {"Activity": "activity", "Battery": "battery-eco", "Quiet": "moon", "Balanced": "scale", "Performance": "gauge",
        "GMode": "flame", "Gpu": "device-gamepad-2", "IGpu": "leaf", "Optimus": "arrows-exchange", "DGpu": "rocket",
        "Ultimate": "bolt", "Cpu": "cpu", "Fan": "propeller", "Light": "bulb", "Clean": "eraser", "Power": "power",
-       "Minimize": "minus", "Close": "x", "Settings": "settings", "Display": "device-desktop", "Bolt": "bolt", "Plug": "plug"}
+       "Minimize": "minus", "Close": "x", "Settings": "settings", "Display": "device-desktop", "Bolt": "bolt", "Plug": "plug",
+       "Keys": "keyboard", "Alerts": "bell", "Code": "code", "Back": "arrow-left", "Play": "player-play"}
 FLU = {"Activity": "Pulse24", "Battery": "BatterySaver24", "Quiet": "WeatherMoon24", "Balanced": "Scales24",
        "Performance": "Gauge24", "GMode": "Fire24", "Gpu": "Games24", "IGpu": "LeafTwo24", "Optimus": "ArrowSwap24",
        "DGpu": "Rocket24", "Ultimate": "Flash24", "Cpu": "DeveloperBoard24", "Light": "LightbulbFilament24",
        "Clean": "Broom24", "Power": "Power24", "Minimize": "Subtract24", "Close": "Dismiss24", "Settings": "Settings24",
-       "Display": "Desktop24", "Bolt": "Flash24", "Plug": "PlugConnected24"}
+       "Display": "Desktop24", "Bolt": "Flash24", "Plug": "PlugConnected24",
+       "Keys": "Keyboard24", "Alerts": "Alert24", "Code": "Code24", "Back": "ArrowLeft24", "Play": "Play24"}
 PHOSPHOR_FAN = re.search(r'd="([^"]+)"', open(f"{ICONS}/phosphor/fan.svg").read()).group(1)
 
 
@@ -189,7 +191,7 @@ def slider(track_h, track_bg, thumb):
 def legend():
     S = {
         "Title": sp("ALIEN CONTROLS"), "Cpu": sp("CPU"), "CpuFan": sp("CPU FAN"), "Gpu": sp("GPU"), "GpuFan": sp("GPU FAN"),
-        "Ram": sp("RAM"), "Vram": sp("VRAM"), "Clean": "CLICK TO CLEAN", "Perf": sp("PERFORMANCE MODE"),
+        "Ram": sp("RAM"), "Vram": sp("VRAM"), "CpuUse": sp("CPU USE"), "GpuUse": sp("GPU USE"), "Clean": "CLICK TO CLEAN", "Perf": sp("PERFORMANCE MODE"),
         "GpuMode": sp("GPU MODE"), "Refresh": sp("REFRESH RATE"), "CpuBoost": sp("CPU BOOST"), "Fans": sp("FANS"),
         "Lighting": sp("LIGHTING"), "CpuBoostHint": "AC", "FxPrefix": "FX", "Settings": sp("SETTINGS"),
         "GpuCheck": "CHECK ULTIMATE SUPPORT", "Theme": "Theme",
@@ -706,6 +708,21 @@ def legend():
         <Setter Property="Padding" Value="12" />
     </Style>
     <Style x:Key="PopupTitle" TargetType="TextBlock" BasedOn="{{StaticResource SectionTitle}}" />
+    <!-- 1.3.0-beta.2 settings page: card around each tab's rows, rows split by a hairline -->
+    <Style x:Key="SetCard" TargetType="Border">
+        <Setter Property="Background" Value="#0F1318" />
+        <Setter Property="BorderBrush" Value="#1E252D" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="12,0" />
+    </Style>
+    <Style x:Key="SetRow" TargetType="Border">
+        <Setter Property="BorderBrush" Value="#1A2129" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="0,10" />
+        <Setter Property="MinHeight" Value="56" />
+    </Style>
+    <Style x:Key="SetRowFirst" TargetType="Border" BasedOn="{{StaticResource SetRow}}"><Setter Property="BorderThickness" Value="0" /></Style>
 </ResourceDictionary>
 '''
 
@@ -714,7 +731,7 @@ def legend():
 def fluent():
     S = {
         "Title": "Alien Controls", "Cpu": "CPU", "CpuFan": "CPU fan", "Gpu": "GPU", "GpuFan": "GPU fan", "Ram": "RAM",
-        "Vram": "VRAM", "Clean": "Clean", "Perf": "Performance Mode", "GpuMode": "GPU Mode", "Refresh": "Refresh Rate",
+        "Vram": "VRAM", "CpuUse": "CPU usage", "GpuUse": "GPU usage", "Clean": "Clean", "Perf": "Performance Mode", "GpuMode": "GPU Mode", "Refresh": "Refresh Rate",
         "CpuBoost": "CPU Boost", "Fans": "Fans", "Lighting": "Lighting", "CpuBoostHint": "Plugged in",
         "FxPrefix": "Effect", "Settings": "Settings", "GpuCheck": "Check Ultimate support", "Theme": "Theme",
         "GpuOc": "GPU Overclock", "OcKeep": "Keep these clocks?",
@@ -1178,6 +1195,21 @@ def fluent():
         <Setter Property="Padding" Value="14" />
     </Style>
     <Style x:Key="PopupTitle" TargetType="TextBlock" BasedOn="{{StaticResource SectionTitle}}" />
+    <!-- 1.3.0-beta.2 settings page: card around each tab's rows, rows split by a hairline -->
+    <Style x:Key="SetCard" TargetType="Border">
+        <Setter Property="Background" Value="#0BFFFFFF" />
+        <Setter Property="BorderBrush" Value="#11FFFFFF" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,0" />
+    </Style>
+    <Style x:Key="SetRow" TargetType="Border">
+        <Setter Property="BorderBrush" Value="#12FFFFFF" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="0,10" />
+        <Setter Property="MinHeight" Value="56" />
+    </Style>
+    <Style x:Key="SetRowFirst" TargetType="Border" BasedOn="{{StaticResource SetRow}}"><Setter Property="BorderThickness" Value="0" /></Style>
 </ResourceDictionary>
 '''
 

@@ -30,6 +30,19 @@ public sealed class MacroKeys : IDisposable
     /// <summary>Macro key pressed: 0 = F2 (Macro A), 1 = F3, ... 4 = F6.</summary>
     public event Action<int>? Pressed;
 
+    /// <summary>1.3.0-beta.1: set while the keyboard backlight is timed out; mouse / touchpad raw input wakes it.
+    /// Mouse raw input is only registered during that time, so normal use costs nothing.</summary>
+    public Action? AnyMouse { get; private set; }
+    private const uint RID_HEADER = 0x10000005;
+
+    public void WatchMouse(Action? onInput)
+    {
+        if (_src is null) return;
+        AnyMouse = onInput;
+        var r = new[] { new RID { Page = 0x01, Usage = 0x02, Flags = onInput is null ? RIDEV_REMOVE : RIDEV_INPUTSINK, Target = onInput is null ? IntPtr.Zero : _src.Handle } };
+        if (!RegisterRawInputDevices(r, 1, (uint)Marshal.SizeOf<RID>())) Log.Info("MacroKeys", "mouse raw input register failed");
+    }
+
     public bool Install()
     {
         if (_src is not null) return true;
@@ -45,6 +58,12 @@ public sealed class MacroKeys : IDisposable
         if (msg != WM_INPUT) return IntPtr.Zero;
         try
         {
+            if (AnyMouse is { } wake)
+            {
+                uint hc = (uint)(8 + 2 * IntPtr.Size), size = hc;
+                var hdr = new byte[hc];
+                if (GetRawInputData(lParam, RID_HEADER, hdr, ref size, hc) == hc && BitConverter.ToUInt32(hdr, 0) == 0) { wake(); return IntPtr.Zero; }   // RIM_TYPEMOUSE
+            }
             uint hcb = (uint)(8 + 2 * IntPtr.Size), cb = 0;
             GetRawInputData(lParam, RID_INPUT, null, ref cb, hcb);
             if (cb == 0 || cb > 256) return IntPtr.Zero;
@@ -60,7 +79,7 @@ public sealed class MacroKeys : IDisposable
             _down = code;
             if (code is >= 0x51 and <= 0x55) Pressed?.Invoke(code - 0x51);
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("MacroKeys.cs:63", __e); }
         return IntPtr.Zero;
     }
 
@@ -78,7 +97,7 @@ public sealed class MacroKeys : IDisposable
     public void Dispose()
     {
         if (_src is null) return;
-        try { RegisterRawInputDevices(new[] { new RID { Page = 0x0C, Usage = 0x01, Flags = RIDEV_REMOVE } }, 1, (uint)Marshal.SizeOf<RID>()); } catch { }
+        try { RegisterRawInputDevices(new[] { new RID { Page = 0x0C, Usage = 0x01, Flags = RIDEV_REMOVE } }, 1, (uint)Marshal.SizeOf<RID>()); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MacroKeys.cs:81", __e); }
         _src.Dispose(); _src = null;
     }
 }

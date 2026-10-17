@@ -36,6 +36,9 @@ public sealed class GKeyHook : IDisposable
     public int Vk { get; set; }
     public int Scan { get; set; }   // 0 = any
 
+    /// <summary>1.3.0-beta.1: called on every key down while set (backlight wake). Null the rest of the time.</summary>
+    public Action? AnyKey { get; set; }
+
     /// <summary>Raised when the G-key goes down (debounced).</summary>
     public event Action? Pressed;
 
@@ -61,6 +64,7 @@ public sealed class GKeyHook : IDisposable
         if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
         {
             var k = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+            AnyKey?.Invoke();   // 1.3.0-beta.1: only set while the keyboard backlight is timed out
             var learn = LearnNext;
             if (learn is not null)
             {

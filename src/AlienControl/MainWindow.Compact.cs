@@ -47,10 +47,17 @@ public partial class MainWindow
     public void SwitchView(bool compact)
     {
         if (compact == IsCompact) return;
+        SwapCard(() => SetCompact(compact));
+    }
+
+    /// <summary>The card swap shared by the view switch and the 1.3.0-beta.2 settings page: slide down past the edge,
+    /// run <paramref name="change"/> off screen (layout included), then rise in the new size.</summary>
+    private void SwapCard(Action change)
+    {
         if (!Motion.Enabled || !IsShownOpen || _openParked || _slide?.Active == true)
         {
             _viewSwitching = false;
-            SetCompact(compact);
+            change();
             return;
         }
         int gen = ++_viewGen, show = _showGen;
@@ -61,7 +68,8 @@ public partial class MainWindow
         Slide.Run(r.Left, below, ViewDownMs, Services.CubicBezier.Accelerate, () =>
         {
             if (gen != _viewGen || show != _showGen || _hiding) { _viewSwitching = false; return; }
-            SetCompact(compact);
+            change();
+            UpdateLayout();   // 1.3.0-beta.1: the whole layout pass happens off screen, never mid-slide
             // one rendered frame so SizeToContent has applied the new height (drawn off screen), then rise
             EventHandler? onFrame = null;
             onFrame = (_, _) =>
@@ -71,7 +79,7 @@ public partial class MainWindow
                 _viewSwitching = false;
                 var (x, y) = RestDevice();
                 Services.WindowSlide.Move(h, x, below);
-                Slide.Run(x, y, ViewUpMs, Services.CubicBezier.Decelerate, () => { if (gen == _viewGen && !_hiding) SnapToCorner(); });
+                Slide.Run(x, y, ViewUpMs, Services.CubicBezier.Open, () => { if (gen == _viewGen && !_hiding) SnapToCorner(); });
             };
             CompositionTarget.Rendering += onFrame;
         });
