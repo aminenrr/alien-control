@@ -37,10 +37,10 @@ public partial class MainWindow
         SwitchView(!IsCompact);
     }
 
-    // 1.2.0-beta.3 (Amine, option A): compact <-> full as a native "dip and rise". The window drops 40 px (110 ms),
-    // the view switches while it's down, then it rises into its new size (200 ms). Same WindowSlide as open/hide,
-    // so the compositor moves the already-drawn window (in-window animations show no frames on the layered window).
-    private const int ViewDipPx = 40, ViewDownMs = 110, ViewUpMs = 200;
+    // 1.2.0-beta.5 (Amine: the 40 px dip felt harsh, the height jump was visible while the window was still on
+    // screen). Now a card swap: slide fully down past the edge (same as hide), switch the view out of sight,
+    // then slide back up in the new size (same as open). Same native WindowSlide, so no per-frame WPF work.
+    private const int ViewDownMs = 140, ViewUpMs = 230;
     private bool _viewSwitching;
     private int _viewGen;
 
@@ -57,21 +57,20 @@ public partial class MainWindow
         _viewSwitching = true;
         var h = Hwnd;
         var r = Services.WindowSlide.Rect(h);
-        Slide.Run(r.Left, r.Top + ViewDipPx, ViewDownMs, Services.CubicBezier.Accelerate, () =>
+        int below = Services.WindowSlide.MonitorBottom(h) + 2;
+        Slide.Run(r.Left, below, ViewDownMs, Services.CubicBezier.Accelerate, () =>
         {
             if (gen != _viewGen || show != _showGen || _hiding) { _viewSwitching = false; return; }
             SetCompact(compact);
-            // one rendered frame so SizeToContent has applied the new height, then rise from 40 px below the corner
-            int frames = 0;
+            // one rendered frame so SizeToContent has applied the new height (drawn off screen), then rise
             EventHandler? onFrame = null;
             onFrame = (_, _) =>
             {
-                if (++frames < 1) return;
                 CompositionTarget.Rendering -= onFrame;
                 if (gen != _viewGen || show != _showGen || _hiding) { _viewSwitching = false; return; }
                 _viewSwitching = false;
                 var (x, y) = RestDevice();
-                Services.WindowSlide.Move(h, x, y + ViewDipPx);
+                Services.WindowSlide.Move(h, x, below);
                 Slide.Run(x, y, ViewUpMs, Services.CubicBezier.Decelerate, () => { if (gen == _viewGen && !_hiding) SnapToCorner(); });
             };
             CompositionTarget.Rendering += onFrame;

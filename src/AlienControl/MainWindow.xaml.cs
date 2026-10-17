@@ -125,8 +125,12 @@ public partial class MainWindow : Window
                 if (Motion.Enabled) await Task.Delay(OpenMs + 40);
                 if (!IsVisible || gen != _showGen) return;
                 RefreshDisplayRate();          // read once on show, no timer
-                _ = RefreshGpuHintAsync();
-                await RefreshStateAsync();
+                // 1.2.0-beta.5 (Amine: spamming F3/F4 froze the PC for a moment): every open ran alienfan-cli twice
+                // plus the AWCC/BIOS ACPI reads, and quick open/close stacked them up. Now one refresh at a time, and
+                // the CLI/BIOS reads are skipped when the last ones are under 20 s old (sensors still read every open).
+                bool stale = (DateTime.UtcNow - _stateReadUtc).TotalSeconds > 20;
+                if (stale) _ = RefreshGpuHintAsync(); else _ = RefreshGpuAsync(withBios: false);
+                await RefreshStateAsync(sensorsOnly: !stale);
                 if (!IsVisible || gen != _showGen) return;
                 _poll.Start();
                 _powerTimer.Start();
@@ -442,7 +446,23 @@ public partial class MainWindow : Window
 
     // ---------- reads ----------
 
-    private async Task RefreshStateAsync()
+    private DateTime _stateReadUtc = DateTime.MinValue;
+    private bool _stateBusy;
+
+    private async Task RefreshStateAsync(bool sensorsOnly = false)
+    {
+        if (_stateBusy) return;   // 1.2.0-beta.5: never stack CLI/ACPI reads
+        _stateBusy = true;
+        try
+        {
+            if (sensorsOnly) { await RefreshSensorsAsync(); return; }
+            await RefreshStateCoreAsync();
+            _stateReadUtc = DateTime.UtcNow;
+        }
+        finally { _stateBusy = false; }
+    }
+
+    private async Task RefreshStateCoreAsync()
     {
         await RefreshSensorsAsync();
 
@@ -1472,7 +1492,16 @@ public partial class MainWindow : Window
     /// Battery/Custom start at Quiet. G-Mode: F1 owns it, do nothing.</summary>
     private async Task CyclePresetAsync()
     {
-        if (!_settings.F2Presets || _gmodeOn) return;
+        if (!_settings.F2Presets || _gmodeOn || _f2Busy) return;   // 1.2.0-beta.5: presses during a switch don't stack
+        _f2Busy = true;
+        try { await CyclePresetCoreAsync(); }
+        finally { _f2Busy = false; }
+    }
+
+    private bool _f2Busy;
+
+    private async Task CyclePresetCoreAsync()
+    {
         var cur = CurrentProfile;
         var next = NextPreset(cur);
         // v1.0.0-rc1: toast first, then apply (no ~1 s wait). Into / out of Battery changes the refresh rate,

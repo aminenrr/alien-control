@@ -3,6 +3,14 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.2.0-beta.5 (2026-10-17), untested
+- Compact <-> full is now a card swap: the window slides fully down past the edge, switches out of sight, and slides
+  back up in its new size (the 40 px dip showed the height jump on screen).
+- Fix: spamming F3/F4 (or the tray) could freeze the PC for a moment. Each open ran alienfan-cli twice plus the
+  AWCC/BIOS ACPI reads, and quick open/close stacked them. Now one refresh at a time, and the CLI/BIOS reads are
+  skipped when the last ones are under 20 s old (sensors still read on every open).
+- F2 presses while a preset is still being applied are ignored instead of queuing up.
+
 ## v1.2.0-beta.4 (2026-10-17), untested
 - Fix: the app closed when switching to iGPU only. The power meter kept an NVML handle to the RTX and read it while
   pnputil removed the device. NVML is now closed first (power timer paused), GPU power and OC stay off while the RTX
