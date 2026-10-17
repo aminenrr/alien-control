@@ -36,6 +36,7 @@ public partial class MainWindow
     private void ApplyBatteryLock()
     {
         ModeBattery.IsEnabled = !BatteryLocked;
+        BatteryLock.Visibility = BatteryLocked ? Visibility.Visible : Visibility.Collapsed;
         ModeBattery.ToolTip = BatteryLocked ? "Battery comes on by itself when you unplug (Auto preset)" : null;
     }
 

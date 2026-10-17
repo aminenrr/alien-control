@@ -127,6 +127,8 @@ public partial class MainWindow
     {
         if (!Dispatcher.CheckAccess()) { await Dispatcher.InvokeAsync(SyncOcAsync).Task.Unwrap(); return; }
         await SyncGModeAsync();
+        // 1.2.0-beta.4: never touch NVML while the RTX is off or being switched (iGPU only)
+        if (_rtxSwitching || _gpu.Kind == GpuModeKind.IGpuOnly) { UpdateOcUi(); return; }
         if (_ocTesting)
         {
             if (!OcAllowed) await EndOcTestAsync(keep: false);

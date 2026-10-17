@@ -285,7 +285,7 @@ What it does locally, and why:
 - **Runs only fixed programs**: the two alienfx-tools CLIs next to the exe, plus Windows' own `pnputil`, `powercfg`,
   `schtasks`, `shutdown` and `net` (only to restart NVIDIA's Display Container after iGPU only), always called by their
   full System32 path, never looked up through PATH. Arguments are built by the app, never taken from outside input.
-- **Stores** only its settings in `%AppData%\AlienControl` (no secrets, no personal data). There are no keys, tokens
+- **Stores** only its settings and a local crash log in `%AppData%\AlienControl` (no secrets, no personal data). There are no keys, tokens
   or passwords in the code.
 - **Reads** sensors, BIOS attributes, adapter state and the GPU memory of running apps (for the "RTX in use" list)
   locally; none of it is saved or sent anywhere.

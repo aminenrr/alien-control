@@ -35,6 +35,10 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        // 1.2.0-beta.4: local crash log (%AppData%\AlienControl\crash.log), never sent anywhere
+        DispatcherUnhandledException += (_, a) => CrashLog("UI", a.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, a) => CrashLog("Domain", a.ExceptionObject as Exception);
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, a) => { CrashLog("Task", a.Exception); a.SetObserved(); };
         // v0.9.15: started by Reset settings: give the old instance a moment to let go of the HID / hooks.
         if (e.Args.Contains("--restarted", StringComparer.OrdinalIgnoreCase)) System.Threading.Thread.Sleep(1200);
 
@@ -46,6 +50,19 @@ public partial class App : Application
         // "--tray" is passed by the logon task: start hidden, zero polling.
         if (!e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase))
             ShowMain();
+    }
+
+    private static void CrashLog(string where, Exception? ex)
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl");
+            System.IO.Directory.CreateDirectory(dir);
+            var f = System.IO.Path.Combine(dir, "crash.log");
+            if (System.IO.File.Exists(f) && new System.IO.FileInfo(f).Length > 256 * 1024) System.IO.File.Delete(f);
+            System.IO.File.AppendAllText(f, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {where}: {ex}\n\n");
+        }
+        catch { }
     }
 
     private void CreateTray()

@@ -83,9 +83,32 @@ public sealed class PowerMeter : IDisposable
     private bool _nvmlDead, _nvmlUp;
     private IntPtr _nvDevice;
 
+    private readonly object _nvLock = new();
+    private bool _gpuOff;
+
+    /// <summary>1.2.0-beta.4: true = the RTX is (being) disabled. Closes NVML (waits for a read in progress) and skips
+    /// GPU power until set back to false. Reading a removed device through a kept NVML handle crashed the app.</summary>
+    public bool GpuOff
+    {
+        get { lock (_nvLock) return _gpuOff; }
+        set
+        {
+            lock (_nvLock)
+            {
+                _gpuOff = value;
+                if (value && _nvmlUp) { try { nvmlShutdown(); } catch { } _nvmlUp = false; }
+            }
+        }
+    }
+
     private double? ReadGpu()
     {
-        if (_nvmlDead) return null;
+        lock (_nvLock) return ReadGpuLocked();
+    }
+
+    private double? ReadGpuLocked()
+    {
+        if (_nvmlDead || _gpuOff) return null;
         try
         {
             if (!_nvmlUp)

@@ -189,8 +189,12 @@
                         </Grid>
                         <Border Style="{DynamicResource Track}">
                             <UniformGrid Columns="5">
-                                <RadioButton x:Name="ModeBattery" GroupName="Mode" Style="{DynamicResource ModeButton}" Click="Mode_Click"
-                                             Tag="{DynamicResource Icon.Battery}" Content="Battery" ToolTip="Battery Saver (power index 3, a5)" />
+                                <!-- 1.2.0-beta.4: wrapper = lock badge top-right when locked (a disabled button passes clicks to it) -->
+                                <Grid Background="Transparent">
+                                    <RadioButton x:Name="ModeBattery" GroupName="Mode" Style="{DynamicResource ModeButton}" Click="Mode_Click"
+                                                 Tag="{DynamicResource Icon.Battery}" Content="Battery" ToolTip="Battery Saver (power index 3, a5)" />
+                                    <Viewbox x:Name="BatteryLock" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,6,0" IsHitTestVisible="False" Visibility="Collapsed"><Canvas Width="24" Height="24"><Path Data="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6 M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0 M8 11v-4a4 4 0 1 1 8 0v4" Stroke="#B8C2CC" StrokeThickness="2.4" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
+                                </Grid>
                                 <RadioButton x:Name="ModeQuiet" GroupName="Mode" Style="{DynamicResource ModeButton}" Click="Mode_Click"
                                              Tag="{DynamicResource Icon.Quiet}" Content="Quiet" />
                                 <RadioButton x:Name="ModeBalanced" GroupName="Mode" Style="{DynamicResource ModeButton}" Click="Mode_Click"
@@ -221,8 +225,11 @@
                         <Border Style="{DynamicResource Track}">
                             <!-- 1.2.0-beta.2: iGPU only (pnputil, NVIDIA on Optimus only) / Advanced Optimus / Ultimate. NVIDIA's Auto / Optimus / GPU only stay in its tray popup. -->
                             <UniformGrid Columns="3">
-                                <RadioButton x:Name="GpuIgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click"
-                                             Tag="{DynamicResource Icon.IGpu}" Content="iGPU only" ToolTip="Turns the RTX off (Intel only). Needs NVIDIA set to Optimus." />
+                                <Grid Background="Transparent" MouseLeftButtonUp="IgpuWrap_MouseUp">
+                                    <RadioButton x:Name="GpuIgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click"
+                                                 Tag="{DynamicResource Icon.IGpu}" Content="iGPU only" ToolTip="Turns the RTX off (Intel only). Needs NVIDIA set to Optimus." />
+                                    <Viewbox x:Name="IgpuLock" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,6,0" IsHitTestVisible="False" Visibility="Collapsed"><Canvas Width="24" Height="24"><Path Data="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6 M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0 M8 11v-4a4 4 0 1 1 8 0v4" Stroke="#B8C2CC" StrokeThickness="2.4" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
+                                </Grid>
                                 <RadioButton x:Name="GpuOptimus" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" IsChecked="True"
                                              Tag="{DynamicResource Icon.Optimus}" Content="Advanced Optimus" ToolTip="Intel + RTX. Pick Auto / Optimus / GPU only from NVIDIA's tray icon." />
                                 <RadioButton x:Name="GpuUltimate" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click"

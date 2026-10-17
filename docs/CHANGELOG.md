@@ -3,6 +3,15 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.2.0-beta.4 (2026-10-17), untested
+- Fix: the app closed when switching to iGPU only. The power meter kept an NVML handle to the RTX and read it while
+  pnputil removed the device. NVML is now closed first (power timer paused), GPU power and OC stay off while the RTX
+  is disabled, and NVML comes back ~4 s after the RTX is re-enabled.
+- The amber "why it's locked" note under GPU Mode only shows when you click the locked iGPU only button (6 s).
+  The green "RTX is off" note stays.
+- Small lock badge in the top-right corner of iGPU only and Battery when they're locked.
+- Local crash log (`%AppData%\AlienControl\crash.log`) for UI / background exceptions. Never sent anywhere.
+
 ## v1.2.0-beta.3 (2026-10-17), untested
 - Compact <-> Full menu now switches with a native "dip and rise": the window drops 40 px (110 ms), changes view,
   then rises into its new size (200 ms). Footer button and F3/F4. Instant with Reduce motion.

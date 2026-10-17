@@ -1089,7 +1089,7 @@ public partial class MainWindow : Window
     // Read on show, after a change, on display changes and on focus; never polled.
 
     private GpuMode.State _gpu = new(GpuModeKind.Unknown, false, null);
-    private bool _gpuBusy, _gpuDisplayHooked;
+    private bool _gpuBusy, _gpuDisplayHooked, _rtxSwitching;
 
     private Task RefreshGpuHintAsync() => RefreshGpuAsync(withBios: true);
 
@@ -1157,15 +1157,12 @@ public partial class MainWindow : Window
         GpuUltimate.ToolTip = off ? "Locked while the RTX is off. Click Advanced Optimus first."
             : "Dell BIOS: Intel GPU off, the RTX drives everything. Needs a restart.";
 
-        string? note = null; var noteColor = NoteAmber;
-        if (_gpu.PendingRestart) note = null;
-        else if (off) { note = "RTX is off. HDMI / Mini DP stay dark. Ultimate is locked until the RTX is back: click Advanced Optimus."; noteColor = NoteGreen; }
-        else if (_gpu.Auto) note = "NVIDIA is on Automatic Select. Switch it to Optimus to use iGPU only.";
-        else if (k == GpuModeKind.DGpuOnly) note = "iGPU only is locked: the RTX drives the screen. Pick Optimus from NVIDIA's tray icon first.";
-        else if (ult) note = "iGPU only isn't available in Ultimate: the Intel GPU is off. Go back to Advanced Optimus (restart), then pick Optimus.";
-        GpuNote.Text = note ?? "";
-        GpuNote.Foreground = new System.Windows.Media.SolidColorBrush(noteColor);
-        GpuNote.Visibility = note is null ? Visibility.Collapsed : Visibility.Visible;
+        if (off && !_power.GpuOff) _power.GpuOff = true;   // started in iGPU only: keep NVML closed
+        IgpuLock.Visibility = igpuLocked ? Visibility.Visible : Visibility.Collapsed;
+        // 1.2.0-beta.4 (Amine): the amber "why it's locked" note only shows when the locked button is clicked;
+        // the green "RTX is off" note stays while it's off.
+        if (off) ShowGpuNote("RTX is off. HDMI / Mini DP stay dark. Ultimate is locked until the RTX is back: click Advanced Optimus.", NoteGreen, 0);
+        else if (_gpuNoteSticky || !igpuLocked) HideGpuNote();
 
         // v0.9.2: Advanced Optimus = NVIDIA's mode + the GPU driving the screen. Ultimate = just the RTX.
         bool rtx = k == GpuModeKind.DGpuOnly;
@@ -1185,6 +1182,41 @@ public partial class MainWindow : Window
                 ? ("Ultimate after restart", "ULTIMATE AFTER RESTART")
                 : ("Adv. Optimus after restart", "ADV. OPTIMUS AFTER RESTART");
         SetHint(GpuHint, fluent, legend);
+    }
+
+    private bool _gpuNoteSticky;   // the green RTX-off note
+    private int _gpuNoteGen;
+
+    /// <summary>Shows the note under the GPU row. ms = 0 keeps it; otherwise it hides itself after ms.</summary>
+    private async void ShowGpuNote(string text, System.Windows.Media.Color color, int ms)
+    {
+        int gen = ++_gpuNoteGen;
+        _gpuNoteSticky = ms == 0;
+        GpuNote.Text = text;
+        GpuNote.Foreground = new System.Windows.Media.SolidColorBrush(color);
+        GpuNote.Visibility = Visibility.Visible;
+        if (ms == 0) return;
+        await Task.Delay(ms);
+        if (gen == _gpuNoteGen) HideGpuNote();
+    }
+
+    private void HideGpuNote()
+    {
+        _gpuNoteGen++;
+        _gpuNoteSticky = false;
+        GpuNote.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>Click on the locked iGPU only button (a disabled button passes the click to its wrapper).</summary>
+    private void IgpuWrap_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (GpuIgpu.IsEnabled) return;
+        var k = _gpu.Kind;
+        string? why = _gpu.PendingRestart ? "iGPU only is locked until the restart finishes the GPU switch."
+            : k == GpuModeKind.DGpuOnly ? "iGPU only is locked: the RTX drives the screen. Pick Optimus from NVIDIA's tray icon first."
+            : k == GpuModeKind.Ultimate ? "iGPU only isn't available in Ultimate: the Intel GPU is off. Go back to Advanced Optimus (restart), then pick Optimus."
+            : k == GpuModeKind.Unknown ? "iGPU only is locked: couldn't read the GPU state." : null;
+        if (why is not null) ShowGpuNote(why, NoteAmber, 6000);
     }
 
     private async void GpuMode_Click(object sender, RoutedEventArgs e)
@@ -1243,7 +1275,17 @@ public partial class MainWindow : Window
         }
 
         Status("Turning the RTX off...");
-        var err = await GpuMode.SetDgpuEnabledAsync(false);
+        // 1.2.0-beta.4 fix: the app closed when the RTX went off. The power meter kept an NVML handle to the RTX and
+        // read it from a pool thread while pnputil removed the device (native crash, can't be caught). Stop the power
+        // timer and close NVML first; GPU power and OC stay off while the RTX is disabled.
+        _rtxSwitching = true;
+        _powerTimer.Stop();
+        await Task.Run(() => _power.GpuOff = true);
+        string? err;
+        try { err = await GpuMode.SetDgpuEnabledAsync(false); }
+        finally { _rtxSwitching = false; }
+        if (err is not null) _power.GpuOff = false;
+        if (IsVisible) _powerTimer.Start();
         _ocApplied = null;   // the driver forgets the offsets with the device
         Status(err ?? "RTX is off. Click Advanced Optimus to turn it back on.");
     }
@@ -1252,9 +1294,13 @@ public partial class MainWindow : Window
     private async Task RtxOnAsync()
     {
         Status("Turning the RTX back on...");
-        var err = await GpuMode.SetDgpuEnabledAsync(true);
+        _rtxSwitching = true;
+        string? err;
+        try { err = await GpuMode.SetDgpuEnabledAsync(true); }
+        finally { _rtxSwitching = false; }
         if (err is not null) { Status(err); return; }
         _ocApplied = null;
+        _ = Task.Run(async () => { await Task.Delay(4000); _power.GpuOff = false; });   // NVML again once the driver is up
         Status("RTX is back on.");
         // NVIDIA's tray icon (display mode popup) lives in nvcontainer: restart its service if it didn't come back
         _ = Task.Run(async () =>

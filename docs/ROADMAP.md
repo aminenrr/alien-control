@@ -18,6 +18,7 @@
 - [ ] 1.2.0-beta.1 Toasts + chimes v2 (Dolby Controls style).
 - [ ] 1.2.0-beta.2 iGPU only (RTX off) as a third GPU mode, NVIDIA Optimus only.
 - [ ] 1.2.0-beta.3 Smooth compact/full switch, snappier open/close, chime crackle fix.
+- [ ] 1.2.0-beta.4 iGPU only crash fix, lock badges, note on click.
 - [ ] 1.1.1 patch: shows as "Alien Controls" in startup lists, startup task renamed (old one migrated).
 
 ## Later
