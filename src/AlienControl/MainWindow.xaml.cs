@@ -198,7 +198,7 @@ public partial class MainWindow : Window
     /// </summary>
     public void SnapToCorner()
     {
-        if (_slide?.Active == true || _openParked || _minSlid) return;   // v0.8.8: the slide owns the position until it lands
+        if (_slide?.Active == true || _openParked || _minSlid || _viewSwitching) return;   // v0.8.8: the slide owns the position until it lands
         var (l, t) = CornerPosition();
         Left = l;
         Top = t;
@@ -264,7 +264,7 @@ public partial class MainWindow : Window
     // per frame): the compositor moves the already-drawn window, rising out of the bottom screen edge on open and
     // dropping back past it on hide. The per-frame hook lives only for the 250 / 170 ms of a slide.
 
-    private const int OpenMs = 250, HideMs = 170;
+    private const int OpenMs = 250, HideMs = 150;   // 1.2.0-beta.3: hide 170 -> 150 ms
     private int _showGen;     // bumps on every show/hide so a stale hide never fires after a re-show
     private bool _hiding;
     private bool _minSlid;    // v0.8.9: minimized by sliding down; the restore slides it back up
@@ -304,7 +304,7 @@ public partial class MainWindow : Window
         EventHandler? onFrame = null;
         onFrame = (_, _) =>
         {
-            if (++frames < 2) return;
+            if (++frames < 1) return;   // 1.2.0-beta.3: one frame (was two), the slide starts sooner
             CompositionTarget.Rendering -= onFrame;   // one-shot: never keeps a per-frame hook alive
             _openParked = false;
             if (gen == _showGen && !_hiding && IsVisible) SlideIn();
@@ -361,7 +361,9 @@ public partial class MainWindow : Window
 
     private async Task TrimSoonAsync(int gen)
     {
-        await Task.Delay(3000);
+        // 1.2.0-beta.3: 60 s (was 3 s). Trimming right after a hide paged WPF out, so the next open had to fault it all
+        // back in (sluggish F3/F4/tray opens). A quick reopen now stays warm; sitting in the tray still drops to a few MB.
+        await Task.Delay(60000);
         if (gen != _showGen || IsVisible) return;   // reopened meanwhile
         TrimMemory();
     }
@@ -370,9 +372,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
-            GC.Collect(2, GCCollectionMode.Forced, true, true);
-            GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Optimized, false);   // 1.2.0-beta.3: lighter, no forced compacting GC
             using var p = System.Diagnostics.Process.GetCurrentProcess();
             SetProcessWorkingSetSize(p.Handle, new IntPtr(-1), new IntPtr(-1));
         }
@@ -1438,7 +1438,7 @@ public partial class MainWindow : Window
             TrayProfile.Quiet => Sounds.Kind.Quiet, TrayProfile.Performance => Sounds.Kind.Performance,
             TrayProfile.Battery => Sounds.Kind.Unplug, _ => Sounds.Kind.Balanced,
         });
-        if (!rate) Show();
+        if (!rate) { Show(); await Task.Delay(150); }   // 1.2.0-beta.3: let the chime's attack play before the hardware switch
         await ApplyProfileAsync(next);
         if (rate) Show();
     }

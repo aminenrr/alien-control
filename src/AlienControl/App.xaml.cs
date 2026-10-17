@@ -107,7 +107,11 @@ public partial class App : Application
         if (_window is null) return;
         bool sameView = _window.IsCompact == !full;
         if (_window.IsShownOpen && _window.IsActive && sameView) _window.HideToTray();
-        else if (_window.IsShownOpen) { _window.SetCompact(!full); _window.Activate(); ForceForeground(); }
+        else if (_window.IsShownOpen)
+        {
+            _window.SwitchView(!full);   // 1.2.0-beta.3: dip-and-rise switch
+            if (!_window.IsActive) { _window.Activate(); ForceForeground(); }   // already focused: skip the foreground calls
+        }
         else ShowMain(full);
     }
 

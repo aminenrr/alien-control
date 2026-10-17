@@ -3,6 +3,15 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.2.0-beta.3 (2026-10-17), untested
+- Compact <-> Full menu now switches with a native "dip and rise": the window drops 40 px (110 ms), changes view,
+  then rises into its new size (200 ms). Footer button and F3/F4. Instant with Reduce motion.
+- Snappier open/close: the memory trim runs 60 s after hiding (was 3 s, so a quick reopen had to page everything
+  back in) and is lighter (no forced compacting GC). The open slide starts one frame sooner, hide is 150 ms (was 170),
+  and F3/F4 skip the foreground calls when the window is already focused.
+- Chimes: no more crackle at the end of notes (smooth 80 ms release + final fade), 40 ms of silence first so a sleeping
+  audio device doesn't pop, and F2 waits 150 ms after the chime starts before switching the hardware.
+
 ## v1.2.0-beta.2 (2026-10-17), untested
 - **iGPU only is back** as a third GPU Mode button (left of Advanced Optimus). It disables the RTX with `pnputil`
   (survives reboots); HDMI / Mini DP go dark until it's back on.
