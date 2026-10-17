@@ -114,3 +114,15 @@ Why things are the way they are. Newest decisions win.
 - View switch = card swap (fully off screen, switch, rise): the 40 px dip showed the height jump.
 - On open, alienfan-cli / BIOS reads are single-flight and reused for 20 s (stacked ACPI calls froze the PC).
 - No network, by rule: tools are run by full System32 path (Services/SysExe.cs).
+
+## 1.3 (2026-10-17)
+- One pre-release for everything (Amine: one checklist, one test session). Risky parts sit behind gear > Debug toggles.
+- CLI hash allowlist instead of "trust current files": settings.json is user-writable, so a stored override would
+  defeat the check. New alienfx-tools versions need a new app build with their hashes.
+- HardwareController is a queue for ACPI-level calls only (CLIs, AWCC WMI, BIOS WMI); the USB HID has its own lock.
+- Ultimate detection: BootId over TickCount64 (Fast Startup keeps the tick count running).
+- Keyboard timeout uses the existing G-key hook and mouse raw input registered only while dark: no new always-on hook.
+- GPU % comes from Windows' GPU Engine counters for the adapter with the most dedicated memory in use (the RTX),
+  never NVML, so it can't wake the RTX on battery.
+- WPF-UI bumped to 4.3.0; the app only uses its theme dictionaries and SymbolIcon. Fallback: latest 3.x.
+

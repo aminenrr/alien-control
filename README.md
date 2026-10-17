@@ -85,8 +85,10 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 - Presets from the tray, the header preset button, the window or **F2**: Battery, Quiet, Balanced, Performance (power mode, CPU boost, refresh rate), plus Custom.
 - **F1 G-Mode**: fans max, Aggressive CPU boost, optional GPU overclock (core / memory offsets, AC only, keep-or-revert test).
 - **Auto preset**: Battery when unplugged, your last preset when plugged back in.
-- Fans, temps and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
+- Fans, temps, **CPU % / GPU %** (v1.3) and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
 - Per-key keyboard color and effects, chassis lights, status keys (G-Mode, mutes, touchpad) lit by the app.
+- **Keyboard light timeout** (v1.3): fades the keys out after 1 / 2 / 5 / 10 min without input (optionally on battery
+  only, paused in fullscreen games); any key, mouse or touchpad input brings them straight back.
 - GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt), plus **iGPU only** (v1.2): turns the RTX off for battery life when NVIDIA is set to Optimus. It lists the apps using the RTX first, and HDMI / Mini DP stay dark until you switch back.
 - Card toasts (v1.2) in the top right with a soft chime per preset for F1, F2 and plug / unplug.
 - Locked buttons (Battery under Auto preset, iGPU only outside Optimus) show a small lock; click a locked iGPU only to see why.
@@ -152,8 +154,10 @@ install it. Skip this if you already have it.
 ### 2. Download Alien Controls
 
 Get `AlienControl-<version>-win-x64.zip` from the
-[Releases page](https://github.com/aminenrr/alien-control/releases/latest) and unzip it into a folder that stays put,
-for example `C:\Tools\AlienControl`.
+[Releases page](https://github.com/aminenrr/alien-control/releases/latest) and unzip it into **`C:\Program Files\Alien Controls`** (create the folder; Windows asks for admin).
+The app runs as administrator, so its folder should only be changeable by admins: a folder like `C:\Tools` can be
+written by any program, which could swap a file there and get admin rights. The app warns you if its folder is
+writable without admin rights.
 
 ### 3. Add the two alienfx-tools CLIs
 
@@ -164,11 +168,13 @@ for example `C:\Tools\AlienControl`.
    - `alienfx-cli.exe` (keyboard and chassis lighting)
 
    A `tools\` subfolder next to the exe works too. You don't need anything else from the zip.
+3. Use alienfx-tools **9.6.x** (9.6.1 to 9.6.2.1). Since 1.3 the app checks the SHA-256 of both CLIs against T-Troll's
+   published 9.6.x builds and refuses to run anything else (the hash goes to `crash.log` if it refuses).
 
 Your folder should look like this:
 
 ```
-C:\Tools\AlienControl\
+C:\Program Files\Alien Controls\
   AlienControl.exe
   alienfan-cli.exe
   alienfx-cli.exe
@@ -203,6 +209,11 @@ Close the app from the tray (**Quit**), replace `AlienControl.exe` with the new 
 Keep the two CLIs. Settings stay in `%AppData%\AlienControl`.
 
 ### Uninstalling
+
+If **iGPU only** is on, switch back to Advanced Optimus first (or say *Turn it on* when Quit asks): the RTX stays
+disabled after uninstalling otherwise, and `pnputil /enable-device` or Device Manager is the only way back. Quit also
+removes the Quiet preset's 3.0 GHz CPU cap from your power plan (if you uninstall without quitting, run
+`powercfg /setacvalueindex scheme_current sub_processor PROCFREQMAX 0` and the same with `setdcvalueindex`).
 
 Turn off **Run on startup**, quit the app, and delete the folder (and `%AppData%\AlienControl` if you want the settings
 gone). Set the AWCC services back to Automatic if you want AWCC again.
@@ -255,9 +266,13 @@ presets, each with its icon and color. It follows tray picks, mode buttons, F2 a
 
 ### GPU mode
 
-Two buttons: **Advanced Optimus** and **Ultimate**. The hint on the right shows what drives the screen
+Three buttons: **iGPU only**, **Advanced Optimus** and **Ultimate**. The hint on the right shows what drives the screen
 (Optimus · Iris Xe, Auto · RTX 3070 Ti, dGPU only · RTX 3070 Ti); change that from NVIDIA's own app.
-Switching between the two sets the Dell BIOS graphics switch and asks to restart. Presets never change it.
+Switching between Advanced Optimus and Ultimate sets the Dell BIOS graphics switch and asks to restart.
+**iGPU only** (v1.2) turns the RTX off with `pnputil` for battery life. It only works in Advanced Optimus with NVIDIA set to
+Optimus, lists the apps using the RTX first, and locks Ultimate while it's off. HDMI / Mini DP stay dark, and it
+**survives restarts and uninstalling** until you click Advanced Optimus again (Quit offers to turn it back on).
+Locked buttons show a small lock. Presets never change the GPU mode.
 
 | Legend | Fluent |
 |---|---|
@@ -271,7 +286,8 @@ dotnet publish src/AlienControl/AlienControl.csproj -c Release -r win-x64 -o pub
 
 Publishing gives one ReadyToRun `AlienControl.exe` (needs the .NET 8 Desktop Runtime) plus `tools/`.
 
-Every push to `main` also builds on GitHub Actions and uploads the app as an artifact.
+Every push to `main` also builds on GitHub Actions, runs the unit tests (`tests/AlienControl.Tests`) and uploads the
+app as an artifact. Actions are pinned to commit SHAs, and each release has a `SHA256SUMS` file next to the zip.
 
 Stack: C# · .NET 8 · WPF · [WPF-UI](https://github.com/lepoco/wpfui) (Fluent look).
 
@@ -286,7 +302,9 @@ What it does locally, and why:
 - **Runs only fixed programs**: the two alienfx-tools CLIs next to the exe, plus Windows' own `pnputil`, `powercfg`,
   `schtasks`, `shutdown` and `net` (only to restart NVIDIA's Display Container after iGPU only), always called by their
   full System32 path, never looked up through PATH. Arguments are built by the app, never taken from outside input.
-- **Stores** only its settings and a local crash log in `%AppData%\AlienControl` (no secrets, no personal data). There are no keys, tokens
+- **Checks what it runs** (v1.3): the two CLIs must match T-Troll's published 9.6.x SHA-256 hashes, and are held
+  open (no writes) while they run; `nvml.dll` is loaded only from System32. Settings are clamped to safe values on load.
+- **Stores** only its settings (written atomically, with a `.bak`) and a local log in `%AppData%\AlienControl` (no secrets, no personal data). There are no keys, tokens
   or passwords in the code.
 - **Reads** sensors, BIOS attributes, adapter state and the GPU memory of running apps (for the "RTX in use" list)
   locally; none of it is saved or sent anywhere.

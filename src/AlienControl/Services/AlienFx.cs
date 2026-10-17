@@ -20,6 +20,7 @@ public sealed class AlienFx
     public bool IsAvailable => _cli.IsAvailable;
 
     private readonly KeyboardHid _hid = new();
+    public KeyboardHid Hid => _hid;
 
     /// <summary>Scales a color by brightness 0..255 (software dimming).</summary>
     public static byte[] Dim(byte[] c, int brightness) =>

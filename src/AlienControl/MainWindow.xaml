@@ -110,6 +110,25 @@
                                         </StackPanel>
                                     </Border>
                                 </UniformGrid>
+                                <!-- 1.3.0-beta.1: CPU % / GPU % row (window open only, same timer as the temps) -->
+                                <Border x:Name="UsageRow" Style="{DynamicResource MemRow}">
+                                    <UniformGrid Columns="2">
+                                        <Border Style="{DynamicResource StatCellFirst}">
+                                            <StackPanel>
+                                                <TextBlock x:Name="CpuUseLabel" Text="{DynamicResource Str.CpuUse}" Style="{DynamicResource StatLabel}" />
+                                                <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="CpuUseText" Text="--" Style="{DynamicResource StatValue}" /><Run Text=" %" Style="{DynamicResource StatUnit}" /></TextBlock>
+                                                <ProgressBar x:Name="CpuUseBar" Style="{DynamicResource StatBar}" Maximum="100" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Style="{DynamicResource StatCell}">
+                                            <StackPanel>
+                                                <TextBlock x:Name="GpuUseLabel" Text="{DynamicResource Str.GpuUse}" Style="{DynamicResource StatLabel}" />
+                                                <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="GpuUseText" Text="--" Style="{DynamicResource StatValue}" /><Run x:Name="GpuUseUnit" Text=" %" Style="{DynamicResource StatUnit}" /></TextBlock>
+                                                <ProgressBar x:Name="GpuUseBar" Style="{DynamicResource StatBar}" Maximum="100" />
+                                            </StackPanel>
+                                        </Border>
+                                    </UniformGrid>
+                                </Border>
                                 <Border Style="{DynamicResource MemRow}">
                                     <UniformGrid Columns="2">
                                         <!-- v0.8.6: a Grid so the RAM card gets the same hover overlay as the buttons (RamHoverFx). -->
@@ -589,6 +608,44 @@
                                     <CheckBox x:Name="TaskbarToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
                                               Click="Taskbar_Click" ToolTip="Show the window's button on the taskbar" />
                                 </Grid>
+                                <!-- 1.3.0-beta.1 debug toggles (animations A/B) -->
+                                <TextBlock Text="Debug" Style="{DynamicResource FooterText}" Margin="0,18,0,0" Opacity="0.7" />
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="New slide engine" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Refresh-timed slide thread (off: the 1.2 slide)" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="SlideEngineToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="Debug_Click" ToolTip="Compare both on the laptop" />
+                                </Grid>
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Normal window" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Native rounded corners + shadow (restart)" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="NormalWindowToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="Debug_Click" ToolTip="Off: the transparent window from 1.2" />
+                                </Grid>
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Log frame gaps" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Writes each slide's steps/s and biggest gap to crash.log" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="FrameLogToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="Debug_Click" ToolTip="For the checklist" />
+                                </Grid>
 
                                 <Grid Margin="0,14,0,0">
                                     <Grid.ColumnDefinitions>
@@ -641,6 +698,50 @@
                                     <CheckBox x:Name="ToastsToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
                                               Click="Toasts_Click" ToolTip="Window and tray clicks never show one" />
                                 </Grid>
+
+                                <!-- 1.3.0-beta.1 keyboard backlight timeout -->
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Keyboard light timeout" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Fades out with no keyboard, mouse or touchpad input" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <ComboBox x:Name="KbdTimeoutBox" Grid.Column="1" Style="{DynamicResource FxCombo}" VerticalAlignment="Center" MinWidth="78" SelectionChanged="KbdTimeout_Changed">
+                                        <ComboBoxItem Content="Off" Tag="0" />
+                                        <ComboBoxItem Content="1 min" Tag="1" />
+                                        <ComboBoxItem Content="2 min" Tag="2" />
+                                        <ComboBoxItem Content="5 min" Tag="5" />
+                                        <ComboBoxItem Content="10 min" Tag="10" />
+                                    </ComboBox>
+                                </Grid>
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="On battery only" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Timeout only when unplugged" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="KbdBatteryToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="KbdOption_Click" ToolTip="Off: on AC too" />
+                                </Grid>
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Not in fullscreen games" Style="{DynamicResource FooterText}" />
+                                        <TextBlock Text="Keeps the keys lit while a game is fullscreen" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="KbdFullscreenToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
+                                              Click="KbdOption_Click" ToolTip="Pauses the timeout in fullscreen" />
+                                </Grid>
+
 
                                 <Grid Margin="0,14,0,0">
                                     <Grid.ColumnDefinitions>

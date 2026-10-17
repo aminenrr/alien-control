@@ -218,8 +218,12 @@ public static class Toast
             Topmost = true, ShowInTaskbar = false, ShowActivated = false, Focusable = false, ResizeMode = ResizeMode.NoResize,
             SizeToContent = SizeToContent.Manual, Width = Math.Ceiling(size.Width), Height = Math.Ceiling(size.Height),
             MinWidth = 0, MinHeight = 0, IsHitTestVisible = false, Content = content,
-            Opacity = animate ? 0 : 1,
+            Opacity = animate && !WindowSlide.UseThread ? 0 : 1,
         };
+        // 1.3.0-beta.1: with the new slide engine the toast window itself drops in from above the screen and slides
+        // back up (refresh-timed thread) instead of fading a transparent window's opacity.
+        bool slide = animate && WindowSlide.UseThread;
+        var mover = new WindowSlide(() => new WindowInteropHelper(w).Handle);
         w.SourceInitialized += (_, _) =>
         {
             var h = new WindowInteropHelper(w).Handle;
@@ -230,7 +234,14 @@ public static class Toast
             var wa = SystemParameters.WorkArea;
             w.Left = wa.Right - w.Width - Inset + pad;
             w.Top = wa.Top + Inset - pad;
-            if (animate) w.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(InMs)));
+            if (slide)
+            {
+                var h = new WindowInteropHelper(w).Handle;
+                var r = WindowSlide.Rect(h);
+                WindowSlide.Move(h, r.Left, r.Top - (r.Bottom - r.Top));
+                mover.Run(r.Left, r.Top, InMs + 120, CubicBezier.Open, null);
+            }
+            else if (animate) w.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(InMs)));
         };
         // park off screen until Loaded positions it (no flash at 0,0)
         w.Left = -10000; w.Top = -10000;
@@ -242,6 +253,13 @@ public static class Toast
         {
             _timer?.Stop();
             if (!animate || _w != w) { Close(); return; }
+            if (slide)
+            {
+                var h = new WindowInteropHelper(w).Handle;
+                var r = WindowSlide.Rect(h);
+                mover.Run(r.Left, r.Top - (r.Bottom - r.Top), OutMs + 40, CubicBezier.Accelerate, () => { if (_w == w) Close(); });
+                return;
+            }
             var fade = new DoubleAnimation(w.Opacity, 0, TimeSpan.FromMilliseconds(OutMs));
             fade.Completed += (_, _) => { if (_w == w) Close(); };
             w.BeginAnimation(UIElement.OpacityProperty, fade);

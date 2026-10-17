@@ -62,6 +62,7 @@ public partial class MainWindow
         {
             if (gen != _viewGen || show != _showGen || _hiding) { _viewSwitching = false; return; }
             SetCompact(compact);
+            UpdateLayout();   // 1.3.0-beta.1: the whole layout pass happens off screen, never mid-slide
             // one rendered frame so SizeToContent has applied the new height (drawn off screen), then rise
             EventHandler? onFrame = null;
             onFrame = (_, _) =>
@@ -71,7 +72,7 @@ public partial class MainWindow
                 _viewSwitching = false;
                 var (x, y) = RestDevice();
                 Services.WindowSlide.Move(h, x, below);
-                Slide.Run(x, y, ViewUpMs, Services.CubicBezier.Decelerate, () => { if (gen == _viewGen && !_hiding) SnapToCorner(); });
+                Slide.Run(x, y, ViewUpMs, Services.CubicBezier.Open, () => { if (gen == _viewGen && !_hiding) SnapToCorner(); });
             };
             CompositionTarget.Rendering += onFrame;
         });

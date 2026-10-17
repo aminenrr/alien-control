@@ -189,7 +189,7 @@ def slider(track_h, track_bg, thumb):
 def legend():
     S = {
         "Title": sp("ALIEN CONTROLS"), "Cpu": sp("CPU"), "CpuFan": sp("CPU FAN"), "Gpu": sp("GPU"), "GpuFan": sp("GPU FAN"),
-        "Ram": sp("RAM"), "Vram": sp("VRAM"), "Clean": "CLICK TO CLEAN", "Perf": sp("PERFORMANCE MODE"),
+        "Ram": sp("RAM"), "Vram": sp("VRAM"), "CpuUse": sp("CPU USE"), "GpuUse": sp("GPU USE"), "Clean": "CLICK TO CLEAN", "Perf": sp("PERFORMANCE MODE"),
         "GpuMode": sp("GPU MODE"), "Refresh": sp("REFRESH RATE"), "CpuBoost": sp("CPU BOOST"), "Fans": sp("FANS"),
         "Lighting": sp("LIGHTING"), "CpuBoostHint": "AC", "FxPrefix": "FX", "Settings": sp("SETTINGS"),
         "GpuCheck": "CHECK ULTIMATE SUPPORT", "Theme": "Theme",
@@ -714,7 +714,7 @@ def legend():
 def fluent():
     S = {
         "Title": "Alien Controls", "Cpu": "CPU", "CpuFan": "CPU fan", "Gpu": "GPU", "GpuFan": "GPU fan", "Ram": "RAM",
-        "Vram": "VRAM", "Clean": "Clean", "Perf": "Performance Mode", "GpuMode": "GPU Mode", "Refresh": "Refresh Rate",
+        "Vram": "VRAM", "CpuUse": "CPU usage", "GpuUse": "GPU usage", "Clean": "Clean", "Perf": "Performance Mode", "GpuMode": "GPU Mode", "Refresh": "Refresh Rate",
         "CpuBoost": "CPU Boost", "Fans": "Fans", "Lighting": "Lighting", "CpuBoostHint": "Plugged in",
         "FxPrefix": "Effect", "Settings": "Settings", "GpuCheck": "Check Ultimate support", "Theme": "Theme",
         "GpuOc": "GPU Overclock", "OcKeep": "Keep these clocks?",

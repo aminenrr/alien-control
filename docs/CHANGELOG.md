@@ -3,6 +3,36 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.3.0-beta.1 (2026-10-17), untested
+**Fixes (code review)**
+- Single instance: a second copy opens the first one's window and exits (no double tray icon / double F1 / skipped F2).
+- Startup task is created from XML: no "AC power only", no "stop on battery", no 72 h limit. Old tasks are rebuilt.
+- Keyboard HID: one cached handle and one lock for every frame (no interleaved frames, no SetupDi search per frame).
+- The G-key hook and the macro keys run on their own input thread. schtasks and the exit clean-up are async.
+- Auto preset re-checks the power line after a switch (a quick unplug + replug is no longer dropped).
+- Security: `nvml.dll` only from System32; the CLIs must match alienfx-tools 9.6.x SHA-256 hashes and are held
+  open while running; a warning when the app folder is writable without admin; README recommends Program Files.
+- Settings: every hardware value clamped on load; atomic save (`.tmp` + replace + `.bak`, load falls back to `.bak`).
+- Quit clears the Quiet 3.0 GHz cap and offers to turn the RTX back on in iGPU only.
+- Ultimate detection uses Windows' BootId (Fast Startup safe) instead of the tick count.
+- Resume: the preset is re-applied if the EC lost it, lighting and status keys are re-sent, findings logged.
+- One HardwareController queue for both CLIs, AWCC WMI reads and BIOS WMI calls.
+- Unit tests (CLI parsing, GPU mode, settings migration/clamps, Auto preset, startup XML) run in CI.
+- One NVML declaration file, one "apps using the RTX" loop; every silent catch now logs a warn line to `crash.log`.
+- Actions pinned to SHAs, Dependabot, `SHA256SUMS` next to each release zip. WPF-UI 3.0.5 -> 4.3.0. README GPU section: three buttons.
+
+**New**
+- Keyboard light timeout (gear): Off / 1 / 2 / 5 / 10 min, On battery only, Not in fullscreen games. Fades the
+  hardware brightness, any key / mouse / touchpad input wakes it at once. Paused during Rainbow / Spectrum.
+- CPU % / GPU % row under the temps (GetSystemTimes; RTX 3D engine from Windows' GPU Engine counters, no NVML). Off in iGPU only.
+
+**Animations**
+- New slide engine: a short-lived thread steps every slide once per composition (DwmFlush), placed for the vblank it
+  shows on, with async SetWindowPos. Drives open/close, minimize, the card swap and the toasts (now a slide, not a fade).
+- Softer open curve (0.25, 1, 0.5, 1) at 280 ms; layout done off screen; no GC during a slide; storyboards at the
+  panel's refresh rate (was 60 fps); follows Windows' Animation effects too.
+- Debug toggles (gear > Debug): New slide engine, Normal window (rounded corners + native shadow, restart), Log frame gaps.
+
 ## v1.2.0 (2026-10-17), confirmed on the m15 R7
 Stable release of the 1.2.0 betas (all tested on the laptop):
 - **New toasts + chimes**: card toasts (tinted icon tile, title + detail, F2 pills / G-Mode switch / plug chip), both

@@ -42,8 +42,43 @@ public sealed class KeyboardHid
         }
     }
 
+    // 1.3.0-beta.1 keyboard backlight timeout: while Dark, frames are held (the newest one) instead of lighting the
+    // keys back up; Wake() restores full hardware brightness and sends the held frame.
+    private static bool _dark;
+    private static IReadOnlyList<(byte id, byte r, byte g, byte b)>? _held;
+    public static bool IsDark { get { lock (Gate) return _dark; } }
+
+    /// <summary>Fades the keyboard's hardware brightness to 0 over ms (one-shot, ~10 steps). False = cancelled/failed.</summary>
+    public bool FadeOut(int ms, System.Threading.CancellationToken token)
+    {
+        const int steps = 10;
+        for (int i = steps - 1; i >= 0; i--)
+        {
+            if (token.IsCancellationRequested) return false;
+            int level = 255 * i / steps;
+            if (!WithDevice((dev, len) => SetBrightness(dev, len, level))) return false;
+            System.Threading.Thread.Sleep(ms / steps);
+        }
+        lock (Gate) _dark = true;
+        return true;
+    }
+
+    /// <summary>Full brightness again, then the newest frame that came in while dark.</summary>
+    public bool Wake()
+    {
+        IReadOnlyList<(byte id, byte r, byte g, byte b)>? held;
+        lock (Gate) { _dark = false; held = _held; _held = null; }
+        bool ok = WithDevice((dev, len) => SetBrightness(dev, len, 255));
+        if (held is not null) ok &= SetKeys(held);
+        return ok;
+    }
+
     /// <summary>Sends every key's color in one frame.</summary>
-    public bool SetKeys(IReadOnlyList<(byte id, byte r, byte g, byte b)> keys) => WithDevice((dev, len) => SetKeys(dev, len, keys));
+    public bool SetKeys(IReadOnlyList<(byte id, byte r, byte g, byte b)> keys)
+    {
+        lock (Gate) if (_dark) { _held = keys; return true; }
+        return WithDevice((dev, len) => SetKeys(dev, len, keys));
+    }
 
     private static bool SetKeys(SafeFileHandle dev, int len, IReadOnlyList<(byte id, byte r, byte g, byte b)> keys)
     {

@@ -19,6 +19,8 @@
     <sys:String x:Key="Str.GpuFan">GPU fan</sys:String>
     <sys:String x:Key="Str.Ram">RAM</sys:String>
     <sys:String x:Key="Str.Vram">VRAM</sys:String>
+    <sys:String x:Key="Str.CpuUse">CPU usage</sys:String>
+    <sys:String x:Key="Str.GpuUse">GPU usage</sys:String>
     <sys:String x:Key="Str.Clean">Clean</sys:String>
     <sys:String x:Key="Str.Perf">Performance Mode</sys:String>
     <sys:String x:Key="Str.GpuMode">GPU Mode</sys:String>

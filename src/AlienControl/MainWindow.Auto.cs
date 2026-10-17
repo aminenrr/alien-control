@@ -48,6 +48,7 @@ public partial class MainWindow
         if (ac == _wasAc || _autoBusy) return;   // busy: the finally below re-checks   // StatusChange also fires for battery % changes
         _wasAc = ac;
         ApplyBatteryLock();
+        UpdateKbdTimer();   // 1.3.0-beta.1: "On battery only" timeout
         if (!_settings.AutoPreset) return;
         _autoBusy = true;
         try

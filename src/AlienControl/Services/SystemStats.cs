@@ -52,12 +52,70 @@ public sealed class SystemStats : IDisposable
                 _nextCounterScan = DateTime.Now.AddSeconds(30);
             }
             if (_vram.Length == 0) return null;
-            double used = _vram.Max(c => { try { return (double)c.RawValue; } catch { return 0d; } });
+            double used = 0;
+            foreach (var c in _vram)
+            {
+                double v; try { v = c.RawValue; } catch { v = 0; }
+                if (v > used) { used = v; _rtxLuid = LuidOf(c.InstanceName); }
+            }
             const double gb = 1024d * 1024 * 1024;
             double total = _vramTotal > 0 ? _vramTotal / gb : 0;
             return (used / gb, total);
         }
         catch { return null; }
+    }
+
+    // ---------- 1.3.0-beta.1 CPU % and GPU % (Part 2), read only while the window is open ----------
+
+    [DllImport("kernel32.dll")] private static extern bool GetSystemTimes(out long idle, out long kernel, out long user);
+    private long _idle, _kernel, _user;
+
+    /// <summary>CPU use since the last call, 0..100 (GetSystemTimes: no perf counter, no process). Null on the first call.</summary>
+    public double? CpuUsage()
+    {
+        if (!GetSystemTimes(out long idle, out long kernel, out long user)) return null;
+        long di = idle - _idle, dk = kernel - _kernel, du = user - _user;   // kernel time includes idle
+        bool first = _kernel == 0;
+        _idle = idle; _kernel = kernel; _user = user;
+        long total = dk + du;
+        if (first || total <= 0) return null;
+        return Math.Clamp((total - di) * 100.0 / total, 0, 100);
+    }
+
+    private string? _rtxLuid;   // "luid_0x..._0x..." of the adapter with the most dedicated memory in use (the RTX)
+    private PerformanceCounterCategory? _engines;
+    private System.Collections.Generic.Dictionary<string, CounterSample> _prevEng = new();
+
+    private static string? LuidOf(string instance)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(instance, @"luid_0x[0-9A-Fa-f]+_0x[0-9A-Fa-f]+");
+        return m.Success ? m.Value : null;
+    }
+
+    /// <summary>RTX 3D engine use, 0..100, from Windows' own GPU Engine counters (one ReadCategory per call, no NVML,
+    /// so it doesn't wake the RTX). Null until two samples exist or when the RTX isn't known yet.</summary>
+    public double? GpuUsage()
+    {
+        try
+        {
+            if (_rtxLuid is null) Vram();
+            if (_rtxLuid is not { } luid) return null;
+            _engines ??= new PerformanceCounterCategory("GPU Engine");
+            var data = _engines.ReadCategory()["utilization percentage"];
+            if (data is null) return null;
+            var next = new System.Collections.Generic.Dictionary<string, CounterSample>();
+            double sum = 0; bool any = false;
+            foreach (InstanceData d in data.Values)
+            {
+                var name = d.InstanceName;
+                if (!name.Contains("engtype_3D", StringComparison.OrdinalIgnoreCase) || !name.Contains(luid, StringComparison.OrdinalIgnoreCase)) continue;
+                next[name] = d.Sample;
+                if (_prevEng.TryGetValue(name, out var prev)) { sum += CounterSample.Calculate(prev, d.Sample); any = true; }
+            }
+            _prevEng = next;
+            return any ? Math.Clamp(sum, 0, 100) : (next.Count > 0 ? null : 0);
+        }
+        catch (Exception ex) { Log.Warn("GpuUsage", ex); return null; }
     }
 
     /// <summary>Largest HardwareInformation.qwMemorySize under the display adapter class key.</summary>

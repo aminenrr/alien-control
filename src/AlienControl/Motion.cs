@@ -21,7 +21,15 @@ public static class Motion
     /// <summary>False when the user turned on Reduce motion (gear menu).</summary>
     public static bool Enabled { get; set; } = true;
 
-    public const int Fps = 60;
+    /// <summary>1.3.0-beta.1: storyboards run at the panel's current refresh rate (240, or 60 in the Battery preset);
+    /// was a fixed 60. Set from the display read on every open.</summary>
+    public static int Fps { get; set; } = 60;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SystemParametersInfo(uint action, uint param, out bool value, uint winIni);
+
+    /// <summary>1.3.0-beta.1: Windows' Settings > Accessibility > Animation effects (SPI_GETCLIENTAREAANIMATION).</summary>
+    public static bool WindowsAnimations => !SystemParametersInfo(0x1042, 0, out bool on, 0) || on;
 
     // v0.8.6 timings: the v0.8.2 values (70-180 ms, 0.97 / 1.03 scale, ~3 RGB-step hover) ran but were too faint to see.
     public const int HoverMs = 150, PressMs = 90, ReleaseMs = 160, SelectMs = 220;

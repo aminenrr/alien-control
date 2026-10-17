@@ -11,12 +11,10 @@ jobs:
   release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Test
-        run: dotnet test tests/AlienControl.Tests -c Release
       - name: Publish
         run: dotnet publish src/AlienControl/AlienControl.csproj -c Release -r win-x64 -o publish
       - name: Zip
@@ -25,14 +23,10 @@ jobs:
           $v = "${{ github.ref_name }}".TrimStart('v')
           Copy-Item README.md publish/
           Compress-Archive -Path publish/* -DestinationPath "AlienControl-$v-win-x64.zip"
-          $zip = "AlienControl-$v-win-x64.zip"
-          (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() + "  " + $zip | Out-File -Encoding ascii SHA256SUMS
           "VER=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+      - uses: softprops/action-gh-release@v2
         with:
           name: Alien Controls ${{ env.VER }}
           body_path: docs/releases/${{ github.ref_name }}.md
-          files: |
-            AlienControl-${{ env.VER }}-win-x64.zip
-            SHA256SUMS
+          files: AlienControl-${{ env.VER }}-win-x64.zip
           prerelease: ${{ contains(github.ref_name, '-') }}

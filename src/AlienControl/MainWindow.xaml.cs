@@ -54,8 +54,9 @@ public partial class MainWindow : Window
     {
         // Only the active theme dictionary is loaded; it must be there before the XAML resolves its keys.
         App.ApplyTheme(_settings.Theme);
-        Motion.Enabled = !_settings.ReduceMotion;   // v0.8.2: Reduce motion = no animations at all
+        Motion.Enabled = !_settings.ReduceMotion && Motion.WindowsAnimations;   // v0.8.2 Reduce motion; 1.3: + Windows Animation effects
         InitializeComponent();
+        ApplyWindowMode();   // 1.3.0-beta.1 debug: normal window / slide engine
         ReduceMotionToggle.IsChecked = _settings.ReduceMotion;
         ThemeLegend.IsChecked = IsLegend;
         ThemeFluent.IsChecked = !IsLegend;
@@ -182,6 +183,8 @@ public partial class MainWindow : Window
         _ = Dispatcher.InvokeAsync(async () => StartupToggle.IsChecked = await Startup.IsEnabledAsync());   // 1.3.0-beta.1: off the UI thread (review #4)
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
         InitAuto(); // v0.9.11 auto preset + toasts
+        InitKbdTimeout();   // 1.3.0-beta.1
+        InitDebugToggles();
         _ = Task.Run(() => FolderSafety.UserWritable(AppContext.BaseDirectory)).ContinueWith(t =>
         {
             if (t.Result) Dispatcher.BeginInvoke(new Action(() =>
@@ -273,7 +276,7 @@ public partial class MainWindow : Window
     // per frame): the compositor moves the already-drawn window, rising out of the bottom screen edge on open and
     // dropping back past it on hide. The per-frame hook lives only for the 250 / 170 ms of a slide.
 
-    private const int OpenMs = 250, HideMs = 150;   // 1.2.0-beta.3: hide 170 -> 150 ms
+    private const int OpenMs = 280, HideMs = 150;   // 1.3.0-beta.1: open 250 -> 280 ms with the softer Open curve   // 1.2.0-beta.3: hide 170 -> 150 ms
     private int _showGen;     // bumps on every show/hide so a stale hide never fires after a re-show
     private bool _hiding;
     private bool _minSlid;    // v0.8.9: minimized by sliding down; the restore slides it back up
@@ -305,6 +308,7 @@ public partial class MainWindow : Window
     /// <summary>Called when the window becomes visible.</summary>
     private void PlayOpen()
     {
+        Motion.Enabled = !_settings.ReduceMotion && Motion.WindowsAnimations;   // 1.3.0-beta.1: follows Windows live
         _showGen++;
         _hiding = false;
         if (!Motion.Enabled || !_openParked) { _openParked = false; Slide.Stop(); SnapToCorner(); return; }
@@ -325,7 +329,7 @@ public partial class MainWindow : Window
     {
         int gen = _showGen;
         var (x, y) = RestDevice();
-        Slide.Run(x, y, OpenMs, CubicBezier.Decelerate, () => { if (gen == _showGen && !_hiding) SnapToCorner(); });
+        Slide.Run(x, y, OpenMs, CubicBezier.Open, () => { if (gen == _showGen && !_hiding) SnapToCorner(); });
     }
 
     /// <summary>Slide down past the screen edge over 170 ms, THEN Hide(). Instant with Reduce motion or minimized;
@@ -515,6 +519,10 @@ public partial class MainWindow : Window
 
             if (SystemStats.Ram() is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
             if (_stats.Vram() is { } vram) SetMem(VramText, VramTextUnit, VramBar, vram.Used, vram.Total);
+            // 1.3.0-beta.1 CPU % / GPU %
+            if (_stats.CpuUsage() is { } cpuUse) { CpuUseText.Text = cpuUse.ToString("0"); CpuUseBar.Value = cpuUse; }
+            if (_gpu.Kind == GpuModeKind.IGpuOnly) { GpuUseText.Text = "Off"; GpuUseUnit.Text = ""; GpuUseBar.Value = 0; }
+            else if (_stats.GpuUsage() is { } gpuUse) { GpuUseText.Text = gpuUse.ToString("0"); GpuUseUnit.Text = " %"; GpuUseBar.Value = gpuUse; }
 
         }
         finally { _polling = false; }
@@ -1022,7 +1030,7 @@ public partial class MainWindow : Window
     private void ReduceMotion_Click(object sender, RoutedEventArgs e)
     {
         _settings.ReduceMotion = ReduceMotionToggle.IsChecked == true;
-        Motion.Enabled = !_settings.ReduceMotion;
+        Motion.Enabled = !_settings.ReduceMotion && Motion.WindowsAnimations;
         _settings.Save();
         if (_settings.ReduceMotion) { ResetFlyout(); Motion.Set(PresetButton, OpacityProperty, 1); }
     }
@@ -1221,6 +1229,9 @@ public partial class MainWindow : Window
     {
         int gen = ++_gpuNoteGen;
         _gpuNoteSticky = ms == 0;
+        // 1.3.0-beta.1: no resize mid-slide; the note waits until the slide lands (at most ~0.6 s)
+        for (int i = 0; i < 40 && (_slide?.Active == true || _viewSwitching || _openParked); i++) await Task.Delay(16);
+        if (gen != _gpuNoteGen) return;
         GpuNote.Text = text;
         GpuNote.Foreground = new System.Windows.Media.SolidColorBrush(color);
         GpuNote.Visibility = Visibility.Visible;
@@ -1435,6 +1446,7 @@ public partial class MainWindow : Window
         Hz60.IsChecked = DisplayRefresh.IsActive(s, 60);
         Hz240.IsChecked = DisplayRefresh.IsActive(s, 240);
         SetHint(RefreshHint, $"{s.CurrentHz} Hz", $"{s.CurrentHz} Hz");
+        Motion.Fps = Math.Clamp(s.CurrentHz, 30, 240);   // 1.3.0-beta.1: storyboards follow the panel
         Hz60.ToolTip = Hz60.IsEnabled ? null : $"60 Hz isn't offered at {s.Width}x{s.Height}";
         Hz240.ToolTip = Hz240.IsEnabled ? null : $"240 Hz isn't offered at {s.Width}x{s.Height}";
     }
