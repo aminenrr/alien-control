@@ -24,7 +24,7 @@ public static class SystemState
             using var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\PrecisionTouchPad\Status");
             if (k?.GetValue("Enabled") is int v) return v == 0;
         }
-        catch { /* ignore */ }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("SystemState.cs:27", __e); /* ignore */ }
         return null;
     }
 

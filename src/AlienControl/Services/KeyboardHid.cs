@@ -22,11 +22,31 @@ public sealed class KeyboardHid
 
     public KeyboardHid(ushort pid = 0xcabc) => _pid = pid;
 
-    /// <summary>Sends every key's color in one frame.</summary>
-    public bool SetKeys(IReadOnlyList<(byte id, byte r, byte g, byte b)> keys)
+    // 1.3.0-beta.1 (review #3): one cached handle for every instance and one lock for every frame, so an effect
+    // thread and a status-key change can't interleave their 0x94 resets, and no SetupDi search runs per frame.
+    private static readonly object Gate = new();
+    private static SafeFileHandle? _dev;
+    private static int _len;
+
+    private bool WithDevice(Func<SafeFileHandle, int, bool> send)
     {
-        using var dev = Open(out int len);
-        if (dev is null) return false;
+        lock (Gate)
+        {
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                if (_dev is null || _dev.IsInvalid || _dev.IsClosed) { _dev = Open(out _len); if (_dev is null) return false; }
+                if (send(_dev, _len)) return true;
+                _dev.Dispose(); _dev = null;   // device dropped (sleep / reconnect): reopen once
+            }
+            return false;
+        }
+    }
+
+    /// <summary>Sends every key's color in one frame.</summary>
+    public bool SetKeys(IReadOnlyList<(byte id, byte r, byte g, byte b)> keys) => WithDevice((dev, len) => SetKeys(dev, len, keys));
+
+    private static bool SetKeys(SafeFileHandle dev, int len, IReadOnlyList<(byte id, byte r, byte g, byte b)> keys)
+    {
         bool ok = Send(dev, len, new byte[] { 0x94 });            // reset: start a frame
         var buf = NewBuffer(len, new byte[] { 0x8c, 0x02 });       // colorSet
         int pos = 4;
@@ -47,11 +67,7 @@ public sealed class KeyboardHid
         return ok;
     }
 
-    public bool SetBrightness(int brightness)
-    {
-        using var dev = Open(out int len);
-        return dev is not null && SetBrightness(dev, len, brightness);
-    }
+    public bool SetBrightness(int brightness) => WithDevice((dev, len) => SetBrightness(dev, len, brightness));
 
     private static bool SetBrightness(SafeFileHandle dev, int len, int brightness)
     {

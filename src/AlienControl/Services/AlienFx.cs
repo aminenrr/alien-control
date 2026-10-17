@@ -74,7 +74,7 @@ public sealed class AlienFx
     /// </summary>
     public async Task ResetHardwareDimAsync()
     {
-        await Task.Run(() => { try { _hid.SetBrightness(255); } catch { } });
+        await Task.Run(() => { try { _hid.SetBrightness(255); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("AlienFx.cs:77", __e); } });
         await _cli.RunAsync($"setdim={_s.ChassisDevice},255");
     }
 

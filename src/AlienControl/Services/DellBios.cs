@@ -26,7 +26,7 @@ public static class DellBios
                     list.Add(new Attr(o["AttributeName"]?.ToString() ?? "", First(o["CurrentValue"]),
                         (o["PossibleValue"] as string[]) ?? Array.Empty<string>()));
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("DellBios.cs:29", __e); }
         return list;
     }
 

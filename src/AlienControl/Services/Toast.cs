@@ -253,7 +253,7 @@ public static class Toast
     {
         _timer?.Stop(); _timer = null;
         var w = _w; _w = null;
-        try { w?.Close(); } catch { }
+        try { w?.Close(); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("Toast.cs:256", __e); }
     }
 }
 
@@ -292,6 +292,6 @@ public static class Sounds
             }
             PlaySound(p, IntPtr.Zero, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("Toast.cs:295", __e); }
     }
 }

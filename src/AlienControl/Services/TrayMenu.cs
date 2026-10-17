@@ -50,7 +50,7 @@ public sealed class TrayMenuStyle
     {
         if (hwnd == IntPtr.Zero) return;
         int pref = Legend ? DWMWCP_DONOTROUND : DWMWCP_ROUND;
-        try { DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int)); } catch { }
+        try { DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int)); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("TrayMenu.cs:53", __e); }
     }
 }
 

@@ -42,7 +42,7 @@ public sealed class StateWatch : IDisposable
         WatchTouchpad();
     }
 
-    internal void Raise() { try { Changed?.Invoke(); } catch { } }
+    internal void Raise() { try { Changed?.Invoke(); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("StateWatch.cs:45", __e); } }
     internal void DeviceChanged() { Interlocked.Exchange(ref _rebind, 1); Raise(); }
 
     public bool? SpeakerMuted() => Muted(0);
@@ -74,7 +74,7 @@ public sealed class StateWatch : IDisposable
                 }
                 Marshal.ReleaseComObject(dev);
             }
-            catch { }
+            catch (System.Exception __e) { AlienControl.Services.Log.Warn("StateWatch.cs:77", __e); }
         }
     }
 
@@ -83,8 +83,8 @@ public sealed class StateWatch : IDisposable
         var v = _vol[flow];
         _vol[flow] = null;
         if (v is null) return;
-        try { v.UnregisterControlChangeNotify(_volCb); } catch { }
-        try { Marshal.ReleaseComObject(v); } catch { }
+        try { v.UnregisterControlChangeNotify(_volCb); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("StateWatch.cs:86", __e); }
+        try { Marshal.ReleaseComObject(v); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("StateWatch.cs:87", __e); }
     }
 
     // ---- touchpad registry key ----
@@ -102,7 +102,7 @@ public sealed class StateWatch : IDisposable
             if (!Arm()) return;
             _tpWait = ThreadPool.RegisterWaitForSingleObject(_tpEvent, (_, _) => { Arm(); Raise(); }, null, Timeout.Infinite, false);
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("StateWatch.cs:105", __e); }
     }
 
     private bool Arm()
@@ -114,8 +114,8 @@ public sealed class StateWatch : IDisposable
     public void Dispose()
     {
         Release(0); Release(1);
-        try { _enum?.UnregisterEndpointNotificationCallback(_devCb); } catch { }
-        if (_enum is not null) try { Marshal.ReleaseComObject(_enum); } catch { }
+        try { _enum?.UnregisterEndpointNotificationCallback(_devCb); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("StateWatch.cs:117", __e); }
+        if (_enum is not null) try { Marshal.ReleaseComObject(_enum); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("StateWatch.cs:118", __e); }
         _enum = null;
         _tpWait?.Unregister(null); _tpWait = null;
         _tpKey?.Dispose(); _tpKey = null;

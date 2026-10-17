@@ -65,7 +65,7 @@ public partial class MainWindow : Window
         // G-key hook: always on since v0.8 (no off switch); "Detect key" lives in the gear menu.
         _gkey = new GKeyHook(_settings.GKeyVk, _settings.GKeyScan);
         _gkey.Pressed += () => Dispatcher.BeginInvoke(new Action(async () => await ToggleGModeAsync()));
-        _gkey.Install();
+        InputThread.Invoke(() => _gkey.Install());   // 1.3.0-beta.1: own thread (review #4)
         UpdateGKeyText();
         F2PresetsToggle.IsChecked = _settings.F2Presets;
         F3OpensToggle.IsChecked = _settings.F3Opens;
@@ -79,7 +79,7 @@ public partial class MainWindow : Window
         };
         SetCompact(true);
         SizeChanged += OnSizeChangedKeepCorner;
-        _macro.Install();
+        InputThread.Invoke(() => _macro.Install());
         SetHint(FanHint, "BIOS controlled", "BIOS");
         SetHint(GpuHint, "Optimus · RTX 3070 Ti", "OPTIMUS · 3070 Ti");
 
@@ -179,9 +179,14 @@ public partial class MainWindow : Window
                    ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1").Split('+')[0];
         VersionText.Text = "v" + ver;
         AboutText.Text = $"Alien Controls {ver}. Fans, power and lighting by alienfx-tools (T-Troll, MIT). Not made by Dell or Alienware. Personal project built with AI help, use at your own risk.";
-        StartupToggle.IsChecked = Startup.IsEnabled();
+        _ = Dispatcher.InvokeAsync(async () => StartupToggle.IsChecked = await Startup.IsEnabledAsync());   // 1.3.0-beta.1: off the UI thread (review #4)
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
         InitAuto(); // v0.9.11 auto preset + toasts
+        _ = Task.Run(() => FolderSafety.UserWritable(AppContext.BaseDirectory)).ContinueWith(t =>
+        {
+            if (t.Result) Dispatcher.BeginInvoke(new Action(() =>
+                Status("Heads-up: this folder can be changed without admin rights. Move Alien Controls to C:\\Program Files\\Alien Controls.")));
+        });
 
         if (!_fan.IsAvailable || !_fx.IsAvailable)
             Status((_fan.IsAvailable ? "alienfx-cli.exe" : _fx.IsAvailable ? "alienfan-cli.exe" : "alienfan-cli.exe and alienfx-cli.exe")
@@ -230,7 +235,7 @@ public partial class MainWindow : Window
                 }
             }
         }
-        catch { /* fall back to WorkArea */ }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:238", __e); /* fall back to WorkArea */ }
         double w = ActualWidth > 0 ? ActualWidth : Width;
         double h = ActualHeight > 0 ? ActualHeight : 700;
         return (right - w - 4, Math.Max(0, bottom - h - 4));
@@ -380,10 +385,10 @@ public partial class MainWindow : Window
             using var p = System.Diagnostics.Process.GetCurrentProcess();
             SetProcessWorkingSetSize(p.Handle, new IntPtr(-1), new IntPtr(-1));
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:388", __e); }
     }
 
-    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); _gkey.Dispose(); _macro.Dispose(); _indicatorTimer.Stop(); _watch?.Dispose(); }
+    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); InputThread.Invoke(() => { _gkey.Dispose(); _macro.Dispose(); }); InputThread.Shutdown(); _indicatorTimer.Stop(); _watch?.Dispose(); }
 
     // ---------- status keys ----------
 
@@ -522,7 +527,7 @@ public partial class MainWindow : Window
         if (_powerBusy) return;
         _powerBusy = true;
         try { ShowPower(await Task.Run(_power.Sample)); }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:530", __e); }
         finally { _powerBusy = false; }
     }
 
@@ -843,10 +848,13 @@ public partial class MainWindow : Window
         if (_lightsManaged) await ApplyLightingAsync(_lastColor);
     }
 
-    private void Startup_Click(object sender, RoutedEventArgs e)
+    private async void Startup_Click(object sender, RoutedEventArgs e)
     {
         bool want = StartupToggle.IsChecked == true;
-        if (!Startup.SetEnabled(want))
+        StartupToggle.IsEnabled = false;
+        bool ok = await Startup.SetEnabledAsync(want);
+        StartupToggle.IsEnabled = true;
+        if (!ok)
         {
             StartupToggle.IsChecked = !want;
             Status("Couldn't change the startup task.");
@@ -884,7 +892,7 @@ public partial class MainWindow : Window
         top.GradientStops.Add(new GradientStop(Color.FromRgb(0x7C, 0x4D, 0xFF), 0.82));
         top.GradientStops.Add(new GradientStop(Color.FromArgb(0, 0x7C, 0x4D, 0xFF), 1));
         res["TopLineBrush"] = Freeze(top);
-        try { Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(col, Wpf.Ui.Appearance.ApplicationTheme.Dark); } catch { }
+        try { Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(col, Wpf.Ui.Appearance.ApplicationTheme.Dark); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:895", __e); }
         AccentColor = col;
         (Application.Current as App)?.UpdateTrayMenu(legend, col);   // v0.8.7: tray menu follows theme + accent
         // v0.8.10: line icons bind Stroke to their inherited TextElement.Foreground; WPF updated them one click late
@@ -1117,7 +1125,8 @@ public partial class MainWindow : Window
     {
         var prev = _gpu;
         var setUtc = _settings.GpuSwitchSetUtc;
-        var st = await Task.Run(() => GpuMode.Read(withBios, setUtc));
+        var setBoot = _settings.GpuSwitchSetBootId;
+        var st = await Task.Run(() => GpuMode.Read(withBios, setUtc, setBoot));
         if (!withBios)
         {
             // only the BIOS read can tell Ultimate apart: keep what the last full read said
@@ -1345,7 +1354,7 @@ public partial class MainWindow : Window
         {
             if (!_gpu.PendingRestart) return;
             var undo = await Task.Run(() => GpuMode.SetUltimate(isUlt));
-            if (undo is null) { _settings.GpuSwitchSetUtc = null; _settings.Save(); }
+            if (undo is null) { _settings.GpuSwitchSetUtc = null; _settings.GpuSwitchSetBootId = null; _settings.Save(); }
             Status(undo ?? "Switch cancelled. No restart needed.");
             return;
         }
@@ -1362,6 +1371,7 @@ public partial class MainWindow : Window
         var err = await Task.Run(() => GpuMode.SetUltimate(toUlt));
         if (err is not null) { Status(err); return; }
         _settings.GpuSwitchSetUtc = DateTime.UtcNow;
+        _settings.GpuSwitchSetBootId = GpuMode.BootId();
         _settings.Save();
         if (pick == "now") { GpuMode.RestartNow(); return; }
         Status(toUlt ? "Ultimate is set. It takes effect after your next restart." : "Advanced Optimus is set. It takes effect after your next restart.");
@@ -1518,13 +1528,7 @@ public partial class MainWindow : Window
         if (rate) Show();
     }
 
-    private static TrayProfile NextPreset(TrayProfile p) => p switch
-    {
-        TrayProfile.Quiet => TrayProfile.Balanced,
-        TrayProfile.Balanced => TrayProfile.Performance,
-        TrayProfile.Performance => OnAc ? TrayProfile.Quiet : TrayProfile.Battery,
-        _ => TrayProfile.Quiet,
-    };
+    private static TrayProfile NextPreset(TrayProfile p) => Profiles.NextPreset(p, OnAc);
 
     /// <summary>F2 key color for the shown preset; none (normal key color) in G-Mode, Battery, Custom or when off.</summary>
     private void UpdateF2Tint(TrayProfile p)

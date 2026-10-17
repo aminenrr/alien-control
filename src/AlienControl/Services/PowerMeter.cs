@@ -75,10 +75,6 @@ public sealed class PowerMeter : IDisposable
     }
 
     // ---------- GPU: NVML ----------
-    [DllImport("nvml.dll")] private static extern int nvmlInit_v2();
-    [DllImport("nvml.dll")] private static extern int nvmlShutdown();
-    [DllImport("nvml.dll")] private static extern int nvmlDeviceGetHandleByIndex_v2(uint index, out IntPtr device);
-    [DllImport("nvml.dll")] private static extern int nvmlDeviceGetPowerUsage(IntPtr device, out uint milliwatts);
 
     private bool _nvmlDead, _nvmlUp;
     private IntPtr _nvDevice;
@@ -96,7 +92,7 @@ public sealed class PowerMeter : IDisposable
             lock (_nvLock)
             {
                 _gpuOff = value;
-                if (value && _nvmlUp) { try { nvmlShutdown(); } catch { } _nvmlUp = false; }
+                if (value && _nvmlUp) { try { Nvml.nvmlShutdown(); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("PowerMeter.cs:95", __e); } _nvmlUp = false; }
             }
         }
     }
@@ -113,16 +109,16 @@ public sealed class PowerMeter : IDisposable
         {
             if (!_nvmlUp)
             {
-                if (nvmlInit_v2() != 0) return null;              // driver present but GPU off (iGPU only): retry later
-                if (nvmlDeviceGetHandleByIndex_v2(0, out _nvDevice) != 0) { nvmlShutdown(); return null; }
+                if (Nvml.nvmlInit_v2() != 0) return null;              // driver present but GPU off (iGPU only): retry later
+                if (Nvml.nvmlDeviceGetHandleByIndex_v2(0, out _nvDevice) != 0) { Nvml.nvmlShutdown(); return null; }
                 _nvmlUp = true;
             }
-            if (nvmlDeviceGetPowerUsage(_nvDevice, out uint mw) != 0) { nvmlShutdown(); _nvmlUp = false; return null; }
+            if (Nvml.nvmlDeviceGetPowerUsage(_nvDevice, out uint mw) != 0) { Nvml.nvmlShutdown(); _nvmlUp = false; return null; }
             return mw / 1000.0;
         }
         catch (DllNotFoundException) { _nvmlDead = true; }
         catch (EntryPointNotFoundException) { _nvmlDead = true; }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("PowerMeter.cs:121", __e); }
         return null;
     }
 
@@ -181,7 +177,7 @@ public sealed class PowerMeter : IDisposable
     /// <summary>Battery discharge in W (positive), or null when charging/unknown.</summary>
     private double? ReadDischarge()
     {
-        if (!_batteryTried) { _batteryTried = true; try { _batteryPath = FindBatteryPath(); } catch { } }
+        if (!_batteryTried) { _batteryTried = true; try { _batteryPath = FindBatteryPath(); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("PowerMeter.cs:180", __e); } }
         if (_batteryPath is null) return null;
         try
         {
@@ -250,6 +246,6 @@ public sealed class PowerMeter : IDisposable
     public void Dispose()
     {
         _rapl?.Dispose();
-        if (_nvmlUp) { try { nvmlShutdown(); } catch { } _nvmlUp = false; }
+        if (_nvmlUp) { try { Nvml.nvmlShutdown(); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("PowerMeter.cs:249", __e); } _nvmlUp = false; }
     }
 }

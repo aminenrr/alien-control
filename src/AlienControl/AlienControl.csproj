@@ -34,6 +34,9 @@
     <Resource Include="Assets\logo.png" />
     <Resource Include="Assets\snd-*.wav" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="AlienControl.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="WPF-UI" Version="3.0.5" />

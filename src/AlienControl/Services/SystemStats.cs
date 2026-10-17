@@ -77,10 +77,10 @@ public sealed class SystemStats : IDisposable
                     ulong size = v switch { long l => (ulong)l, byte[] b when b.Length >= 8 => BitConverter.ToUInt64(b, 0), _ => 0 };
                     if (size > best) best = size;
                 }
-                catch { }
+                catch (System.Exception __e) { AlienControl.Services.Log.Warn("SystemStats.cs:80", __e); }
             }
         }
-        catch { }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("SystemStats.cs:83", __e); }
         return best;
     }
 
