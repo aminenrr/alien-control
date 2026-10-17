@@ -3,6 +3,14 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.2.0-beta.1 (2026-10-17), untested
+- New toasts in the Dolby Controls style: a 44 px icon tile in the preset's color, title + detail line, and the state on
+  the right (Quiet / Balanced / Performance pills for F2, a switch for F1 G-Mode, a preset chip for plugged in / on
+  battery). Legend and Fluent. Same top-right spot and timing.
+- New soft bell chimes: one note per F2 preset (low to high), G-Mode on three notes rising, off two falling, plug two
+  notes up, unplug the same two down. The old tick is gone. Generator: dev/chimes.py.
+- Includes the 1.1.1 name fix.
+
 ## v1.1.1 (2026-10-16), untested
 - Startup apps / Task Manager now show "Alien Controls" (with a space) instead of "AlienControl" (exe file description).
 - The run-on-startup task is now called "Alien Controls". An old "AlienControl" task is swapped for the new one

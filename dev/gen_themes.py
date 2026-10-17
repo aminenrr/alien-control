@@ -11,12 +11,12 @@ os.makedirs(OUT, exist_ok=True)
 TAB = {"Activity": "activity", "Battery": "battery-eco", "Quiet": "moon", "Balanced": "scale", "Performance": "gauge",
        "GMode": "flame", "Gpu": "device-gamepad-2", "IGpu": "leaf", "Optimus": "arrows-exchange", "DGpu": "rocket",
        "Ultimate": "bolt", "Cpu": "cpu", "Fan": "propeller", "Light": "bulb", "Clean": "eraser", "Power": "power",
-       "Minimize": "minus", "Close": "x", "Settings": "settings", "Display": "device-desktop", "Bolt": "bolt"}
+       "Minimize": "minus", "Close": "x", "Settings": "settings", "Display": "device-desktop", "Bolt": "bolt", "Plug": "plug"}
 FLU = {"Activity": "Pulse24", "Battery": "BatterySaver24", "Quiet": "WeatherMoon24", "Balanced": "Scales24",
        "Performance": "Gauge24", "GMode": "Fire24", "Gpu": "Games24", "IGpu": "LeafTwo24", "Optimus": "ArrowSwap24",
        "DGpu": "Rocket24", "Ultimate": "Flash24", "Cpu": "DeveloperBoard24", "Light": "LightbulbFilament24",
        "Clean": "Broom24", "Power": "Power24", "Minimize": "Subtract24", "Close": "Dismiss24", "Settings": "Settings24",
-       "Display": "Desktop24", "Bolt": "Flash24"}
+       "Display": "Desktop24", "Bolt": "Flash24", "Plug": "PlugConnected24"}
 PHOSPHOR_FAN = re.search(r'd="([^"]+)"', open(f"{ICONS}/phosphor/fan.svg").read()).group(1)
 
 

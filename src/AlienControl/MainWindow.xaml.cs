@@ -582,10 +582,11 @@ public partial class MainWindow : Window
         // _gmodeOn is kept in sync by every read, so no extra getgmode call before acting.
         var current = _gmodeOn;
         if (!current)
-            Notify(TrayProfile.GMode, "F1 · fans max" + (_settings.OcOn && OnAc && (_settings.OcCore | _settings.OcMem) != 0
-                ? $" · OC +{_settings.OcCore} / +{_settings.OcMem}" : ""), Sounds.Kind.GModeOn);
+            Notify(new Toast.Info(TrayProfile.GMode, "Icon.GMode", "G-Mode on", "Fans max" + (_settings.OcOn && OnAc && (_settings.OcCore | _settings.OcMem) != 0
+                ? $" · OC +{_settings.OcCore} / +{_settings.OcMem}" : ""), Toast.Right.SwitchOn), Sounds.Kind.GModeOn);
         else
-            Notify(CurrentProfile, $"F1 · G-Mode off · back to {Profiles.Label(CurrentProfile)}", Sounds.Kind.GModeOff);
+            Notify(new Toast.Info(CurrentProfile, "Icon.GMode", "G-Mode off", $"Back to {Profiles.Label(CurrentProfile)} · fans auto",
+                Toast.Right.SwitchOff, Lit: false), Sounds.Kind.GModeOff);
         if (current)
         {
             await _fan.SetGModeAsync(false);
@@ -1336,7 +1337,12 @@ public partial class MainWindow : Window
         // v1.0.0-rc1: toast first, then apply (no ~1 s wait). Into / out of Battery changes the refresh rate,
         // which blanks the screen, so those still toast after the switch (Notify waits for the screen).
         bool rate = cur == TrayProfile.Battery || next == TrayProfile.Battery;
-        void Show() => Notify(next, $"F2 · next: {Profiles.Label(NextPreset(next))}", Sounds.Kind.Tick, cycle: next != TrayProfile.Battery);
+        void Show() => Notify(new Toast.Info(next, Profiles.IconKey(next), Profiles.Label(next), PresetSub(next),
+            next == TrayProfile.Battery ? Toast.Right.Chip : Toast.Right.Pills), next switch
+        {
+            TrayProfile.Quiet => Sounds.Kind.Quiet, TrayProfile.Performance => Sounds.Kind.Performance,
+            TrayProfile.Battery => Sounds.Kind.Unplug, _ => Sounds.Kind.Balanced,
+        });
         if (!rate) Show();
         await ApplyProfileAsync(next);
         if (rate) Show();

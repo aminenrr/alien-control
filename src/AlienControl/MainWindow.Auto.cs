@@ -60,7 +60,8 @@ public partial class MainWindow
                 _settings.Save();
                 if (cur == TrayProfile.Battery && !wasG) return;
                 await ApplyProfileAsync(TrayProfile.Battery);
-                Notify(TrayProfile.Battery, wasG ? "Unplugged · G-Mode off, OC back to +0" : "Unplugged · 60 Hz, power saving",
+                Notify(new Toast.Info(TrayProfile.Battery, "Icon.Battery", "On battery",
+                       wasG ? "G-Mode off · OC back to +0 · 60 Hz" : "Battery preset · 60 Hz · power saving", Toast.Right.Chip),
                        Sounds.Kind.Unplug);
             }
             else
@@ -69,7 +70,8 @@ public partial class MainWindow
                 var p = Enum.TryParse<TrayProfile>(_settings.AcPreset, out var s) && s is TrayProfile.Quiet or TrayProfile.Balanced or TrayProfile.Performance
                     ? s : TrayProfile.Balanced;
                 await ApplyProfileAsync(p);
-                Notify(p, $"Plugged in · back to {Profiles.Label(p)}", Sounds.Kind.Plug);
+                Notify(new Toast.Info(p, "Icon.Plug", "Plugged in", $"Back to {Profiles.Label(p)} · 240 Hz", Toast.Right.Chip),
+                       Sounds.Kind.Plug);
             }
         }
         finally { _autoBusy = false; }
@@ -77,15 +79,25 @@ public partial class MainWindow
 
     /// <summary>Toast + sound, each with its own gear toggle. v0.9.12: after a refresh-rate change (Battery 60 Hz <-> 240 Hz)
     /// the screen blanks for about a second, so both wait until ~1.5 s after it and the toast stays a bit longer.</summary>
-    private async void Notify(TrayProfile p, string sub, Sounds.Kind sound, bool cycle = false)
+    private async void Notify(Toast.Info info, Sounds.Kind sound)
     {
         var since = (DateTime.UtcNow - _rateChangedUtc).TotalMilliseconds;
         bool modeSwitch = since < 1500;
         if (modeSwitch) await Task.Delay((int)(1500 - since));
-        if (_settings.Toasts) Toast.Show(IsLegend, p, sub, cycle, Motion.Enabled, modeSwitch ? 2200 : 1600);
+        if (_settings.Toasts) Toast.Show(IsLegend, info, Motion.Enabled, modeSwitch ? 2200 : 1600);
         if (_settings.ToastSound) Sounds.Play(sound);
         if (!IsVisible) _ = TrimSoonAsync(_showGen);   // v0.9.13: the toast window's memory goes back once it's gone
     }
+
+    /// <summary>v1.2: detail line of the F2 preset toast.</summary>
+    private static string PresetSub(TrayProfile p) => p switch
+    {
+        TrayProfile.Quiet => "Efficient boost · 240 Hz · fans low",
+        TrayProfile.Balanced => "CPU boost on · 240 Hz",
+        TrayProfile.Performance => "Aggressive boost · 240 Hz · fans up",
+        TrayProfile.Battery => "Boost off · 60 Hz · power saving",
+        _ => "Your own settings",
+    };
 
     private void AutoPreset_Click(object sender, RoutedEventArgs e)
     {
@@ -104,6 +116,6 @@ public partial class MainWindow
     {
         _settings.ToastSound = ToastSoundToggle.IsChecked == true;
         _settings.Save();
-        if (_settings.ToastSound) Sounds.Play(Sounds.Kind.Tick);   // let them hear it
+        if (_settings.ToastSound) Sounds.Play(Sounds.Kind.Balanced);   // let them hear it
     }
 }
