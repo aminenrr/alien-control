@@ -17,7 +17,7 @@ namespace AlienControl.Services;
 public enum GpuModeKind { Unknown, IGpuOnly, Optimus, DGpuOnly, Ultimate }
 
 /// <summary>
-/// GPU modes for the m15 R7 (v0.8: the UI buttons are preview only and not wired to these methods yet).
+/// GPU modes for the m15 R7 (1.2.0-beta.2: iGPU only / Advanced Optimus / Ultimate in the UI).
 ///   iGPU only = NVIDIA display device disabled (pnputil), Intel drives the screen. Hybrid mode only.
 ///   Optimus   = hybrid: both GPUs on, Intel drives the screen, RTX wakes on demand.
 ///   dGPU only = NVIDIA Advanced Optimus "NVIDIA GPU only" display mode. NVIDIA has no API for it, so the app
@@ -218,6 +218,53 @@ public static class GpuMode
         }
         catch { }
         return names.ToList();
+    }
+
+    /// <summary>1.2.0-beta.2: like AppsUsingDgpu, with each app's dedicated memory in MB, biggest first.</summary>
+    public static List<(string Name, long Mb)> AppsUsingDgpuDetailed()
+    {
+        var by = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var cat = new PerformanceCounterCategory("GPU Process Memory");
+            int self = Environment.ProcessId;
+            foreach (var inst in cat.GetInstanceNames())
+            {
+                var parts = inst.Split('_');
+                if (parts.Length < 2 || parts[0] != "pid" || !int.TryParse(parts[1], out int pid) || pid == self) continue;
+                using var c = new PerformanceCounter("GPU Process Memory", "Dedicated Usage", inst, true);
+                long bytes = c.RawValue;
+                if (bytes < 16L * 1024 * 1024) continue;
+                try
+                {
+                    var p = Process.GetProcessById(pid).ProcessName;
+                    if (p.Equals("dwm", StringComparison.OrdinalIgnoreCase)) continue;
+                    by[p] = (by.TryGetValue(p, out var v) ? v : 0) + bytes;
+                }
+                catch { }
+            }
+        }
+        catch { }
+        return by.OrderByDescending(x => x.Value).Select(x => (x.Key, x.Value / (1024 * 1024))).ToList();
+    }
+
+    /// <summary>After the RTX comes back: if NVIDIA's tray process (nvcontainer in this session) isn't running,
+    /// restart NVIDIA's Display Container service so its tray icon and display-mode popup return without a reboot.</summary>
+    public static async Task EnsureNvidiaTrayAsync()
+    {
+        try
+        {
+            int session = Process.GetCurrentProcess().SessionId;
+            bool tray = Process.GetProcessesByName("nvcontainer").Any(p => { try { return p.SessionId == session; } catch { return false; } });
+            if (tray) return;
+            foreach (var verb in new[] { "stop", "start" })
+            {
+                using var p = Process.Start(new ProcessStartInfo("net.exe", $"{verb} NVDisplay.ContainerLocalSystem")
+                { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true })!;
+                await p.WaitForExitAsync();
+            }
+        }
+        catch { }
     }
 
     private static async Task<(bool Ok, string Output)> PnpUtil(string verb, string id)

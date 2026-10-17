@@ -204,7 +204,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ===== 02 GPU mode (preview: not wired yet) ===== -->
+                <!-- ===== 02 GPU mode ===== -->
                 <Border x:Name="GpuSection" Style="{DynamicResource SectionPanel}">
                     <StackPanel>
                         <Grid Style="{DynamicResource SectionHeader}">
@@ -219,14 +219,18 @@
                             <TextBlock x:Name="GpuHint" Grid.Column="4" Style="{DynamicResource SectionHint}" Foreground="{DynamicResource AccentBrush}" />
                         </Grid>
                         <Border Style="{DynamicResource Track}">
-                            <!-- v0.9.2: two modes. Auto / Optimus / GPU only stay in NVIDIA's own tray popup; the hint follows it. -->
-                            <UniformGrid Columns="2">
+                            <!-- 1.2.0-beta.2: iGPU only (pnputil, NVIDIA on Optimus only) / Advanced Optimus / Ultimate. NVIDIA's Auto / Optimus / GPU only stay in its tray popup. -->
+                            <UniformGrid Columns="3">
+                                <RadioButton x:Name="GpuIgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click"
+                                             Tag="{DynamicResource Icon.IGpu}" Content="iGPU only" ToolTip="Turns the RTX off (Intel only). Needs NVIDIA set to Optimus." />
                                 <RadioButton x:Name="GpuOptimus" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" IsChecked="True"
                                              Tag="{DynamicResource Icon.Optimus}" Content="Advanced Optimus" ToolTip="Intel + RTX. Pick Auto / Optimus / GPU only from NVIDIA's tray icon." />
                                 <RadioButton x:Name="GpuUltimate" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click"
                                              Tag="{DynamicResource Icon.Ultimate}" Content="Ultimate" ToolTip="Dell BIOS: Intel GPU off, the RTX drives everything. Needs a restart." />
                             </UniformGrid>
                         </Border>
+                        <!-- 1.2.0-beta.2: why iGPU only / Ultimate is locked, or that the RTX is off -->
+                        <TextBlock x:Name="GpuNote" Style="{DynamicResource FooterText}" TextWrapping="Wrap" Margin="2,8,2,0" Visibility="Collapsed" />
                     </StackPanel>
                 </Border>
 

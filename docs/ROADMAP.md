@@ -16,6 +16,7 @@
 - [x] 1.1.0-beta.5 Header preset button + preset list (replaces the chip).
 - [x] 1.1.0 released 2026-10-16 (each beta was confirmed on the laptop, so no separate rc).
 - [ ] 1.2.0-beta.1 Toasts + chimes v2 (Dolby Controls style).
+- [ ] 1.2.0-beta.2 iGPU only (RTX off) as a third GPU mode, NVIDIA Optimus only.
 - [ ] 1.1.1 patch: shows as "Alien Controls" in startup lists, startup task renamed (old one migrated).
 
 ## Later

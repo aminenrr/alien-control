@@ -3,6 +3,18 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.2.0-beta.2 (2026-10-17), untested
+- **iGPU only is back** as a third GPU Mode button (left of Advanced Optimus). It disables the RTX with `pnputil`
+  (survives reboots); HDMI / Mini DP go dark until it's back on.
+  - Works only in Advanced Optimus with NVIDIA set to **Optimus**. On **Automatic Select** it's pressable but shows
+    "Switch to Optimus first" (Open NVIDIA panel / OK). Locked with a note in dGPU only and Ultimate.
+  - Before turning the RTX off: "Turn off the RTX?" lists the apps holding RTX memory (with MB) - Cancel / Refresh /
+    Turn off anyway. Nothing on it = a short Cancel / Turn off.
+  - While the RTX is off: green note under the row, hint "iGPU only · RTX off", **Ultimate is locked**.
+  - Advanced Optimus turns the RTX back on right away (no restart). If NVIDIA's tray icon doesn't come back in ~6 s,
+    the app restarts NVIDIA's Display Container service. Kept GPU OC offsets are re-applied (G-Mode on AC).
+  - Plugging in never turns the RTX back on; it stays manual.
+
 ## v1.2.0-beta.1 (2026-10-17), untested
 - New toasts in the Dolby Controls style: a 44 px icon tile in the preset's color, title + detail line, and the state on
   the right (Quiet / Balanced / Performance pills for F2, a switch for F1 G-Mode, a preset chip for plugged in / on

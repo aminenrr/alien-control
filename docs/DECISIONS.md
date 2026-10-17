@@ -97,3 +97,12 @@ Why things are the way they are. Newest decisions win.
 - The read-only header chip became a preset button (both themes): icon + color of the active preset, click for the list
   Battery, Quiet, Balanced, Performance, Custom.
 - No rc for 1.1: each beta was confirmed on the laptop before the next one.
+
+## iGPU only, revived (1.2.0-beta.2, 2026-10-17)
+- Amine asked for it back as a third button: **iGPU only / Advanced Optimus / Ultimate**.
+- Allowed only in Advanced Optimus with NVIDIA on Optimus (Intel on the panel). Automatic Select: pressable, warns to
+  switch to Optimus first (it could hand the panel to the RTX). dGPU only / Ultimate: locked with a note.
+- Confirm dialog lists apps holding RTX memory (Cancel / Refresh / Turn off anyway).
+- Ultimate is locked while the RTX is off (never boot the MUX with the RTX disabled).
+- Re-enable = Advanced Optimus only, no restart. Plugging in does not re-enable it (manual, default chosen while the
+  question was open). NVIDIA's tray icon: restart NVDisplay.ContainerLocalSystem if nvcontainer isn't in the session.
