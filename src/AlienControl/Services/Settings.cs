@@ -114,11 +114,8 @@ public sealed class Settings
     public bool KbdTimeoutBatteryOnly { get; set; } = false;
     public bool KbdTimeoutPauseFullscreen { get; set; } = true;
 
-    // 1.3.0-beta.1 animations (Part 3), debug toggles so both versions are tested in one beta.
-    /// <summary>true = normal window (DWM rounded corners + native shadow) instead of the transparent layered one. Needs a restart.</summary>
-    public bool NormalWindow { get; set; } = false;
-    /// <summary>true = refresh-timed slide thread; false = the 1.2 UI-thread slide.</summary>
-    public bool NewSlideEngine { get; set; } = true;
+    // 1.3.0 animations: the beta's NormalWindow / NewSlideEngine toggles were removed after the A/B
+    // (old settings.json keys are ignored on load).
     /// <summary>true = log frame gaps of every slide to crash.log.</summary>
     public bool FrameLog { get; set; } = false;
 

@@ -608,32 +608,8 @@
                                     <CheckBox x:Name="TaskbarToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
                                               Click="Taskbar_Click" ToolTip="Show the window's button on the taskbar" />
                                 </Grid>
-                                <!-- 1.3.0-beta.1 debug toggles (animations A/B) -->
+                                <!-- debug -->
                                 <TextBlock Text="Debug" Style="{DynamicResource FooterText}" Margin="0,18,0,0" Opacity="0.7" />
-                                <Grid Margin="0,14,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Text="New slide engine" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Refresh-timed slide thread (off: the 1.2 slide)" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <CheckBox x:Name="SlideEngineToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
-                                              Click="Debug_Click" ToolTip="Compare both on the laptop" />
-                                </Grid>
-                                <Grid Margin="0,14,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Text="Normal window" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Native rounded corners + shadow (restart)" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextWrapping="Wrap" />
-                                    </StackPanel>
-                                    <CheckBox x:Name="NormalWindowToggle" Grid.Column="1" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center"
-                                              Click="Debug_Click" ToolTip="Off: the transparent window from 1.2" />
-                                </Grid>
                                 <Grid Margin="0,14,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />

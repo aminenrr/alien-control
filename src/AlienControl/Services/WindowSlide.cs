@@ -11,8 +11,8 @@ namespace AlienControl.Services;
 /// Why: v0.8.6/0.8.7 animated the card INSIDE the transparent (layered) WPF window, and the laptop's screen
 /// recording showed zero in-between frames, open and close. Moving the HWND is done by the compositor (DWM)
 /// on the already-drawn window, so WPF never has to present a new frame for the motion to show.
-/// Time based (a slow frame skips ahead, never stretches the slide). The per-frame hook (CompositionTarget.Rendering
-/// plus a 15 ms backup timer, in case Rendering stalls) exists only while a slide runs; idle cost is zero.
+/// Time based (a slow frame skips ahead, never stretches the slide). 1.3.0: a short-lived thread steps it once per
+/// composition (see RunThreaded); it exists only while a slide runs, so idle cost is zero.
 /// </summary>
 public sealed class WindowSlide
 {
@@ -28,27 +28,21 @@ public sealed class WindowSlide
     private const uint MONITOR_DEFAULTTONEAREST = 2;
 
     private readonly Func<IntPtr> _hwnd;
-    private readonly Stopwatch _clock = new();
-    private readonly DispatcherTimer _backup;
     private int _x, _fromY, _toY, _ms;
     private CubicBezier _ease = CubicBezier.Decelerate;
     private Action? _done;
-    private bool _hooked;
 
     public WindowSlide(Func<IntPtr> hwnd)
     {
         _hwnd = hwnd;
-        _backup = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(15) };
-        _backup.Tick += (_, _) => Step();
     }
 
     public bool Active { get; private set; }
 
     // ---------- 1.3.0-beta.1 slide engine (Part 3) ----------
-    /// <summary>true = a short-lived thread steps the slide once per composition (DwmFlush), placing each frame for the
-    /// vblank it'll show on, with async SetWindowPos (240 steps/s on the 240 Hz panel, never stalled by the UI thread).
-    /// false = the 1.2 UI-thread stepper (CompositionTarget.Rendering + 15 ms backup timer).</summary>
-    public static bool UseThread { get; set; } = true;
+    // A short-lived thread steps the slide once per composition (DwmFlush), placing each frame for the vblank it'll
+    // show on, with async SetWindowPos (240 steps/s on the 240 Hz panel, never stalled by the UI thread). The 1.2
+    // UI-thread stepper was removed in 1.3.0 after the beta A/B (the user: the new engine feels better).
     /// <summary>Debug: log steps/s and the biggest gap of every slide to crash.log.</summary>
     public static bool LogFrames { get; set; }
 
@@ -140,8 +134,6 @@ public sealed class WindowSlide
         catch (Exception ex) { Log.Warn("NoGcEnd", ex); }
     }
 
-    private double _lastStep, _maxGap; private int _steps;
-
     /// <summary>Slides from the window's CURRENT top to <paramref name="toY"/> (device pixels) at column x.
     /// A slide already running is replaced (its completion callback is dropped), so a reversal starts where it is.</summary>
     public void Run(int x, int toY, int ms, CubicBezier ease, Action? done)
@@ -151,13 +143,7 @@ public sealed class WindowSlide
         if (h == IntPtr.Zero || !GetWindowRect(h, out var r)) { done?.Invoke(); return; }
         _x = x; _fromY = r.Top; _toY = toY; _ms = Math.Max(1, ms); _ease = ease; _done = done;
         Active = true;
-        if (UseThread) { RunThreaded(h); return; }
-        _steps = 0; _lastStep = 0; _maxGap = 0;
-        _clock.Restart();
-        CompositionTarget.Rendering += OnRendering;
-        _hooked = true;
-        _backup.Start();
-        Step();
+        RunThreaded(h);
     }
 
     /// <summary>Stops a running slide where it is, without its completion callback.</summary>
@@ -165,28 +151,8 @@ public sealed class WindowSlide
     {
         System.Threading.Interlocked.Increment(ref _gen);   // ends a slide thread
         NoGcEnd();
-        if (_hooked) { CompositionTarget.Rendering -= OnRendering; _hooked = false; }
-        _backup.Stop();
-        _clock.Reset();
         Active = false;
         _done = null;
-    }
-
-    private void OnRendering(object? sender, EventArgs e) => Step();
-
-    private void Step()
-    {
-        if (!Active) return;
-        double t = Math.Min(1.0, _clock.Elapsed.TotalMilliseconds / _ms);
-        int y = (int)Math.Round(_fromY + (_toY - _fromY) * _ease.Solve(t));
-        Move(_hwnd(), _x, y);
-        double now = _clock.Elapsed.TotalMilliseconds;
-        _steps++; _maxGap = Math.Max(_maxGap, now - _lastStep); _lastStep = now;
-        if (t < 1.0) return;
-        if (LogFrames) Log.Info("Slide", $"ui {_ms} ms: {_steps} steps, {_steps * 1000.0 / Math.Max(1, now):0}/s, biggest gap {_maxGap:0.0} ms");
-        var done = _done;
-        Stop();
-        done?.Invoke();
     }
 
     public static void Move(IntPtr h, int x, int y)

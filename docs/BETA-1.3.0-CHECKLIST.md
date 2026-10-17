@@ -52,9 +52,9 @@ The log is `%AppData%\AlienControl\crash.log` (send it with any ✗).
 33. F2 / plug toasts. Expected: the toast slides down from the top and back up (no fade).
 34. Battery preset (60 Hz): repeat 30. Expected: still smooth (60 steps/s).
 35. Gear > Debug: Log frame gaps ON, do 30 + 31 again, then turn it off. Send the "Slide" lines from crash.log (target: ~240 steps/s at 240 Hz, biggest gap under ~8 ms).
-36. New slide engine OFF: repeat 30 + 31. Tell me which one feels better.
-37. Normal window ON, then Quit and start again. Expected: rounded corners, native shadow, everything else the same. Repeat 30-33. Tell me which window feels better (and any glitch: black corners, double shadow, Windows' own animation).
-38. Normal window OFF, restart. Windows Settings > Accessibility > Visual effects > Animation effects OFF. Open the app. Expected: no slides (instant). Turn it back on.
+36. DONE 2026-10-17: new engine feels better. The toggle is removed after beta.1.
+37. DONE 2026-10-17: Normal window felt worse, the transparent window stays. The toggle is removed after beta.1.
+38. Windows Settings > Accessibility > Visual effects > Animation effects OFF. Open the app. Expected: no slides (instant). Turn it back on.
 39. Spam F3/F4 open/close 20 times. Expected: no PC freeze.
 
 ## H. Themes (WPF-UI 4.3 bump)

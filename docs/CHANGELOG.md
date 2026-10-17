@@ -3,6 +3,11 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## Unreleased (v1.3 branch, after beta.1)
+- Beta A/B decided on the laptop: the new slide engine stays (the 1.2 UI-thread slide is removed) and the transparent
+  window stays (Normal window felt worse, removed). Both debug toggles are gone; Log frame gaps remains.
+- Checklist step 27 uses `powercfg /qh` (PROCFREQMAX is a hidden setting).
+
 ## v1.3.0-beta.1 (2026-10-17), untested
 **Fixes (code review)**
 - Single instance: a second copy opens the first one's window and exits (no double tray icon / double F1 / skipped F2).

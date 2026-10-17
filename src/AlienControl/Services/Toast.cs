@@ -218,11 +218,11 @@ public static class Toast
             Topmost = true, ShowInTaskbar = false, ShowActivated = false, Focusable = false, ResizeMode = ResizeMode.NoResize,
             SizeToContent = SizeToContent.Manual, Width = Math.Ceiling(size.Width), Height = Math.Ceiling(size.Height),
             MinWidth = 0, MinHeight = 0, IsHitTestVisible = false, Content = content,
-            Opacity = animate && !WindowSlide.UseThread ? 0 : 1,
+            Opacity = 1,
         };
         // 1.3.0-beta.1: with the new slide engine the toast window itself drops in from above the screen and slides
         // back up (refresh-timed thread) instead of fading a transparent window's opacity.
-        bool slide = animate && WindowSlide.UseThread;
+        bool slide = animate;
         var mover = new WindowSlide(() => new WindowInteropHelper(w).Handle);
         w.SourceInitialized += (_, _) =>
         {
