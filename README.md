@@ -90,7 +90,8 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 - **Keyboard light timeout** (v1.3): fades the keys out after 1 / 2 / 5 / 10 min without input (optionally on battery
   only, paused in fullscreen games); any key, mouse or touchpad input brings them straight back.
 - GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt), plus **iGPU only** (v1.2): turns the RTX off for battery life when NVIDIA is set to Optimus. It lists the apps using the RTX first, and HDMI / Mini DP stay dark until you switch back.
-- Card toasts (v1.2) in the top right with a soft chime per preset for F1, F2 and plug / unplug.
+- Toasts for F1, F2 and plug / unplug (v1.3): a **Pill** at the top center (default) or the 1.2 **Classic** card in the
+  top right, with a chime per preset from the **Soft** (default) or **Classic** pack.
 - Locked buttons (Battery under Auto preset, iGPU only outside Optimus) show a small lock; click a locked iGPU only to see why.
 - Two themes (Legend, Fluent), Reduce motion, Show in taskbar (off = tray only), Reset settings. One exe, ~0% CPU and a few MB of RAM in the tray.
 
@@ -107,7 +108,7 @@ Measured on my m15 R7 (v1.0.0, Task Manager):
 How it stays that small:
 - Sensors (temps, fans, watts) are polled only while the window is open; closed, nothing polls.
 - Status keys (mute, mic, touchpad) update from Windows events (audio endpoint and registry callbacks), with a 30 s safety check.
-- Memory is trimmed a minute after the window hides or a toast closes (a quick reopen stays snappy).
+- Memory is trimmed a minute after the window hides or a toast closes (a quick reopen stays snappy), and 10 s after starting to the tray.
 - One framework-dependent ReadyToRun exe (faster start, no self-contained runtime). The release zip is ~3.3 MB.
 - No blur or Mica, and only the active theme is loaded.
 
@@ -201,7 +202,7 @@ You can undo this anytime by setting the services back to Automatic.
 ### 6. Check the hotkeys
 
 - **F1** toggles G-Mode, **F2** cycles the presets, **F3** opens / hides the compact view, **F4** the full menu.
-- If F1 does nothing, open the gear menu (next to Quit), click **Detect key**, and press F1 once.
+- If F1 does nothing, open the gear (next to Quit) > **Keys**, click **Detect key**, and press F1 once.
 
 ### Updating
 
@@ -238,7 +239,7 @@ leaves keys dark until a reboot.
 
 ## Themes and settings
 
-Two themes, switched in the gear menu (saved in settings, default **Legend**):
+Two themes, switched on the settings page (gear > General) (saved in settings, default **Legend**):
 
 - **Legend**: Alienware-style terminal look, mono numbers and icon section headers, tick bars, cyan accent.
 - **Fluent**: Windows 11 cards, segmented controls and rounded bars.
@@ -248,12 +249,15 @@ The accent follows the lighting color.
 
 Since v0.8.2 there are a few subtle, one-shot animations: since v0.8.6 the window slides up out of the bottom edge when shown
 and back down before hiding to the tray, like the Windows 11 Quick Settings flyout; buttons fade their hover and shrink slightly when pressed, a newly selected mode grows its
-underline and pulses once, the preset button fades to its new color, and the gear menu slides up. They animate
+underline and pulses once, the preset button fades to its new color, and the settings page swaps in like the compact / full switch. They animate
 only opacity and scale/position, are capped at 60 fps, never loop and never run while the window is hidden.
-**Reduce motion** in the gear menu turns all of them off (saved in settings, off by default).
+**Reduce motion** (gear > General) turns all of them off (saved in settings, off by default).
 
-The gear menu also holds **Detect key** for the G-key, **Reduce motion**, F2 / F3-F4 / auto preset / notification / Show in taskbar toggles,
-**Reset settings** (back to defaults and restart; startup, BIOS and GPU mode untouched) and the version / credits line.
+Since v1.3 the gear opens a **settings page** inside the window (back arrow or Esc), with five tabs:
+**General** (theme, run on startup, show in taskbar, reduce motion, auto preset), **Keys** (Detect key for the G-key,
+F2 presets, F3 / F4), **Alerts** (notifications, toast style + Test, sound, chime pack + preview), **Backlight**
+(keyboard light timeout) and **Advanced** (frame-gap log, **Reset settings**: back to defaults and restart; startup,
+BIOS and GPU mode untouched, and the version / credits line).
 
 ### Tray profiles
 

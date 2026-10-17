@@ -130,6 +130,12 @@ public partial class App : Application
     {
         if (_window is null) return;
         bool sameView = _window.IsCompact == !full;
+        if (_window.SettingsShown && _window.IsShownOpen)   // 1.3.0-beta.2: on the settings page F3 / F4 just hide (or focus)
+        {
+            if (_window.IsActive) _window.HideToTray();
+            else { _window.Activate(); ForceForeground(); }
+            return;
+        }
         if (_window.IsShownOpen && _window.IsActive && sameView) _window.HideToTray();
         else if (_window.IsShownOpen)
         {

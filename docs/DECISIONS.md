@@ -125,4 +125,16 @@ Why things are the way they are. Newest decisions win.
 - GPU % comes from Windows' GPU Engine counters for the adapter with the most dedicated memory in use (the RTX),
   never NVML, so it can't wake the RTX on battery.
 - WPF-UI bumped to 4.3.0; the app only uses its theme dictionaries and SymbolIcon. Fallback: latest 3.x.
+- beta.1 A/B on the laptop: the refresh-timed slide thread won over the 1.2 UI-thread slide, and the transparent
+  layered window won over a normal DWM window (rounded corners + native shadow felt worse). Both toggles removed.
+
+## 1.3.0-beta.2 (2026-10-17)
+- Settings as a page inside the main window, not a tabbed popup: five tabs don't fit in the 290 px popup, and the
+  popup was its own layered window (the beta.1 first-frame hitch). The page reuses the F3/F4 card swap. All tab panels
+  stay in the layout (Hidden), so the page height is the tallest tab and tabs never resize the window.
+- Run on startup stays in the footer AND in General (one setting): it's the one switch people look for on the main view.
+- Soft + Pill are the defaults for upgrades too (Amine is the only beta user and picked them). Classic keeps the 1.2 look and sound.
+- Only the active chime pack is cached; switching stops playback first, then frees the unmanaged buffers.
+- The pill fades (instead of sliding) with Reduce motion / Windows animations off, as the directive asks; the
+  classic card stays instant there, as in 1.2.
 

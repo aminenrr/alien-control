@@ -23,8 +23,10 @@
 - [x] 1.2.0-beta.5 Card-swap view switch, no freeze when spamming F3/F4.
 
 ## 1.3
-- [ ] 1.3.0-beta.1 (one pre-release, tested with docs/BETA-1.3.0-CHECKLIST.md): code review fixes #1-#19, keyboard
-  light timeout, CPU % / GPU % row, refresh-timed slide engine + normal-window option (debug toggles).
+- [x] 1.3.0-beta.1 (one pre-release, tested with docs/BETA-1.3.0-CHECKLIST.md): code review fixes #1-#19, keyboard
+  light timeout, CPU % / GPU % row, refresh-timed slide engine (normal-window option tried and dropped).
+- [ ] 1.3.0-beta.2 (tested with docs/BETA-1.3.0-b2-CHECKLIST.md): chime pack (Soft / Classic), toast style
+  (Pill / Classic), settings page with tabs.
 - [ ] 1.3.0 once the checklist passes.
 - [x] 1.1.1 patch: shows as "Alien Controls" in startup lists, startup task renamed (old one migrated).
 

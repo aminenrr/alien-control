@@ -70,3 +70,6 @@ Tick every line on the laptop. Any ✗ goes back as a fix before 1.0.0.
 - [ ] CPU % / GPU % row (GPU shows Off in iGPU only)
 - [ ] Quit in iGPU only asks to turn the RTX back on
 - [ ] Both themes after the WPF-UI 4 bump
+- [ ] Settings page: gear opens it, back / Esc returns, five tabs, no scrolling, dimmed dependent rows
+- [ ] Chime pack Soft / Classic: all 7 sounds, switch takes effect at once
+- [ ] Toast style Pill / Classic in both themes, Test button

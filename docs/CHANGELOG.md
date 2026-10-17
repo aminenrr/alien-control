@@ -3,13 +3,30 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## Unreleased (v1.3 branch, after beta.1)
+## v1.3.0-beta.2 (2026-10-17), untested
+**New**
+- Chime pack (gear > Alerts): **Soft** (new default, warm mallet + soft pad, 48 kHz) or **Classic** (the 1.2 chimes).
+  Same 7 sounds, `Assets/Sounds/{Soft,Classic}`. Switching stops playback and frees the old pack's buffers; a play
+  button previews Balanced, then G-Mode on.
+- Toast style (gear > Alerts): **Pill** (new default) or **Classic** (the 1.2 top-right card). The pill is a ~640 x 76
+  capsule at the top center of the main screen: round tinted icon tile, title + detail, G-Mode switch / F2 position
+  dots / preset chip. Drops in over 220 ms, slides back up over 160 ms (slide thread); with Reduce motion or Windows
+  animations off it fades instead. Test button shows a sample. Click-through, never takes focus, one window per show.
+- Settings page: the gear opens a page inside the main window (card swap, back arrow or Esc), five tabs (General,
+  Keys, Alerts, Backlight, Advanced), at most 5 rows each, fixed height (no scrolling, no jump between tabs).
+  Dependent rows dim (toast style, chime pack, timeout options). Run on startup is in General and the footer. The last
+  tab is remembered for the session. Left / Right switch tabs. Keyboard timeout is now a segmented Off / 1 / 2 / 5 / 10.
+- Upgrades from beta.1 get Soft + Pill (new keys), every other value is kept. Unknown values fall back to the defaults.
+
+**Fixes / changes since beta.1**
 - Beta A/B decided on the laptop: the new slide engine stays (the 1.2 UI-thread slide is removed) and the transparent
-  window stays (Normal window felt worse, removed). Both debug toggles are gone; Log frame gaps remains.
-- Gear flyout: the slide starts after the popup's first frame, and every slide waits one composition before its clock starts (beta.1 log: 65-96 ms first-step gaps).
+  window stays (Normal window felt worse, removed). Both debug toggles are gone; Log frame gaps remains (Advanced).
+- Gear flyout hitch gone (the popup is replaced); every slide also waits one composition before its clock starts
+  (beta.1 log: 65-96 ms first-step gaps).
+- Starting to the tray trims memory after 10 s (was 60 s), so the first-start peak drops to a few MB sooner.
 - Checklist step 27 uses `powercfg /qh` (PROCFREQMAX is a hidden setting).
 
-## v1.3.0-beta.1 (2026-10-17), untested
+## v1.3.0-beta.1 (2026-10-17), confirmed on the m15 R7
 **Fixes (code review)**
 - Single instance: a second copy opens the first one's window and exits (no double tray icon / double F1 / skipped F2).
 - Startup task is created from XML: no "AC power only", no "stop on battery", no 72 h limit. Old tasks are rebuilt.

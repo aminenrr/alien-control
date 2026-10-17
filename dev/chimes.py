@@ -1,3 +1,4 @@
+# Generates the Classic chime pack (the v1.2 sounds). Since 1.3.0-beta.2 they live in src/AlienControl/Assets/Sounds/Classic/.
 import math, wave, struct, random
 SR = 48000
 def note(f, dur=0.75, amp=0.28):

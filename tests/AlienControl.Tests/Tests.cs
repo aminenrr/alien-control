@@ -68,6 +68,31 @@ public class SettingsTests
         Assert.Equal(0, s.KbdTimeoutMin);
         Assert.Equal(0, s.LastEffect);
     }
+
+    [Fact]
+    public void Beta2_upgrade_gets_soft_and_pill()
+    {
+        // a beta.1 file has neither key: Soft chimes + Pill toasts, the user's other values kept
+        var s = Settings.Parse("{\"SettingsVersion\":6,\"Toasts\":false,\"KbdTimeoutMin\":5}")!;
+        s.Clamp();
+        Assert.Equal("Soft", s.ChimePack);
+        Assert.Equal("Pill", s.ToastStyle);
+        Assert.False(s.Toasts);
+        Assert.Equal(5, s.KbdTimeoutMin);
+    }
+
+    [Fact]
+    public void Beta2_unknown_values_fall_back()
+    {
+        var s = Settings.Parse("{\"SettingsVersion\":6,\"ChimePack\":\"Loud\",\"ToastStyle\":\"x\"}")!;
+        s.Clamp();
+        Assert.Equal("Soft", s.ChimePack);
+        Assert.Equal("Pill", s.ToastStyle);
+        var c = Settings.Parse("{\"SettingsVersion\":6,\"ChimePack\":\"Classic\",\"ToastStyle\":\"Classic\"}")!;
+        c.Clamp();
+        Assert.Equal("Classic", c.ChimePack);
+        Assert.Equal("Classic", c.ToastStyle);
+    }
 }
 
 public class AutoPreset

@@ -105,6 +105,10 @@ public sealed class Settings
     public bool Toasts { get; set; } = true;
     /// <summary>v0.9.11: soft sound with those events (own toggle).</summary>
     public bool ToastSound { get; set; } = true;
+    /// <summary>1.3.0-beta.2: "Soft" (default, also for upgrades: the key is new) or "Classic" (the v1.2 chimes).</summary>
+    public string ChimePack { get; set; } = "Soft";
+    /// <summary>1.3.0-beta.2: "Pill" (top-center capsule, default, also for upgrades) or "Classic" (the v1.2 top-right card).</summary>
+    public string ToastStyle { get; set; } = "Pill";
 
     /// <summary>v0.8.5: learned "rest of the laptop" power (W) for the AC total estimate. No migration needed.</summary>
     public double RestOfSystemW { get; set; } = 15;
@@ -202,6 +206,8 @@ public sealed class Settings
         if (Theme is not ("Legend" or "Fluent")) Theme = "Legend";
         if (Profile is not ("Battery" or "Quiet" or "Balanced" or "Performance" or "Custom")) Profile = "Custom";
         if (AcPreset is not ("Quiet" or "Balanced" or "Performance")) AcPreset = "Balanced";
+        if (ChimePack is not ("Soft" or "Classic")) ChimePack = "Soft";
+        if (ToastStyle is not ("Pill" or "Classic")) ToastStyle = "Pill";
         KbdTimeoutMin = KbdTimeoutMin is 0 or 1 or 2 or 5 or 10 ? KbdTimeoutMin : 0;
         if (double.IsNaN(RestOfSystemW) || RestOfSystemW is < 0 or > 100) RestOfSystemW = d.RestOfSystemW;
     }

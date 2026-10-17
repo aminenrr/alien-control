@@ -36,9 +36,7 @@ public partial class MainWindow
 
     private void InitKbdTimeout()
     {
-        foreach (ComboBoxItem it in KbdTimeoutBox.Items)
-            if ((string)it.Tag == _settings.KbdTimeoutMin.ToString()) KbdTimeoutBox.SelectedItem = it;
-        if (KbdTimeoutBox.SelectedItem is null) KbdTimeoutBox.SelectedIndex = 0;
+        KbdButton(_settings.KbdTimeoutMin).IsChecked = true;   // 1.3.0-beta.2: segmented Off / 1 / 2 / 5 / 10 min
         KbdBatteryToggle.IsChecked = _settings.KbdTimeoutBatteryOnly;
         KbdFullscreenToggle.IsChecked = _settings.KbdTimeoutPauseFullscreen;
         _kbdTimer.Tick += (_, _) => KbdTick();
@@ -98,12 +96,17 @@ public partial class MainWindow
         UpdateKbdTimer();
     }
 
-    private void KbdTimeout_Changed(object sender, SelectionChangedEventArgs e)
+    private RadioButton KbdButton(int min) => min switch { 1 => Kbd1, 2 => Kbd2, 5 => Kbd5, 10 => Kbd10, _ => Kbd0 };
+
+    private void KbdTimeout_Click(object sender, RoutedEventArgs e)
     {
-        if (!_kbdUiReady || KbdTimeoutBox.SelectedItem is not ComboBoxItem it) return;
-        _settings.KbdTimeoutMin = int.Parse((string)it.Tag);
+        if (!_kbdUiReady) return;
+        int min = sender == Kbd1 ? 1 : sender == Kbd2 ? 2 : sender == Kbd5 ? 5 : sender == Kbd10 ? 10 : 0;
+        if (min == _settings.KbdTimeoutMin) return;
+        _settings.KbdTimeoutMin = min;
         _settings.Save();
         UpdateKbdTimer();
+        UpdateSettingsDims();
     }
 
     private void KbdOption_Click(object sender, RoutedEventArgs e)

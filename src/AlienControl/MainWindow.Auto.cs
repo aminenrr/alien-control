@@ -111,12 +111,14 @@ public partial class MainWindow
     {
         _settings.Toasts = ToastsToggle.IsChecked == true;
         _settings.Save();
+        UpdateSettingsDims();
     }
 
     private void ToastSound_Click(object sender, RoutedEventArgs e)
     {
         _settings.ToastSound = ToastSoundToggle.IsChecked == true;
         _settings.Save();
+        UpdateSettingsDims();
         if (_settings.ToastSound) Sounds.Play(Sounds.Kind.Balanced);   // let them hear it
     }
 }
