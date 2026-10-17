@@ -24,7 +24,8 @@ Needs the .NET 8 SDK on Windows (or `EnableWindowsTargeting` to compile-check on
 |---|---|
 | `App.xaml(.cs)` | tray icon, theme loading (`ApplyTheme`), accent (`ApplyAccent`), single window |
 | `MainWindow.xaml(.cs)` | the card UI, sensor loop (only while visible), hints, preset button, gear flyout |
-| `MainWindow.Compact.cs` | v1.1 compact / full view (`SetCompact`), footer view button, keeps the corner anchored on resize |
+| `MainWindow.Compact.cs` | v1.1 compact / full view (`SetCompact`), v1.2 card-swap `SwitchView`, footer view button, keeps the corner anchored on resize |
+| `Services/SysExe.cs` | v1.2 full System32 paths for the Windows tools the app runs |
 | `MainWindow.Presets.cs` | v1.1 header preset button and its preset list popup |
 | `Services/AwccSensors.cs` | v1.1 direct WMI temps and fan RPM (`AWCCWmiMethodFunction.Thermal_Information`), CLI fallback in `AlienFan` |
 | `Motion.cs` | all animations (v0.8.2, values and spline curves updated in v0.8.6), disabled by Reduce motion. The window slide is native since v0.8.8: `MainWindow.xaml.cs` (`PrepareShow` / `PlayOpen` / `HideToTray`) drives `Services/WindowSlide.cs` |

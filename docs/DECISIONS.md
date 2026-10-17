@@ -106,3 +106,11 @@ Why things are the way they are. Newest decisions win.
 - Ultimate is locked while the RTX is off (never boot the MUX with the RTX disabled).
 - Re-enable = Advanced Optimus only, no restart. Plugging in does not re-enable it (manual, default chosen while the
   question was open). NVIDIA's tray icon: restart NVDisplay.ContainerLocalSystem if nvcontainer isn't in the session.
+
+## 1.2 (2026-10-17)
+- Toasts copy the Dolby Controls card style; chimes are generated (dev/chimes.py) with a release fade + lead silence (no crackle).
+- iGPU only: NVML is closed and the power timer paused before `pnputil` (reading a removed device crashed the app).
+  Plugging in never re-enables the RTX on its own (manual).
+- View switch = card swap (fully off screen, switch, rise): the 40 px dip showed the height jump.
+- On open, alienfan-cli / BIOS reads are single-flight and reused for 20 s (stacked ACPI calls froze the PC).
+- No network, by rule: tools are run by full System32 path (Services/SysExe.cs).

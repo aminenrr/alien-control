@@ -15,12 +15,13 @@
 - [x] 1.1.0-beta.4 Show in taskbar toggle (off = tray only).
 - [x] 1.1.0-beta.5 Header preset button + preset list (replaces the chip).
 - [x] 1.1.0 released 2026-10-16 (each beta was confirmed on the laptop, so no separate rc).
-- [ ] 1.2.0-beta.1 Toasts + chimes v2 (Dolby Controls style).
-- [ ] 1.2.0-beta.2 iGPU only (RTX off) as a third GPU mode, NVIDIA Optimus only.
-- [ ] 1.2.0-beta.3 Smooth compact/full switch, snappier open/close, chime crackle fix.
-- [ ] 1.2.0-beta.4 iGPU only crash fix, lock badges, note on click.
-- [ ] 1.2.0-beta.5 Card-swap view switch, no freeze when spamming F3/F4.
-- [ ] 1.1.1 patch: shows as "Alien Controls" in startup lists, startup task renamed (old one migrated).
+- [x] 1.2.0 released (2026-10-17).
+- [x] 1.2.0-beta.1 Toasts + chimes v2 (Dolby Controls style).
+- [x] 1.2.0-beta.2 iGPU only (RTX off) as a third GPU mode, NVIDIA Optimus only.
+- [x] 1.2.0-beta.3 Smooth compact/full switch, snappier open/close, chime crackle fix.
+- [x] 1.2.0-beta.4 iGPU only crash fix, lock badges, note on click.
+- [x] 1.2.0-beta.5 Card-swap view switch, no freeze when spamming F3/F4.
+- [x] 1.1.1 patch: shows as "Alien Controls" in startup lists, startup task renamed (old one migrated).
 
 ## Later
 - Keyboard backlight timeout when idle; effect speed; map keyboard columns for the rainbow wave.

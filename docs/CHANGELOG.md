@@ -3,7 +3,20 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.2.0-beta.5 (2026-10-17), untested
+## v1.2.0 (2026-10-17), confirmed on the m15 R7
+Stable release of the 1.2.0 betas (all tested on the laptop):
+- **New toasts + chimes**: card toasts (tinted icon tile, title + detail, F2 pills / G-Mode switch / plug chip), both
+  themes, and a soft chime per preset (no crackle).
+- **iGPU only** GPU mode: turns the RTX off with `pnputil` (Advanced Optimus + NVIDIA Optimus only). It lists the apps
+  using the RTX first, locks Ultimate while it's off, and Advanced Optimus brings the RTX back live (NVIDIA tray
+  recovered). HDMI / Mini DP stay dark while it's off. The app no longer closes when switching.
+- Lock badge on iGPU only and Battery when they're locked; the "why" note shows when you click the locked iGPU only button.
+- Compact <-> full switch is a card swap; snappier open/close; no PC freeze when spamming F3/F4; F2 presses don't stack.
+- Shows as "Alien Controls" in startup lists; the startup task is renamed (the old one is migrated).
+- Security & Privacy: Windows tools are run by their full System32 path. Still no network access at all. There's a local
+  crash log in `%AppData%\AlienControl`.
+
+## v1.2.0-beta.5 (2026-10-17), confirmed
 - Compact <-> full is now a card swap: the window slides fully down past the edge, switches out of sight, and slides
   back up in its new size (the 40 px dip showed the height jump on screen).
 - Fix: spamming F3/F4 (or the tray) could freeze the PC for a moment. Each open ran alienfan-cli twice plus the
@@ -11,7 +24,7 @@ From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
   skipped when the last ones are under 20 s old (sensors still read on every open).
 - F2 presses while a preset is still being applied are ignored instead of queuing up.
 
-## v1.2.0-beta.4 (2026-10-17), untested
+## v1.2.0-beta.4 (2026-10-17), confirmed
 - Fix: the app closed when switching to iGPU only. The power meter kept an NVML handle to the RTX and read it while
   pnputil removed the device. NVML is now closed first (power timer paused), GPU power and OC stay off while the RTX
   is disabled, and NVML comes back ~4 s after the RTX is re-enabled.
@@ -20,7 +33,7 @@ From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 - Small lock badge in the top-right corner of iGPU only and Battery when they're locked.
 - Local crash log (`%AppData%\AlienControl\crash.log`) for UI / background exceptions. Never sent anywhere.
 
-## v1.2.0-beta.3 (2026-10-17), untested
+## v1.2.0-beta.3 (2026-10-17), confirmed
 - Compact <-> Full menu now switches with a native "dip and rise": the window drops 40 px (110 ms), changes view,
   then rises into its new size (200 ms). Footer button and F3/F4. Instant with Reduce motion.
 - Snappier open/close: the memory trim runs 60 s after hiding (was 3 s, so a quick reopen had to page everything
@@ -29,7 +42,7 @@ From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 - Chimes: no more crackle at the end of notes (smooth 80 ms release + final fade), 40 ms of silence first so a sleeping
   audio device doesn't pop, and F2 waits 150 ms after the chime starts before switching the hardware.
 
-## v1.2.0-beta.2 (2026-10-17), untested
+## v1.2.0-beta.2 (2026-10-17), confirmed
 - **iGPU only is back** as a third GPU Mode button (left of Advanced Optimus). It disables the RTX with `pnputil`
   (survives reboots); HDMI / Mini DP go dark until it's back on.
   - Works only in Advanced Optimus with NVIDIA set to **Optimus**. On **Automatic Select** it's pressable but shows
@@ -41,7 +54,7 @@ From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
     the app restarts NVIDIA's Display Container service. Kept GPU OC offsets are re-applied (G-Mode on AC).
   - Plugging in never turns the RTX back on; it stays manual.
 
-## v1.2.0-beta.1 (2026-10-17), untested
+## v1.2.0-beta.1 (2026-10-17), confirmed
 - New toasts in the Dolby Controls style: a 44 px icon tile in the preset's color, title + detail line, and the state on
   the right (Quiet / Balanced / Performance pills for F2, a switch for F1 G-Mode, a preset chip for plugged in / on
   battery). Legend and Fluent. Same top-right spot and timing.

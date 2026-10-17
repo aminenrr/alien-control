@@ -87,8 +87,9 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 - **Auto preset**: Battery when unplugged, your last preset when plugged back in.
 - Fans, temps and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
 - Per-key keyboard color and effects, chassis lights, status keys (G-Mode, mutes, touchpad) lit by the app.
-- GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt).
-- Small top-right toasts with soft sounds for F1, F2 and plug / unplug.
+- GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt), plus **iGPU only** (v1.2): turns the RTX off for battery life when NVIDIA is set to Optimus. It lists the apps using the RTX first, and HDMI / Mini DP stay dark until you switch back.
+- Card toasts (v1.2) in the top right with a soft chime per preset for F1, F2 and plug / unplug.
+- Locked buttons (Battery under Auto preset, iGPU only outside Optimus) show a small lock; click a locked iGPU only to see why.
 - Two themes (Legend, Fluent), Reduce motion, Show in taskbar (off = tray only), Reset settings. One exe, ~0% CPU and a few MB of RAM in the tray.
 
 ## Idle cost
@@ -104,7 +105,7 @@ Measured on my m15 R7 (v1.0.0, Task Manager):
 How it stays that small:
 - Sensors (temps, fans, watts) are polled only while the window is open; closed, nothing polls.
 - Status keys (mute, mic, touchpad) update from Windows events (audio endpoint and registry callbacks), with a 30 s safety check.
-- Memory is trimmed a few seconds after the window hides or a toast closes.
+- Memory is trimmed a minute after the window hides or a toast closes (a quick reopen stays snappy).
 - One framework-dependent ReadyToRun exe (faster start, no self-contained runtime). The release zip is ~3.3 MB.
 - No blur or Mica, and only the active theme is loaded.
 
@@ -347,7 +348,7 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**v1.1.0** (compact view, direct WMI sensors, preset button, tray-only option), tested on my m15 R7. Download it from the
+**v1.2.0** (new toasts and chimes, iGPU only mode, smoother compact/full switch), tested on my m15 R7. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the
 [CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md).
 
