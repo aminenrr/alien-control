@@ -609,6 +609,7 @@ public partial class MainWindow : Window
         else
             Notify(new Toast.Info(CurrentProfile, "Icon.GMode", "G-Mode off", $"Back to {Profiles.Label(CurrentProfile)} · fans auto",
                 Toast.Right.SwitchOff, Lit: false), Sounds.Kind.GModeOff);
+        await Task.Delay(150);   // 1.3.0: like F2, the chime's attack plays before the ACPI calls start (crackle)
         if (current)
         {
             await _fan.SetGModeAsync(false);

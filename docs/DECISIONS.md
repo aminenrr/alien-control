@@ -135,6 +135,9 @@ Why things are the way they are. Newest decisions win.
 - Run on startup stays in the footer AND in General (one setting): it's the one switch people look for on the main view.
 - Soft + Pill are the defaults for upgrades too (Amine is the only beta user and picked them). Classic keeps the 1.2 look and sound.
 - Only the active chime pack is cached; switching stops playback first, then frees the unmanaged buffers.
+- 1.3.0: Amine shipped beta.2 straight to stable (Soft chimes crackled, the rest fine). Sounds moved from PlaySound to
+  a one-buffer waveOut per sound: no app-side refill can starve, and the device is closed right after (zero idle).
+  Hardware ACPI calls can still stall the whole machine; the 150 ms gap keeps the attack clean.
 - The pill fades (instead of sliding) with Reduce motion / Windows animations off, as the directive asks; the
   classic card stays instant there, as in 1.2.
 

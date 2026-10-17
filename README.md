@@ -370,7 +370,7 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**v1.2.0** (new toasts and chimes, iGPU only mode, smoother compact/full switch), tested on my m15 R7. Download it from the
+**v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout, CPU / GPU %, smoother slides, security hardening), tested on my m15 R7. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the
 [CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md).
 

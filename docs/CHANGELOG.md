@@ -3,7 +3,14 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.3.0-beta.2 (2026-10-17), untested
+## v1.3.0 (2026-10-18)
+Stable release of 1.3.0-beta.1 (confirmed on the m15 R7) and beta.2, plus:
+- **Chime crackle fix**: sounds no longer go through PlaySound. Each one is handed to waveOut as one prepared buffer
+  (nothing in the app refills it while it plays), opened per sound and closed when it ends (nothing stays open).
+  F1 now waits 150 ms after the chime starts before the ACPI calls, like F2 already did. WAV reader is defensive
+  (16-bit PCM, 1-2 channels, 8-96 kHz, max 4 MB).
+
+## v1.3.0-beta.2 (2026-10-17)
 **New**
 - Chime pack (gear > Alerts): **Soft** (new default, warm mallet + soft pad, 48 kHz) or **Classic** (the 1.2 chimes).
   Same 7 sounds, `Assets/Sounds/{Soft,Classic}`. Switching stops playback and frees the old pack's buffers; a play

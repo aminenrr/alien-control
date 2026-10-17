@@ -127,3 +127,20 @@ public class StartupTask
         Assert.True(Startup.NeedsRebuild("<DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries>"));
     }
 }
+
+public class SoundsWav
+{
+    private static byte[] Wav(ushort tag, ushort ch, uint rate, ushort bits, int dataLen)
+    {
+        var ms = new System.IO.MemoryStream(); var w = new System.IO.BinaryWriter(ms);
+        w.Write(0x46464952u); w.Write(36 + dataLen); w.Write(0x45564157u);
+        w.Write(0x20746D66u); w.Write(16); w.Write(tag); w.Write(ch); w.Write(rate); w.Write(rate * ch * bits / 8u);
+        w.Write((ushort)(ch * bits / 8)); w.Write(bits);
+        w.Write(0x61746164u); w.Write(dataLen); w.Write(new byte[dataLen]);
+        return ms.ToArray();
+    }
+
+    [Fact] public void Reads_16bit_pcm() => Assert.Equal(((ushort)1, 48000u, 44, 960), Sounds.ReadWav(Wav(1, 1, 48000, 16, 960)));
+    [Fact] public void Rejects_float_and_8bit() { Assert.Null(Sounds.ReadWav(Wav(3, 1, 48000, 32, 960))); Assert.Null(Sounds.ReadWav(Wav(1, 1, 48000, 8, 960))); }
+    [Fact] public void Rejects_truncated() { var b = Wav(1, 1, 48000, 16, 960); Assert.Null(Sounds.ReadWav(b[..100])); }
+}
