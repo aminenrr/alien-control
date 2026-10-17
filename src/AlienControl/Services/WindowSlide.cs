@@ -80,6 +80,9 @@ public sealed class WindowSlide
         var t = new System.Threading.Thread(() =>
         {
             long freq = Stopwatch.Frequency;
+            // 1.3.0: wait for one composition before the clock starts. A window or popup that was just shown can block
+            // the first DwmFlush for 60-100 ms (its first frame); starting the clock before it made the slide jump.
+            DwmFlush();
             var sw = Stopwatch.StartNew();
             double last = 0, maxGap = 0; int steps = 0;
             var ti = new DWM_TIMING_INFO { cbSize = (uint)Marshal.SizeOf<DWM_TIMING_INFO>() };

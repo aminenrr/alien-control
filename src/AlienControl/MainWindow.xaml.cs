@@ -989,7 +989,19 @@ public partial class MainWindow : Window
         var r = WindowSlide.Rect(h);
         if (!reopening || _flyRestY == int.MinValue) _flyRestY = r.Top;
         if (!reopening) WindowSlide.Move(h, r.Left, _flyRestY + FlyOffset);
-        FlySlide.Run(r.Left, _flyRestY, 160, CubicBezier.Decelerate, null);
+        if (reopening) { FlySlide.Run(r.Left, _flyRestY, 160, CubicBezier.Decelerate, null); return; }
+        // 1.3.0: start the slide after the popup's first frame is rendered (the beta.1 log showed 65-96 ms gaps on
+        // the first step while WPF drew the freshly opened popup).
+        EventHandler? onFrame = null;
+        onFrame = (_, _) =>
+        {
+            CompositionTarget.Rendering -= onFrame;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (gen == _flyGen && SettingsPopup.IsOpen) FlySlide.Run(r.Left, _flyRestY, 160, CubicBezier.Decelerate, null);
+            }), DispatcherPriority.Background);
+        };
+        CompositionTarget.Rendering += onFrame;
     }
 
     private void CloseSettings(bool instant = false)

@@ -6,6 +6,7 @@ From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 ## Unreleased (v1.3 branch, after beta.1)
 - Beta A/B decided on the laptop: the new slide engine stays (the 1.2 UI-thread slide is removed) and the transparent
   window stays (Normal window felt worse, removed). Both debug toggles are gone; Log frame gaps remains.
+- Gear flyout: the slide starts after the popup's first frame, and every slide waits one composition before its clock starts (beta.1 log: 65-96 ms first-step gaps).
 - Checklist step 27 uses `powercfg /qh` (PROCFREQMAX is a hidden setting).
 
 ## v1.3.0-beta.1 (2026-10-17), untested
