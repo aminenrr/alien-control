@@ -41,7 +41,7 @@ The log is `%AppData%\AlienControl\crash.log` (send it with any ✗).
 
 ## F. GPU mode, exit, sleep
 26. iGPU only on, then tray > Quit. Expected: window opens with "The RTX is still off" (Keep it off / Turn it on). Pick Turn it on. Expected: RTX back, app exits.
-27. Quiet preset, then Quit. Then check `powercfg /q scheme_current sub_processor PROCFREQMAX`. Expected: AC and DC both 0.
+27. Quiet preset, then Quit. Then run `powercfg /qh scheme_current sub_processor PROCFREQMAX` and `powercfg /qh scheme_current sub_processor PROCFREQMAX1` (`/qh`, the setting is hidden). Expected: AC and DC both 0x00000000.
 28. Switch Advanced Optimus -> Ultimate, but choose Restart later, then Start > Shut down (not restart), power on. Expected: GPU row shows Ultimate correctly (not swapped). Switch back the same way.
 29. Sleep the laptop 1+ min, wake. Expected: preset, lighting and status keys are as before. crash.log has a "Resume:" line (send it either way).
 
