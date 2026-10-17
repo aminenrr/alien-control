@@ -28,7 +28,7 @@ jobs:
           $zip = "AlienControl-$v-win-x64.zip"
           (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() + "  " + $zip | Out-File -Encoding ascii SHA256SUMS
           "VER=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           name: Alien Controls ${{ env.VER }}
           body_path: docs/releases/${{ github.ref_name }}.md
