@@ -38,7 +38,7 @@ public static class Startup
     {
         try
         {
-            using var p = Process.Start(new ProcessStartInfo("schtasks.exe", args)
+            using var p = Process.Start(new ProcessStartInfo(SysExe.Get("schtasks.exe"), args)
             {
                 UseShellExecute = false, CreateNoWindow = true,
                 RedirectStandardOutput = true, RedirectStandardError = true

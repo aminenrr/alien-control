@@ -110,7 +110,7 @@ public static class GpuMode
     /// <summary>Restarts Windows now (after a BIOS graphics change).</summary>
     public static void RestartNow()
     {
-        try { Process.Start(new ProcessStartInfo("shutdown.exe", "/r /t 0") { CreateNoWindow = true, UseShellExecute = false }); } catch { }
+        try { Process.Start(new ProcessStartInfo(SysExe.Get("shutdown.exe"), "/r /t 0") { CreateNoWindow = true, UseShellExecute = false }); } catch { }
     }
 
     public static GpuModeKind Current(List<Adapter> a)
@@ -259,7 +259,7 @@ public static class GpuMode
             if (tray) return;
             foreach (var verb in new[] { "stop", "start" })
             {
-                using var p = Process.Start(new ProcessStartInfo("net.exe", $"{verb} NVDisplay.ContainerLocalSystem")
+                using var p = Process.Start(new ProcessStartInfo(SysExe.Get("net.exe"), $"{verb} NVDisplay.ContainerLocalSystem")
                 { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true })!;
                 await p.WaitForExitAsync();
             }
@@ -271,7 +271,7 @@ public static class GpuMode
     {
         try
         {
-            var psi = new ProcessStartInfo("pnputil.exe", $"/{verb} \"{id}\"")
+            var psi = new ProcessStartInfo(SysExe.Get("pnputil.exe"), $"/{verb} \"{id}\"")
             { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
             using var p = Process.Start(psi)!;
             string o = await p.StandardOutput.ReadToEndAsync() + await p.StandardError.ReadToEndAsync();

@@ -41,6 +41,7 @@ Command Center, whose background services keep *WMI Provider Host* busy.
   - [Tray profiles](#tray-profiles)
   - [GPU mode](#gpu-mode)
 - [Build](#build)
+- [Security & Privacy](#security--privacy)
 - [Credits](#credits)
 - [Disclaimer](#disclaimer)
 - [AI disclosure](#ai-disclosure)
@@ -272,6 +273,28 @@ Publishing gives one ReadyToRun `AlienControl.exe` (needs the .NET 8 Desktop Run
 Every push to `main` also builds on GitHub Actions and uploads the app as an artifact.
 
 Stack: C# · .NET 8 · WPF · [WPF-UI](https://github.com/lepoco/wpfui) (Fluent look).
+
+## Security & Privacy
+
+**Alien Controls does nothing on the network.** It has no HTTP client, no sockets, no update check, no telemetry,
+analytics or crash reporting, no accounts and no listening ports. Nothing leaves your PC.
+
+What it does locally, and why:
+- **Runs as administrator.** It needs admin for the AWCC / Dell BIOS WMI calls, the keyboard HID, `pnputil` (iGPU only)
+  and the startup task. Nothing else asks for more rights than that.
+- **Runs only fixed programs**: the two alienfx-tools CLIs next to the exe, plus Windows' own `pnputil`, `powercfg`,
+  `schtasks`, `shutdown` and `net` (only to restart NVIDIA's Display Container after iGPU only), always called by their
+  full System32 path, never looked up through PATH. Arguments are built by the app, never taken from outside input.
+- **Stores** only its settings in `%AppData%\AlienControl` (no secrets, no personal data). There are no keys, tokens
+  or passwords in the code.
+- **Reads** sensors, BIOS attributes, adapter state and the GPU memory of running apps (for the "RTX in use" list)
+  locally; none of it is saved or sent anywhere.
+
+If a network feature is ever added (for example an opt-in update check), it will be off by default, HTTPS only
+(TLS 1.2+, certificate validation on), use one fixed GitHub endpoint, parse the reply defensively, send nothing about
+you, and be listed here.
+
+The only network traffic is yours: downloading the release from GitHub and the alienfx-tools CLIs from T-Troll's repo.
 
 ## Credits
 

@@ -33,7 +33,7 @@ public static class CpuFreq
     {
         try
         {
-            var psi = new ProcessStartInfo("powercfg.exe", args)
+            var psi = new ProcessStartInfo(SysExe.Get("powercfg.exe"), args)
             { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
             using var p = Process.Start(psi)!;
             string o = await p.StandardOutput.ReadToEndAsync() + await p.StandardError.ReadToEndAsync();
