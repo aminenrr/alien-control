@@ -3,7 +3,14 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.3.1-beta.3 (2026-10-18), untested
+## v1.3.1-beta.4 (2026-10-18), untested
+Same as beta.3 (never tested on its own) plus a wider F7 test.
+- F7 test: beta.2 only watched the collection F2..F6 send on (consumer 0x0C / 0x01) and the key hook; F7 showed in
+  neither. Amine: F7 is a Fn-lock row hotkey like F2..F5, so it may go out elsewhere. The test now also watches every
+  other HID collection of the Alienware keyboard (0D62) and the AW-ELC (187C) for its 20 s, and logs each report with
+  its collection, plus the list of collections found.
+
+## v1.3.1-beta.3 (2026-10-18), superseded by beta.4
 Fixes from the beta.2 test.
 - Fix: Keyboard off only turned off the 5 white status keys, the rest stayed lit. The rear ring / Alienhead command
   (alienfx-cli) most likely set the keyboard back to full brightness. Brightness 0 is now re-sent after every

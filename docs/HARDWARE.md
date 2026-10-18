@@ -83,8 +83,8 @@ only 02-6F / 02-70 screen brightness, 02-E9 / 02-EA volume, 02-E2 mute showed up
 that scale the app's brightness: at 50% it gives off, 25%, 50%. 1.3.1-beta.2's F7 test checks the low-level hook and
 an HID read-back next.
 Result (beta.2 F7 test, 2026-10-18 22:44): nothing at all. No key down in the low-level hook, no Alienware report, and the
-lighting state read back (feature A1-01-CC-00...) never changed; input report refused. **The app can't see F7**, so the
-Keyboard tile only follows what you tap.
+lighting state read back (feature A1-01-CC-00...) never changed; input report refused. **F7 is not on the macro collection
+or the key hook.** beta.4 watches every other Alienware HID collection (Amine: F7 is a Fn-lock row hotkey like F2..F5).
 
 Keyboard off over HID: brightness 0 (0x83 turnOnSet) works on its own (timeout fade goes dark), but an alienfx-cli run
 right after it relit the keys and dropped the 5 status keys (beta.2: "only the 5 keys turn off"). Inferred: the CLI

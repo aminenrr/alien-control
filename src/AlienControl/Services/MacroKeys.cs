@@ -18,10 +18,13 @@ public sealed class MacroKeys : IDisposable
     [DllImport("user32.dll", SetLastError = true)] private static extern bool RegisterRawInputDevices(RID[] r, uint n, uint cb);
     [DllImport("user32.dll")] private static extern uint GetRawInputDeviceInfo(IntPtr h, uint cmd, ref INFO d, ref uint cb);
     [DllImport("user32.dll")] private static extern uint GetRawInputData(IntPtr h, uint cmd, byte[]? d, ref uint cb, uint hcb);
+    [StructLayout(LayoutKind.Sequential)] private struct RIDL { public IntPtr Device; public uint Type; }
+    [DllImport("user32.dll")] private static extern uint GetRawInputDeviceList([Out] RIDL[]? list, ref uint n, uint cb);
 
     private const int WM_INPUT = 0x00FF;
     private const uint RIDEV_INPUTSINK = 0x100, RIDEV_REMOVE = 0x1, RID_INPUT = 0x10000003, RIDI_DEVICEINFO = 0x2000000b;
     private const ushort Vid = 0x0D62;
+    private const ushort VidElc = 0x187C;   // Alienware AW-ELC lighting controller (chassis lights)
 
     private HwndSource? _src;
     private IntPtr _dev;          // cached handle of the Alienware keyboard collection
@@ -70,6 +73,7 @@ public sealed class MacroKeys : IDisposable
             var b = new byte[cb];
             if (GetRawInputData(lParam, RID_INPUT, b, ref cb, hcb) != cb) return IntPtr.Zero;
             var dev = IntPtr.Size == 8 ? new IntPtr(BitConverter.ToInt64(b, 8)) : new IntPtr(BitConverter.ToInt32(b, 8));
+            if (ProbeAll && _extra.Count > 0 && ProbeOther(dev, b, (int)hcb, (int)cb)) return IntPtr.Zero;
             if (!IsAlienware(dev)) return IntPtr.Zero;
             int off = (int)hcb + 8;                     // RAWHID: dwSizeHid, dwCount, then the report
             if (cb < off + 2) return IntPtr.Zero;
@@ -100,6 +104,69 @@ public sealed class MacroKeys : IDisposable
         if (n <= 0 || _probed.Count >= 32) return;
         var sig = BitConverter.ToString(b, off, n);
         if (_probed.Add(sig)) Log.Info("MacroKeys", $"unknown Alienware report {sig}");
+    }
+
+    // ---------- 1.3.1-beta.4: F7 probe on every Alienware HID collection ----------
+    // beta.2's test only watched the consumer collection (0x0C / 0x01) that F2..F6 use, and the low-level hook; F7 showed
+    // in neither. Amine: F7 is a hotkey of the Fn-lock row like F2..F5, so it may go out on another collection of the
+    // same keyboard (a vendor page) or on the AW-ELC. During the 20 s test every HID collection of 0D62 and 187C is
+    // registered too (input sink, nothing swallowed) and each report is logged with its collection. Removed afterwards.
+    private readonly System.Collections.Generic.List<(ushort page, ushort usage)> _extra = new();
+    private readonly System.Collections.Generic.Dictionary<IntPtr, (uint vid, uint pid, ushort page, ushort usage)> _info = new();
+
+    private (uint vid, uint pid, ushort page, ushort usage) Info(IntPtr dev)
+    {
+        if (_info.TryGetValue(dev, out var v)) return v;
+        var i = new INFO { cb = (uint)Marshal.SizeOf<INFO>() };
+        uint cb = i.cb;
+        v = GetRawInputDeviceInfo(dev, RIDI_DEVICEINFO, ref i, ref cb) == uint.MaxValue || i.type != 2 ? (0, 0, 0, 0) : (i.vid, i.pid, i.page, i.usage);
+        return _info[dev] = v;
+    }
+
+    /// <summary>Probe on: registers every other HID collection of the Alienware keyboard and AW-ELC. Off: removes them.</summary>
+    public void ProbeAllCollections(bool on)
+    {
+        if (_src is null) return;
+        try
+        {
+            if (!on)
+            {
+                if (_extra.Count == 0) return;
+                var rm = _extra.ConvertAll(x => new RID { Page = x.page, Usage = x.usage, Flags = RIDEV_REMOVE });
+                RegisterRawInputDevices(rm.ToArray(), (uint)rm.Count, (uint)Marshal.SizeOf<RID>());
+                _extra.Clear();
+                return;
+            }
+            uint n = 0, sz = (uint)Marshal.SizeOf<RIDL>();
+            GetRawInputDeviceList(null, ref n, sz);
+            var list = new RIDL[n];
+            if (n == 0 || GetRawInputDeviceList(list, ref n, sz) == uint.MaxValue) return;
+            var seen = new System.Collections.Generic.List<string>();
+            foreach (var d in list)
+            {
+                if (d.Type != 2) continue;                                   // HID only (keyboard typing is the hook's)
+                var v = Info(d.Device);
+                if (v.vid != Vid && v.vid != VidElc) continue;
+                seen.Add($"{v.vid:X4}:{v.pid:X4} {v.page:X2}/{v.usage:X2}");
+                if ((v.page, v.usage) is (0x0C, 0x01) or (0x01, 0x02) or (0x01, 0x06) or (0x01, 0x01)) continue;   // already ours / typing / mouse
+                if (!_extra.Contains((v.page, v.usage))) _extra.Add((v.page, v.usage));
+            }
+            var add = _extra.ConvertAll(x => new RID { Page = x.page, Usage = x.usage, Flags = RIDEV_INPUTSINK, Target = _src.Handle });
+            bool ok = add.Count == 0 || RegisterRawInputDevices(add.ToArray(), (uint)add.Count, (uint)Marshal.SizeOf<RID>());
+            Log.Info("F7 probe", $"collections: {string.Join(", ", seen)}; extra watched: {(add.Count == 0 ? "none" : string.Join(", ", _extra.ConvertAll(x => $"{x.page:X2}/{x.usage:X2}")))} {(ok ? "ok" : "register FAILED")}");
+        }
+        catch (Exception e) { Log.Warn("MacroKeys.ProbeAllCollections", e); }
+    }
+
+    /// <summary>True when the report came from one of the extra probe collections (logged, nothing else done).</summary>
+    private bool ProbeOther(IntPtr dev, byte[] b, int hcb, int cb)
+    {
+        var v = Info(dev);
+        if (v.vid != Vid && v.vid != VidElc) return false;
+        if ((v.page, v.usage) == (0x0C, 0x01)) return false;                  // the macro collection: normal path
+        int off = hcb + 8, n = Math.Min(8, cb - off);
+        if (n > 0) Log.Info("F7 probe", $"report {v.vid:X4}:{v.pid:X4} {v.page:X2}/{v.usage:X2}: {BitConverter.ToString(b, off, n)}");
+        return true;
     }
 
     private bool IsAlienware(IntPtr dev)

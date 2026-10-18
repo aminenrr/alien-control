@@ -372,7 +372,7 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout, CPU / GPU %, smoother slides, security hardening), tested on my m15 R7. Pre-release **1.3.1-beta.3** (Lights menu, rounder / shorter notifications) is on the Releases page for testing. Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
+**v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout, CPU / GPU %, smoother slides, security hardening), tested on my m15 R7. Pre-release **1.3.1-beta.4** (Lights menu, rounder / shorter notifications) is on the Releases page for testing. Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the
 [CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md).
 

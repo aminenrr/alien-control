@@ -28,6 +28,7 @@ public partial class MainWindow
     // F7 sends no consumer report (crash.log, 2026-10-18), so the app can't see it yet. For 20 s this logs every key
     // down the low-level hook sees (vk / scan / flags), every Alienware HID report, and the keyboard's lighting state
     // read back over HID whenever it changes (4 reads a second, only during these 20 s). One click, then press F7.
+    // 1.3.1-beta.4: also every other HID collection of the Alienware keyboard and AW-ELC (see MacroKeys.ProbeAllCollections).
     private bool _f7Probe;
 
     private async void F7Probe_Click(object sender, RoutedEventArgs e)
@@ -40,6 +41,7 @@ public partial class MainWindow
             Log.Info("F7 probe", $"start (keyboard {(_settings.OffKeyboard ? "off" : "on")} in the app, brightness {_settings.Brightness})");
             _gkey.Probe = (vk, scan, flags) => Task.Run(() => Log.Info("F7 probe", $"key vk 0x{vk:X2} scan 0x{scan:X2} flags 0x{flags:X2}"));
             MacroKeys.ProbeAll = true;
+            InputThread.Invoke(() => _macro.ProbeAllCollections(true));   // 1.3.1-beta.4: every Alienware HID collection
             string? last = null;
             var end = DateTime.UtcNow.AddSeconds(20);
             while (DateTime.UtcNow < end)
@@ -55,6 +57,7 @@ public partial class MainWindow
         {
             _gkey.Probe = null;
             MacroKeys.ProbeAll = false;
+            InputThread.Invoke(() => _macro.ProbeAllCollections(false));
             Log.Info("F7 probe", "end");
             F7ProbeButton.Content = "Watch F7";
             F7ProbeButton.IsEnabled = true;
