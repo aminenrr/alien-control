@@ -16,11 +16,10 @@ Log: `%AppData%\AlienControl\crash.log` (send it with any ✗).
 7. After clicking any tile (including Turn off / on), no colored outline stays on it.
 
 ## C. F7 test (every Alienware collection)
-8. Fn-lock in the mode where F2..F5 run the app's hotkeys. Settings > Advanced > F7 test > Watch F7. During the 20 s: press **F2 once** (sanity check, it should log), wait 2 s, then F7 slowly 4 times, 2 s apart. Nothing else.
-9. Switch Fn-lock to the other mode (Fn + Esc) and run the test again: F7 4 times.
-10. Send all `F7 probe` lines from crash.log (the "collections:" line too). If F7 shows up anywhere, beta.5 makes the Keyboard tile follow it.
+8. Fn-lock in hotkey mode (Esc + Fn on, where F2..F5 run the app's hotkeys; with it off F7 is a plain F7). Settings > Advanced > F7 test > Watch F7. During the 20 s: press **F2 once** (sanity check, it should log), wait 2 s, then F7 slowly 4 times, 2 s apart. Nothing else.
+9. Send all `F7 probe` lines from crash.log (the "collections:" line too). If F7 shows up anywhere, beta.5 makes the Keyboard tile follow it.
 
 ## D. Still fine from beta.2
-11. One tap = one change; double-click = one tap. Esc / outside click / laptop button close the menu. Power button light never changes.
-12. Classic and Pill notifications look like beta.2.
-13. Close to the tray, wait a minute: 0% CPU, a few MB.
+10. One tap = one change; double-click = one tap. Esc / outside click / laptop button close the menu. Power button light never changes.
+11. Classic and Pill notifications look like beta.2.
+12. Close to the tray, wait a minute: 0% CPU, a few MB.
