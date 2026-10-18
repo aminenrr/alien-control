@@ -31,6 +31,8 @@
 - [x] 1.3.1-beta.1: Off menu, F7 after Off, Spectrum / Rainbow restart fix. Tested: menu redesigned in beta.2.
 - [ ] 1.3.1-beta.4: beta.3 + F7 test on every Alienware HID collection.
 - [ ] 1.3.1 stable (Amine): remove Settings > Advanced > "Log frame gaps" and "F7 test" (debug only, not needed).
+  Also (Amine): update CHANGELOG / release notes with what's new and the tests done (beta.1-4 results), and the README's
+  features section with the Lights menu, rounder / shorter notifications, using the 1.3.1 mockups as images.
 - [-] 1.3.1-beta.3 (superseded by beta.4): Keyboard off really off (brightness 0 after every CLI run), Turn off / Turn on tile, accent while on, no focus border.
 - [x] 1.3.1-beta.2: Lights menu (laptop button, lit = on, All off / All on), status-key fix, F7 test, Classic toast
   corners, shorter Pill. Test with docs/BETA-1.3.1-CHECKLIST.md.
