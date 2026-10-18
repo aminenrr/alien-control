@@ -479,12 +479,45 @@
                                             </Border>
                                         </Popup>
                                     </StackPanel>
-                                    <Button Style="{DynamicResource GhostButton}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="LightsOff_Click" ToolTip="Lights off">
+                                    <!-- 1.3.1: Off opens a multi-select menu (keyboard / rear ring / Alienhead / all), MainWindow.Lights.cs -->
+                                    <Button x:Name="LightsOffButton" Style="{DynamicResource GhostButton}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="LightsOff_Click" ToolTip="Turn lights off">
                                         <StackPanel Orientation="Horizontal">
                                             <ContentControl Style="{DynamicResource ButtonIcon}" Content="{DynamicResource Icon.Power}" />
-                                            <TextBlock Text="Off" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="LightsOffText" Text="Off" VerticalAlignment="Center" />
+                                            <Path Data="M0 0l4 4l4 -4" Stroke="{Binding Path=(TextElement.Foreground), RelativeSource={RelativeSource Self}}" StrokeThickness="1.5"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Opacity="0.7"
+                                                  VerticalAlignment="Center" Margin="7,1,0,0" />
                                         </StackPanel>
                                     </Button>
+                                    <Popup x:Name="LightsOffPopup" PlacementTarget="{Binding ElementName=LightsOffButton}" Placement="Bottom"
+                                           StaysOpen="False" AllowsTransparency="True" VerticalOffset="6">
+                                        <Border x:Name="LightsOffPanel" Style="{DynamicResource PopupPanel}" Width="368" UseLayoutRounding="True"
+                                                TextOptions.TextFormattingMode="Display" RenderOptions.ClearTypeHint="Enabled" PreviewKeyDown="LightsOffPanel_KeyDown">
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,10">
+                                                    <TextBlock Text="Turn off" Style="{DynamicResource PopupTitle}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Pick one or more" Style="{DynamicResource BodyText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                                </Grid>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                                            KeyboardNavigation.DirectionalNavigation="Cycle" KeyboardNavigation.TabNavigation="Cycle">
+                                                    <CheckBox x:Name="ZoneKeyboard" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Keys}" Content="Keyboard"
+                                                              Click="Zone_Click" ToolTip="Keyboard backlight. F7 still sets its brightness" />
+                                                    <CheckBox x:Name="ZoneRing" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Ring}" Content="Rear ring"
+                                                              Click="Zone_Click" ToolTip="The light bar around the back" />
+                                                    <CheckBox x:Name="ZoneHead" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Alien}" Content="Alienhead"
+                                                              Click="Zone_Click" ToolTip="The logo on the lid" />
+                                                    <Border Width="1" Margin="0,10,8,10" Background="{DynamicResource TextMuted}" Opacity="0.35" />
+                                                    <CheckBox x:Name="ZoneAll" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Power}" Content="All off" Margin="0"
+                                                              Click="Zone_Click" ToolTip="Keyboard, rear ring and Alienhead. The power button light is never changed" />
+                                                </StackPanel>
+                                                <Grid Margin="0,12,0,0">
+                                                    <TextBlock Text="F7 still sets keyboard brightness" Style="{DynamicResource BodyText}" VerticalAlignment="Center" />
+                                                    <Button Content="Turn all on" Style="{DynamicResource LinkButton}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                            Click="ZonesAllOn_Click" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
                                 </Grid>
                                 <Grid x:Name="LightFxRow" Margin="0,10,0,0">
                                     <Grid.ColumnDefinitions>

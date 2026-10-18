@@ -144,3 +144,17 @@ Why things are the way they are. Newest decisions win.
 - The pill fades (instead of sliding) with Reduce motion / Windows animations off, as the directive asks; the
   classic card stays instant there, as in 1.2.
 
+## 1.3.1-beta.1 (2026-10-18)
+- Built directly by Hark at Amine's request (no separate plan round: the 1.3.1 directive and both mockups were the
+  approved plan). Mockups: docs/mockups/1.3.1.
+- Keyboard off = hardware brightness 0 + held frames (KeyboardHid.SetOff), not black. Why: 1.3.0 painted black and F7
+  (firmware) then scaled black. The timeout already proved brightness 0 + held frames on this keyboard. F7's own report
+  is not probed yet, so the app can't follow it: after F7 the tile still says Off, and new colors wait for the tile
+  (checklist step 13). The probe log is there to fix that in 1.3.2 without guessing.
+- Chassis zones stay black-painted (setone 0,0,0): setdim hits the power button and never reaches 0 on the ring.
+- Turning a light off never changes the saved color any more; picking a color doesn't turn lights back on.
+- The menu is a Popup like the custom color one (the 1.3 settings page hitch came from a big layered popup; this one is
+  small). Tile style + Icon.Ring (option C "ring from above") + Icon.Alien (the app's logo.png as a mask) are the same
+  block in both themes, also added to dev/gen_themes.py.
+- Status keys go dark with the keyboard (hardware brightness covers every key); they come back with it.
+

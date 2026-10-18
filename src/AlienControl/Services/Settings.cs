@@ -34,6 +34,15 @@ public sealed class Settings
     // 2 = power button: never sent, the firmware keeps blue on AC / amber on battery. 4..15 = nothing visible.
     public int[] ChassisLights { get; set; } = { 0, 1, 3 };
     public const int PowerButtonLight = 2;
+    /// <summary>1.3.1: chassis lights per zone (docs/HARDWARE.md): rear "tron" ring = 0 + 1, lid Alienhead = 3.</summary>
+    public static readonly int[] RingLights = { 0, 1 };
+    public const int AlienheadLight = 3;
+
+    // 1.3.1 Lighting > Off menu: each light can be turned off on its own (any mix). Off = the keyboard's hardware
+    // brightness goes to 0 with its colors kept (so F7 still works); the chassis lights get black.
+    public bool OffKeyboard { get; set; }
+    public bool OffRing { get; set; }
+    public bool OffAlienhead { get; set; }
 
     // Status keys. Any software color switches the keyboard out of firmware mode, which stops it
     // lighting these, so the app does it: normal color when off, IndicatorOnColor when on.
@@ -197,7 +206,15 @@ public sealed class Settings
         Brightness = C(Brightness, 0, 255, d.Brightness);
         if (IndicatorOnColor is not { Length: 3 }) IndicatorOnColor = d.IndicatorOnColor;
         if (LastColor is not null && LastColor.Length != 3) LastColor = null;
-        if (LastEffect is not (0 or 2 or 3 or 4 or 8 or 9 or 10 or 11)) LastEffect = 0;
+        // 1.3.1: 100 / 101 (the app's Spectrum / Rainbow wave) were missing here, so they fell back to Static on restart.
+        if (LastEffect is not (0 or 2 or 3 or 4 or 8 or 9 or 10 or 11 or 100 or 101)) LastEffect = 0;
+        // 1.3.1: 1.3.0's Off painted everything black and saved that as the color. Now it's three off switches and the
+        // color is kept, so a black color becomes "all three off" with the default cyan to come back to.
+        if (LastColor is { Length: 3 } lc && lc.All(v => v == 0))
+        {
+            OffKeyboard = OffRing = OffAlienhead = true;
+            LastColor = new byte[] { 0, 229, 255 };
+        }
         GKeyVk = C(GKeyVk, 1, 254, d.GKeyVk);
         GKeyScan = C(GKeyScan, 0, 0x1FF, 0);
         PollSeconds = C(PollSeconds, 1, 10, d.PollSeconds);

@@ -72,15 +72,30 @@ public sealed class MacroKeys : IDisposable
             var dev = IntPtr.Size == 8 ? new IntPtr(BitConverter.ToInt64(b, 8)) : new IntPtr(BitConverter.ToInt32(b, 8));
             if (!IsAlienware(dev)) return IntPtr.Zero;
             int off = (int)hcb + 8;                     // RAWHID: dwSizeHid, dwCount, then the report
-            if (cb < off + 2 || b[off] != 0x02) return IntPtr.Zero;
+            if (cb < off + 2) return IntPtr.Zero;
+            if (b[off] != 0x02) { Probe(b, off, (int)cb); return IntPtr.Zero; }
             byte code = b[off + 1];
             if (code == 0) { _down = 0; return IntPtr.Zero; }
             if (code == _down) return IntPtr.Zero;      // held
             _down = code;
             if (code is >= 0x51 and <= 0x55) Pressed?.Invoke(code - 0x51);
+            else Probe(b, off, (int)cb);
         }
         catch (System.Exception __e) { AlienControl.Services.Log.Warn("MacroKeys.cs:63", __e); }
         return IntPtr.Zero;
+    }
+
+    // 1.3.1 probe: any other report from the Alienware keyboard collection (for example the F7 brightness key, if the
+    // firmware reports it at all) is written to crash.log once per distinct report, at most 32. Event-driven: no cost
+    // until such a key is pressed. Only the report bytes are logged, never normal typing (that is a different collection).
+    private readonly System.Collections.Generic.HashSet<string> _probed = new();
+
+    private void Probe(byte[] b, int off, int cb)
+    {
+        int n = Math.Min(4, cb - off);
+        if (n <= 0 || _probed.Count >= 32) return;
+        var sig = BitConverter.ToString(b, off, n);
+        if (_probed.Add(sig)) Log.Info("MacroKeys", $"unknown Alienware report {sig}");
     }
 
     private bool IsAlienware(IntPtr dev)

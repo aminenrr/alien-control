@@ -48,10 +48,36 @@ public sealed class KeyboardHid
     private static IReadOnlyList<(byte id, byte r, byte g, byte b)>? _held;
     public static bool IsDark { get { lock (Gate) return _dark; } }
 
+    // 1.3.1: the user turned the keyboard off (Lighting > Off > Keyboard). Same mechanism as the timeout: hardware
+    // brightness 0 and frames held, so the colors stay in the firmware and F7 (the firmware brightness key) can bring
+    // the keys back. 1.3.0 painted the keys black instead, so F7 had nothing to light.
+    private static bool _off;
+    public static bool IsOff { get { lock (Gate) return _off; } }
+
+    /// <summary>1.3.1: keyboard off (brightness 0, frames held) or back on (full brightness + the newest held frame,
+    /// unless the timeout has it dark). Off is re-sent every call, since sleep / resume can reset the firmware level.</summary>
+    public bool SetOff(bool off)
+    {
+        IReadOnlyList<(byte id, byte r, byte g, byte b)>? held = null;
+        bool dark;
+        lock (Gate)
+        {
+            _off = off;
+            dark = _dark;
+            if (!off && !dark) { held = _held; _held = null; }
+        }
+        if (off) return WithDevice((dev, len) => SetBrightness(dev, len, 0));
+        if (dark) return true;                                   // the timeout wake restores it
+        bool ok = WithDevice((dev, len) => SetBrightness(dev, len, 255));
+        if (held is not null) ok &= SetKeys(held);
+        return ok;
+    }
+
     /// <summary>Fades the keyboard's hardware brightness to 0 over ms (one-shot, ~10 steps). False = cancelled/failed.</summary>
     public bool FadeOut(int ms, System.Threading.CancellationToken token)
     {
         const int steps = 10;
+        lock (Gate) if (_off) { _dark = true; return true; }     // 1.3.1: already off, nothing to fade
         for (int i = steps - 1; i >= 0; i--)
         {
             if (token.IsCancellationRequested) return false;
@@ -67,7 +93,12 @@ public sealed class KeyboardHid
     public bool Wake()
     {
         IReadOnlyList<(byte id, byte r, byte g, byte b)>? held;
-        lock (Gate) { _dark = false; held = _held; _held = null; }
+        lock (Gate)
+        {
+            _dark = false;
+            if (_off) return true;                               // 1.3.1: user turned the keyboard off, stay off
+            held = _held; _held = null;
+        }
         bool ok = WithDevice((dev, len) => SetBrightness(dev, len, 255));
         if (held is not null) ok &= SetKeys(held);
         return ok;
@@ -76,7 +107,7 @@ public sealed class KeyboardHid
     /// <summary>Sends every key's color in one frame.</summary>
     public bool SetKeys(IReadOnlyList<(byte id, byte r, byte g, byte b)> keys)
     {
-        lock (Gate) if (_dark) { _held = keys; return true; }
+        lock (Gate) if (_dark || _off) { _held = keys; return true; }
         return WithDevice((dev, len) => SetKeys(dev, len, keys));
     }
 

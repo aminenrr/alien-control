@@ -172,6 +172,7 @@ public partial class MainWindow : Window
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
         InitAuto(); // v0.9.11 auto preset + toasts
         InitKbdTimeout();   // 1.3.0-beta.1
+        UpdateLightsOffButton();   // 1.3.1
         InitDebugToggles();
         InitSettingsPage();   // 1.3.0-beta.2
         _ = Task.Run(() => FolderSafety.UserWritable(AppContext.BaseDirectory)).ContinueWith(t =>
@@ -388,6 +389,7 @@ public partial class MainWindow : Window
         if (!_fx.IsAvailable) return;
         _gmodeOn = await _fan.GetGModeAsync() == true;
         await _fx.ResetHardwareDimAsync();
+        if (_settings.OffKeyboard) await Task.Run(() => _fx.Hid.SetOff(true));   // 1.3.1: before any frame goes out
         ReadIndicatorStates();
         UpdateF2Tint(ShownProfile);
         // Reapply the user's color after boot (firmware resets to its default); otherwise leave firmware lighting alone.
@@ -717,6 +719,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void StartAnimation(bool wave)
     {
+        if (_settings.OffKeyboard) return;   // 1.3.1: keyboard turned off, nothing to animate (frames would be held anyway)
         var cts = new System.Threading.CancellationTokenSource();
         _anim = cts;
         var token = cts.Token;
@@ -813,14 +816,6 @@ public partial class MainWindow : Window
             < 240 => (0d, x, c), < 300 => (x, 0d, c), _ => (c, 0d, x),
         };
         return new[] { (byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255) };
-    }
-
-    private async void LightsOff_Click(object sender, RoutedEventArgs e)
-    {
-        StopAnimation();
-        _lastColor = new byte[] { 0, 0, 0 };
-        SelectSwatch(_lastColor);
-        await ApplyColorAsync(_lastColor);
     }
 
     private void Brightness_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)

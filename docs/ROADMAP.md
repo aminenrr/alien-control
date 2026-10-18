@@ -28,6 +28,9 @@
 - [x] 1.3.0-beta.2: chime pack (Soft / Classic), toast style (Pill / Classic), settings page with tabs.
 - [x] 1.3.0 (2026-10-18): stable, tested on the m15 R7, plus the chime crackle fix (best effort for now, much less
   noticeable).
+- [ ] 1.3.1-beta.1: Off menu (keyboard / rear ring / Alienhead / all), F7 after Off, Spectrum / Rainbow restart fix.
+  Test with docs/BETA-1.3.1-CHECKLIST.md.
+- [ ] 1.3.2 (if the probe shows F7): the Keyboard tile follows F7 on its own.
 - [x] 1.1.1 patch: shows as "Alien Controls" in startup lists, startup task renamed (old one migrated).
 
 ## Later

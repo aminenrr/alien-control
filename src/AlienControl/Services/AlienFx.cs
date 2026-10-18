@@ -22,6 +22,20 @@ public sealed class AlienFx
     private readonly KeyboardHid _hid = new();
     public KeyboardHid Hid => _hid;
 
+    // ---------- 1.3.1: lights the user turned off (Lighting > Off menu) ----------
+
+    /// <summary>True when this chassis light is turned off: the rear ring (IDs 0 + 1) or the lid Alienhead (ID 3).</summary>
+    private bool ChassisOff(int id) => Settings.RingLights.Contains(id) ? _s.OffRing : id == Settings.AlienheadLight && _s.OffAlienhead;
+
+    /// <summary>Chassis commands for every light except the power button: act(id) for lit ones, black for turned-off ones.</summary>
+    private string Chassis(System.Func<int, string> act) => string.Join(" ", _s.ChassisLights.Where(i => i != Settings.PowerButtonLight)
+        .Select(i => ChassisOff(i) ? $"setone={_s.ChassisDevice},{i},0,0,0" : act(i)));
+
+    /// <summary>Keyboard off: brightness 0 and frames held (KeyboardHid). Re-sent each time, since resume can reset it.</summary>
+    private Task KeyboardOffAsync() => _s.OffKeyboard
+        ? Task.Run(() => { try { _hid.SetOff(true); } catch (System.Exception e) { Log.Warn("AlienFx.KeyboardOff", e); } })
+        : Task.CompletedTask;
+
     /// <summary>Scales a color by brightness 0..255 (software dimming).</summary>
     public static byte[] Dim(byte[] c, int brightness) =>
         c.Select(v => (byte)(v * System.Math.Clamp(brightness, 0, 255) / 255)).ToArray();
@@ -37,10 +51,12 @@ public sealed class AlienFx
     {
         var c = Dim(new[] { r, g, b }, brightness);
         var w = Dim(_s.IndicatorOnColor, brightness);
-        var chassis = string.Join(" ", _s.ChassisLights.Where(i => i != Settings.PowerButtonLight)
-            .Select(i => $"setone={_s.ChassisDevice},{i},{c[0]},{c[1]},{c[2]}"));
-        var res = await _cli.RunAsync($"setglobal={_s.KeyboardDevice},0,1 {chassis}");
+        await KeyboardOffAsync();
+        var chassis = Chassis(i => $"setone={_s.ChassisDevice},{i},{c[0]},{c[1]},{c[2]}");
+        // 1.3.1: a turned-off keyboard gets no setglobal (it could light it back up); its frame is held by KeyboardHid
+        var res = await _cli.RunAsync(_s.OffKeyboard ? chassis : $"setglobal={_s.KeyboardDevice},0,1 {chassis}");
         if (await SetKeyboardAsync(new[] { r, g, b }, indicatorsOn, brightness)) return res;
+        if (_s.OffKeyboard) return res;
 
         // Fallback: per-key CLI (only the last status key will stay lit).
         var cmds = Enumerable.Range(0, _s.KeyboardLightCount).Select(i =>
@@ -75,7 +91,7 @@ public sealed class AlienFx
     /// </summary>
     public async Task ResetHardwareDimAsync()
     {
-        await Task.Run(() => { try { _hid.SetBrightness(255); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("AlienFx.cs:77", __e); } });
+        await Task.Run(() => { try { _hid.SetBrightness(_s.OffKeyboard ? 0 : 255); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("AlienFx.cs:77", __e); } });
         await _cli.RunAsync($"setdim={_s.ChassisDevice},255");
     }
 
@@ -98,8 +114,9 @@ public sealed class AlienFx
     /// A keyboard effect plus the closest APIv4 action on the chassis lights (power button skipped).
     /// Colors are scaled by brightness.
     /// </summary>
-    public Task<CliResult> SetEffectAsync(int type, byte[] color, int brightness)
+    public async Task<CliResult> SetEffectAsync(int type, byte[] color, int brightness)
     {
+        await KeyboardOffAsync();
         var a = Dim(color, brightness);
         var b = Dim(SecondColor(color), brightness);
         bool dual = type is 4 or 9;
@@ -113,17 +130,17 @@ public sealed class AlienFx
             4 or 9 => $"setaction={_s.ChassisDevice},{light},morph,{a[0]},{a[1]},{a[2]},morph,{b[0]},{b[1]},{b[2]}",
             _ => $"setone={_s.ChassisDevice},{light},{a[0]},{a[1]},{a[2]}",
         };
-        var chassis = string.Join(" ", _s.ChassisLights.Where(i => i != Settings.PowerButtonLight).Select(Act));
-        return _cli.RunAsync($"{chassis} {kb}");
+        var chassis = Chassis(Act);
+        return await _cli.RunAsync(_s.OffKeyboard ? chassis : $"{chassis} {kb}");
     }
 
     /// <summary>Firmware color-cycle on the chassis lights (APIv4 spectrum/rainbow action), power button skipped.</summary>
-    public Task<CliResult> SetChassisCycleAsync(bool rainbow)
+    public async Task<CliResult> SetChassisCycleAsync(bool rainbow)
     {
+        await KeyboardOffAsync();
         var act = rainbow ? "rainbow" : "spectrum";
-        var cmds = _s.ChassisLights.Where(i => i != Settings.PowerButtonLight)
-            .Select(i => $"setaction={_s.ChassisDevice},{i},{act},255,0,0");
-        return _cli.RunAsync($"setglobal={_s.KeyboardDevice},0,1 " + string.Join(" ", cmds));
+        var chassis = Chassis(i => $"setaction={_s.ChassisDevice},{i},{act},255,0,0");
+        return await _cli.RunAsync(_s.OffKeyboard ? chassis : $"setglobal={_s.KeyboardDevice},0,1 " + chassis);
     }
 
     /// <summary>One software-animation frame: every key its own color (status keys white if on).</summary>

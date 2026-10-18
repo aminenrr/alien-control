@@ -3,6 +3,23 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.3.1-beta.1 (2026-10-18), untested
+**New**
+- Lighting > Off is a multi-select menu: Keyboard, Rear ring (chassis IDs 0 + 1), Alienhead (ID 3), All off. Any mix;
+  each tile applies at once, the button shows the count ("2 off"), "Turn all on" resets. Power button (ID 2) never sent.
+  Saved as `OffKeyboard` / `OffRing` / `OffAlienhead`; 1.3.0's black color migrates to all three off + cyan.
+
+**Fixes**
+- F7 after Off: the keyboard goes off through its hardware brightness (0) with frames held, the same path as the
+  keyboard timeout, instead of black colors, so the firmware F7 key has colors to light. The chassis lights still get
+  black. Off zones are skipped by every color, effect and animation path (no keyboard `setglobal` while it's off).
+- Spectrum (100) and Rainbow wave (101) were reset to Static by the settings validation on every start.
+- Keyboard timeout doesn't run while the keyboard is turned off.
+
+**Probe**
+- Any other report on the Alienware keyboard collection (not F2..F6) goes to crash.log once (max 32), to learn what
+  F7 sends. Event-driven, no idle cost.
+
 ## v1.3.0 (2026-10-18)
 Stable release of 1.3.0-beta.1 (confirmed on the m15 R7) and beta.2, plus the items below. Tested on the m15 R7
 (2026-10-18): works.

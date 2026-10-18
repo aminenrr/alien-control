@@ -87,6 +87,8 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 - **Auto preset**: Battery when unplugged, your last preset when plugged back in.
 - Fans, temps, **CPU % / GPU %** (v1.3) and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
 - Per-key keyboard color and effects, chassis lights, status keys (G-Mode, mutes, touchpad) lit by the app.
+- **Off menu** (v1.3.1, beta): turn off the keyboard, the rear ring, the Alienhead or all of them, in any mix. F7 still
+  sets the keyboard brightness after Off. The power button light is never touched.
 - **Keyboard light timeout** (v1.3): fades the keys out after 1 / 2 / 5 / 10 min without input (optionally on battery
   only, paused in fullscreen games); any key, mouse or touchpad input brings them straight back.
 - GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt), plus **iGPU only** (v1.2): turns the RTX off for battery life when NVIDIA is set to Optimus. It lists the apps using the RTX first, and HDMI / Mini DP stay dark until you switch back.
@@ -370,7 +372,7 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout, CPU / GPU %, smoother slides, security hardening), tested on my m15 R7. Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
+**v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout, CPU / GPU %, smoother slides, security hardening), tested on my m15 R7. Pre-release **1.3.1-beta.1** (Off menu, F7 after Off) is on the Releases page for testing. Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the
 [CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md).
 
