@@ -90,9 +90,13 @@ public sealed class MacroKeys : IDisposable
     // until such a key is pressed. Only the report bytes are logged, never normal typing (that is a different collection).
     private readonly System.Collections.Generic.HashSet<string> _probed = new();
 
+    /// <summary>1.3.1-beta.2 F7 probe: while true (20 s, from Settings), every Alienware report is logged.</summary>
+    public static volatile bool ProbeAll;
+
     private void Probe(byte[] b, int off, int cb)
     {
         int n = Math.Min(4, cb - off);
+        if (ProbeAll && n > 0) { Log.Info("F7 probe", $"Alienware report {BitConverter.ToString(b, off, n)}"); return; }
         if (n <= 0 || _probed.Count >= 32) return;
         var sig = BitConverter.ToString(b, off, n);
         if (_probed.Add(sig)) Log.Info("MacroKeys", $"unknown Alienware report {sig}");

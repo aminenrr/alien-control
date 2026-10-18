@@ -38,7 +38,7 @@ Tick every line on the laptop. Any ✗ goes back as a fix before 1.0.0.
 - [ ] Effects (breathing, wave, …) and brightness
 - [ ] Speaker mute, mic mute, touchpad (F12) keys follow instantly, also after switching audio device
 - [ ] Color comes back after reboot
-- [ ] Off menu (1.3.1): keyboard / rear ring / Alienhead / all, any mix, stays off through effects, F1/F2, plug, sleep, restart
+- [ ] Lights menu (1.3.1): keyboard / rear ring / Alienhead (lit = on), All off / All on, any mix, stays off through effects, F1/F2, plug, sleep, restart; status keys back after keyboard on
 - [ ] F7 brings the keyboard back after Off
 - [ ] Spectrum / Rainbow wave survive a restart
 

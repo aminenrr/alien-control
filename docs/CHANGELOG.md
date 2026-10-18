@@ -3,7 +3,29 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.3.1-beta.1 (2026-10-18), untested
+## v1.3.1-beta.2 (2026-10-18), untested
+Redesign after the beta.1 test (rest of beta.1 worked). Mockups: docs/mockups/1.3.1-beta.2.
+
+**Lights menu (replaces the Off menu)**
+- A laptop icon button replaces Off: accent when lights are on, an amber dot when some are off, muted when all are off.
+- The menu opens above the button, right edges lined up. Esc, a click outside or a second click on the button closes it.
+- A lit tile now means that light is **on**; tap Keyboard, Rear ring or Alienhead to switch it. The fourth tile reads
+  **All off** (lamp with a line) while any light is on and **All on** (lamp) once all three are off. "Turn all on" removed.
+- Fix: one click could switch a light on and straight back off (crash.log 21:55:15, 0.25 s apart). Taps within 350 ms
+  of the last one are ignored.
+- Fix: after Keyboard off then on, the 5 white status keys (F1, F12, mute, mic, right Win) stayed dark until a color
+  was clicked. Turning the keyboard on now re-sends the full frame (status keys included) 150 ms later.
+
+**Notifications**
+- Classic card: 22 px corners (was 6 Legend / 9 Fluent), rounder icon tile, the Legend color bar sits inside the curve.
+- Pill: 440 x 62 (was 640 x 76). Same layout, tighter: icon 40, title 16, detail 12.5, smaller switch / dots / chip.
+
+**F7 probe**
+- crash.log showed F7 sends no consumer report (the 5 logged ones were screen brightness, volume and mute).
+  Settings > Advanced > **F7 test** watches for 20 s: every key down (vk / scan), every Alienware report, and the
+  keyboard's lighting state read back over HID when it changes. If anything follows F7, beta.3 makes the tile follow it.
+
+## v1.3.1-beta.1 (2026-10-18), tested: Off menu redesigned in beta.2
 **New**
 - Lighting > Off is a multi-select menu: Keyboard, Rear ring (chassis IDs 0 + 1), Alienhead (ID 3), All off. Any mix;
   each tile applies at once, the button shows the count ("2 off"), "Turn all on" resets. Power button (ID 2) never sent.

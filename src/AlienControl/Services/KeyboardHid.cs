@@ -143,6 +143,25 @@ public sealed class KeyboardHid
         return ok & HidD_SetFeature(dev, buf, len);
     }
 
+    /// <summary>
+    /// 1.3.1-beta.2 F7 probe (Settings > Advanced > Watch F7): reads what the lighting collection hands back, without
+    /// writing anything. Returns the feature report and the input report (report id 0xcc) as hex, or "fail" for one the
+    /// device refuses. If a byte follows F7, the app can show F7's level; if nothing changes, the firmware keeps it.
+    /// </summary>
+    public string ReadState()
+    {
+        string feat = "fail", input = "fail";
+        WithDevice((dev, len) =>
+        {
+            var b = new byte[len]; b[0] = ReportId;
+            if (HidD_GetFeature(dev, b, len)) feat = BitConverter.ToString(b, 0, Math.Min(len, 34));
+            var c = new byte[len]; c[0] = ReportId;
+            if (HidD_GetInputReport(dev, c, len)) input = BitConverter.ToString(c, 0, Math.Min(len, 34));
+            return true;   // a refused read is a result, not a dropped device
+        });
+        return $"feature {feat} | input {input}";
+    }
+
     private static byte[] NewBuffer(int len, byte[] cmd)
     {
         var b = new byte[len];
@@ -219,6 +238,8 @@ public sealed class KeyboardHid
     [DllImport("hid.dll")] private static extern bool HidD_FreePreparsedData(IntPtr p);
     [DllImport("hid.dll")] private static extern int HidP_GetCaps(IntPtr p, out HIDP_CAPS c);
     [DllImport("hid.dll")] private static extern bool HidD_SetFeature(SafeFileHandle h, byte[] b, int len);
+    [DllImport("hid.dll")] private static extern bool HidD_GetFeature(SafeFileHandle h, byte[] b, int len);
+    [DllImport("hid.dll")] private static extern bool HidD_GetInputReport(SafeFileHandle h, byte[] b, int len);
     [DllImport("setupapi.dll")] private static extern IntPtr SetupDiGetClassDevs(ref Guid g, IntPtr e, IntPtr w, int f);
     [DllImport("setupapi.dll")] private static extern bool SetupDiEnumDeviceInterfaces(IntPtr s, IntPtr d, ref Guid g, uint i, ref SP_DEVICE_INTERFACE_DATA data);
     [DllImport("setupapi.dll", CharSet = CharSet.Unicode)] private static extern bool SetupDiGetDeviceInterfaceDetail(IntPtr s, ref SP_DEVICE_INTERFACE_DATA d, IntPtr detail, int size, out int req, IntPtr info);

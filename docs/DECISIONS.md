@@ -144,6 +144,20 @@ Why things are the way they are. Newest decisions win.
 - The pill fades (instead of sliding) with Reduce motion / Windows animations off, as the directive asks; the
   classic card stays instant there, as in 1.2.
 
+## 1.3.1-beta.2 (2026-10-18)
+- Amine tested beta.1: the Off menu felt like a mess (lit = off was backwards, one click could flip twice, the popup
+  covered the panel) and status keys went dark after Keyboard off / on. He asked for a redesign; mockups + plan were
+  approved before any code (docs/mockups/1.3.1-beta.2).
+- Tiles show the light state (lit = on); settings still store the "off" switches, so beta.1 settings carry over as is.
+- All tile is an action, not a state: All off while anything is on, All on when everything is off (his rule).
+- Double flip: a 350 ms debounce per menu, not per tile, so a double-click on any tile is one action.
+- Status keys: SetOff(false) sends brightness 255 then the held frame; the firmware seems to miss a frame right after
+  the brightness command (inferred: the swatch click, which sends the same frame later, always fixed it). So the frame
+  is sent again 150 ms later. Static only.
+- F7: no consumer report (crash.log). The F7 test is opt-in and 20 s only (it logs key presses, so never always-on).
+  Amine keeps the F7 cap: F7's levels scale the app brightness (at 50%: off, 25%, 50%), F7 never goes above it.
+- Toasts: Pill shortened rather than auto-sized, so every pill is the same width (calmer when they replace each other).
+
 ## 1.3.1-beta.1 (2026-10-18)
 - Built directly by Hark at Amine's request (no separate plan round: the 1.3.1 directive and both mockups were the
   approved plan). Mockups: docs/mockups/1.3.1.

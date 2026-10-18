@@ -172,7 +172,7 @@ public partial class MainWindow : Window
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
         InitAuto(); // v0.9.11 auto preset + toasts
         InitKbdTimeout();   // 1.3.0-beta.1
-        UpdateLightsOffButton();   // 1.3.1
+        UpdateLightsButton();   // 1.3.1
         InitDebugToggles();
         InitSettingsPage();   // 1.3.0-beta.2
         _ = Task.Run(() => FolderSafety.UserWritable(AppContext.BaseDirectory)).ContinueWith(t =>

@@ -78,8 +78,10 @@ The names saved by `probe`/`status` are **wrong**. Mapped by lighting one ID at 
 `setdim` on device 1 also dimmed the power button and never reached 0 on the ring, so it isn't used.
 
 1.3.1 Off menu zones: Keyboard = device 0, Rear ring = IDs 0 + 1, Alienhead = ID 3 (chassis lights off = `setone` black).
-F7 (keyboard brightness) is handled by the firmware. Whether it sends anything Windows can read is **not probed yet**:
-1.3.1-beta.1 logs any unknown Alienware report to crash.log (see BETA-1.3.1-CHECKLIST step 14).
+F7 (keyboard brightness) is handled by the firmware and sends **no consumer report** (1.3.1-beta.1 probe, 2026-10-18:
+only 02-6F / 02-70 screen brightness, 02-E9 / 02-EA volume, 02-E2 mute showed up). F7 has 3 steps (off, mid, full)
+that scale the app's brightness: at 50% it gives off, 25%, 50%. 1.3.1-beta.2's F7 test checks the low-level hook and
+an HID read-back next.
 
 ### Keyboard (device 0)
 - IDs don't follow physical key order and the saved probe names are unreliable. Esc = 0.
