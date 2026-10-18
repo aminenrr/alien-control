@@ -152,7 +152,9 @@ public partial class MainWindow
             // 1.3.2 (Amine: every change flashed): static color = touch only what changed. The keyboard goes over HID
             // alone; the chassis gets only its own setone lines. The CLI run can relight a dark keyboard for a moment,
             // so it runs while the keyboard is still lit (turning off) or before it lights up (turning on).
-            bool kbRepaint = !keyboard && (kbChanged || halfChanged);
+            // 1.3.2 fix (Amine): a chassis CLI run turns off the 5 white status keys, so a lit keyboard gets its frame
+            // (status keys included, same colors, no visible change) again after it
+            bool kbRepaint = !keyboard && (kbChanged || halfChanged || chassisChanged);
             if (kbChanged && keyboard)   // turning off: chassis first, then brightness 0
             {
                 if (chassisChanged) await _fx.SetChassisAsync(_lastColor, LightBrightness);
@@ -169,6 +171,7 @@ public partial class MainWindow
                     ReadIndicatorStates();
                     await _fx.SetKeyboardAsync(_lastColor, _indicators, LightBrightness);
                 }
+                if (kbRepaint && !kbChanged) await RefreshStatusKeysAsync();   // the firmware can miss the first frame after the CLI
                 if (kbChanged)
                 {
                     bool ok = await Task.Run(() => { try { return _fx.Hid.SetOff(false); } catch (Exception ex) { Log.Warn("Lights.SetOff", ex); return false; } });
