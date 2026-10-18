@@ -26,11 +26,14 @@
 - [x] 1.3.0-beta.1 (one pre-release, tested with docs/BETA-1.3.0-CHECKLIST.md): code review fixes #1-#19, keyboard
   light timeout, CPU % / GPU % row, refresh-timed slide engine (normal-window option tried and dropped).
 - [x] 1.3.0-beta.2: chime pack (Soft / Classic), toast style (Pill / Classic), settings page with tabs.
-- [x] 1.3.0 (2026-10-18): stable, plus the chime crackle fix.
+- [x] 1.3.0 (2026-10-18): stable, tested on the m15 R7, plus the chime crackle fix (best effort for now, much less
+  noticeable).
 - [x] 1.1.1 patch: shows as "Alien Controls" in startup lists, startup task renamed (old one migrated).
 
 ## Later
-- Keyboard backlight timeout when idle; effect speed; map keyboard columns for the rainbow wave.
+- Effect speed; map keyboard columns for the rainbow wave.
+- Maybe: remove the last faint chime crackle during hardware switches (longer gap before the ACPI calls, or a
+  shorter Soft tail).
 - Maybe: bind F5..F6 (Macro D..E, codes 02-54 .. 02-55).
 - Maybe: toasts over fullscreen-exclusive games. Idea: detect it (`SHQueryUserNotificationState`) and fall back to the sound plus a short keyboard flash in the preset color. No in-game overlay or DLL injection.
 - Maybe: faster charging (Dell ExpressCharge via `PrimaryBattChargeCfg`), removed from the UI in v0.8.5.
