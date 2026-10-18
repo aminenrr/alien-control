@@ -708,7 +708,7 @@ def legend():
         <Setter Property="Padding" Value="12" />
     </Style>
     <Style x:Key="PopupTitle" TargetType="TextBlock" BasedOn="{{StaticResource SectionTitle}}" />
-    <!-- 1.3.1-beta.2 Lights menu: laptop button, tiles lit = light ON (ZoneTile, a CheckBox), the All off / All on
+    <!-- 1.3.1-beta.2 Lights menu: laptop button, tiles lit = light ON (ZoneTile, a CheckBox), the Turn off / Turn on
          action tile (ZoneAction, a Button), and the zone icons. Theme-neutral: colors come from the theme brushes,
          so the block is the same in Legend and Fluent. -->
     <Viewbox x:Key="Icon.Ring" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24">
@@ -748,9 +748,6 @@ def legend():
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="BorderBrush" Value="#48FFFFFF" />
                         </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{{DynamicResource AccentBorder}}" />
-                        </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Glow" Property="Opacity" Value="1" />
                             <Setter TargetName="Bd" Property="Background" Value="{{DynamicResource AccentFaint}}" />
@@ -774,11 +771,14 @@ def legend():
         <Setter Property="FocusVisualStyle" Value="{{x:Null}}" />
         <Setter Property="FontSize" Value="11.5" />
         <Setter Property="Foreground" Value="{{DynamicResource TextPrimary}}" />
+        <Setter Property="Background" Value="#12FFFFFF" />
+        <Setter Property="BorderBrush" Value="#24FFFFFF" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Grid Background="Transparent">
-                        <Border x:Name="Bd" CornerRadius="6" Background="#12FFFFFF" BorderBrush="#24FFFFFF" BorderThickness="1" />
+                        <Border x:Name="Bd" CornerRadius="6" Background="{{TemplateBinding Background}}" BorderBrush="{{TemplateBinding BorderBrush}}" BorderThickness="1" />
+                        <Border x:Name="Hv" CornerRadius="6" Background="#10FFFFFF" Opacity="0" />
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <ContentPresenter Content="{{TemplateBinding Tag}}" Width="24" Height="24" HorizontalAlignment="Center" Margin="0,0,0,8" />
                             <ContentPresenter HorizontalAlignment="Center" />
@@ -786,11 +786,7 @@ def legend():
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="#48FFFFFF" />
-                            <Setter TargetName="Bd" Property="Background" Value="#1CFFFFFF" />
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{{DynamicResource AccentBorder}}" />
+                            <Setter TargetName="Hv" Property="Opacity" Value="1" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.8" />
@@ -1287,7 +1283,7 @@ def fluent():
         <Setter Property="Padding" Value="14" />
     </Style>
     <Style x:Key="PopupTitle" TargetType="TextBlock" BasedOn="{{StaticResource SectionTitle}}" />
-    <!-- 1.3.1-beta.2 Lights menu: laptop button, tiles lit = light ON (ZoneTile, a CheckBox), the All off / All on
+    <!-- 1.3.1-beta.2 Lights menu: laptop button, tiles lit = light ON (ZoneTile, a CheckBox), the Turn off / Turn on
          action tile (ZoneAction, a Button), and the zone icons. Theme-neutral: colors come from the theme brushes,
          so the block is the same in Legend and Fluent. -->
     <Viewbox x:Key="Icon.Ring" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24">
@@ -1327,9 +1323,6 @@ def fluent():
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="BorderBrush" Value="#48FFFFFF" />
                         </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{{DynamicResource AccentBorder}}" />
-                        </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Glow" Property="Opacity" Value="1" />
                             <Setter TargetName="Bd" Property="Background" Value="{{DynamicResource AccentFaint}}" />
@@ -1353,11 +1346,14 @@ def fluent():
         <Setter Property="FocusVisualStyle" Value="{{x:Null}}" />
         <Setter Property="FontSize" Value="11.5" />
         <Setter Property="Foreground" Value="{{DynamicResource TextPrimary}}" />
+        <Setter Property="Background" Value="#12FFFFFF" />
+        <Setter Property="BorderBrush" Value="#24FFFFFF" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Grid Background="Transparent">
-                        <Border x:Name="Bd" CornerRadius="6" Background="#12FFFFFF" BorderBrush="#24FFFFFF" BorderThickness="1" />
+                        <Border x:Name="Bd" CornerRadius="6" Background="{{TemplateBinding Background}}" BorderBrush="{{TemplateBinding BorderBrush}}" BorderThickness="1" />
+                        <Border x:Name="Hv" CornerRadius="6" Background="#10FFFFFF" Opacity="0" />
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <ContentPresenter Content="{{TemplateBinding Tag}}" Width="24" Height="24" HorizontalAlignment="Center" Margin="0,0,0,8" />
                             <ContentPresenter HorizontalAlignment="Center" />
@@ -1365,11 +1361,7 @@ def fluent():
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="#48FFFFFF" />
-                            <Setter TargetName="Bd" Property="Background" Value="#1CFFFFFF" />
-                        </Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="{{DynamicResource AccentBorder}}" />
+                            <Setter TargetName="Hv" Property="Opacity" Value="1" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.8" />

@@ -73,6 +73,16 @@ public sealed class KeyboardHid
         return ok;
     }
 
+    /// <summary>1.3.1-beta.3: brightness 0 again while the keyboard is off or dark. beta.2 test: Keyboard off only blanked the
+    /// 5 status keys and the rest stayed lit. Most likely alienfx-cli (run right after, for the rear ring / Alienhead)
+    /// sets the keyboard's hardware brightness back to full when it opens the devices, and its reset drops the status keys
+    /// from the frame. The timeout (no CLI run after its fade) did go dark. So every CLI run is followed by this.</summary>
+    public bool Reassert()
+    {
+        lock (Gate) if (!_off && !_dark) return true;
+        return WithDevice((dev, len) => SetBrightness(dev, len, 0));
+    }
+
     /// <summary>Fades the keyboard's hardware brightness to 0 over ms (one-shot, ~10 steps). False = cancelled/failed.</summary>
     public bool FadeOut(int ms, System.Threading.CancellationToken token)
     {

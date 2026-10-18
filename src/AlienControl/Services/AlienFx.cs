@@ -36,6 +36,15 @@ public sealed class AlienFx
         ? Task.Run(() => { try { _hid.SetOff(true); } catch (System.Exception e) { Log.Warn("AlienFx.KeyboardOff", e); } })
         : Task.CompletedTask;
 
+    /// <summary>1.3.1-beta.3: every alienfx-cli run, then the keyboard back to brightness 0 if it is off or dark
+    /// (the CLI can relight it, see KeyboardHid.Reassert).</summary>
+    private async Task<CliResult> Run(string args)
+    {
+        var res = await _cli.RunAsync(args);
+        await Task.Run(() => { try { _hid.Reassert(); } catch (System.Exception e) { Log.Warn("AlienFx.Reassert", e); } });
+        return res;
+    }
+
     /// <summary>Scales a color by brightness 0..255 (software dimming).</summary>
     public static byte[] Dim(byte[] c, int brightness) =>
         c.Select(v => (byte)(v * System.Math.Clamp(brightness, 0, 255) / 255)).ToArray();
@@ -54,7 +63,7 @@ public sealed class AlienFx
         await KeyboardOffAsync();
         var chassis = Chassis(i => $"setone={_s.ChassisDevice},{i},{c[0]},{c[1]},{c[2]}");
         // 1.3.1: a turned-off keyboard gets no setglobal (it could light it back up); its frame is held by KeyboardHid
-        var res = await _cli.RunAsync(_s.OffKeyboard ? chassis : $"setglobal={_s.KeyboardDevice},0,1 {chassis}");
+        var res = await Run(_s.OffKeyboard ? chassis : $"setglobal={_s.KeyboardDevice},0,1 {chassis}");
         if (await SetKeyboardAsync(new[] { r, g, b }, indicatorsOn, brightness)) return res;
         if (_s.OffKeyboard) return res;
 
@@ -63,7 +72,7 @@ public sealed class AlienFx
             indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on
                 ? $"setone={_s.KeyboardDevice},{i},{w[0]},{w[1]},{w[2]}"
                 : $"setone={_s.KeyboardDevice},{i},{c[0]},{c[1]},{c[2]}");
-        return await _cli.RunAsync(string.Join(" ", cmds));
+        return await Run(string.Join(" ", cmds));
     }
 
     /// <summary>v0.9.10: per-key colors on top of the base color (F2 preset tint). Status keys still win.</summary>
@@ -92,19 +101,19 @@ public sealed class AlienFx
     public async Task ResetHardwareDimAsync()
     {
         await Task.Run(() => { try { _hid.SetBrightness(_s.OffKeyboard ? 0 : 255); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("AlienFx.cs:77", __e); } });
-        await _cli.RunAsync($"setdim={_s.ChassisDevice},255");
+        await Run($"setdim={_s.ChassisDevice},255");
     }
 
     /// <summary>One keyboard key.</summary>
     public Task<CliResult> SetKeyAsync(int id, byte r, byte g, byte b) =>
-        _cli.RunAsync($"setone={_s.KeyboardDevice},{id},{r},{g},{b}");
+        Run($"setone={_s.KeyboardDevice},{id},{r},{g},{b}");
 
     /// <summary>
     /// APIv5 keyboard effect. Types: 0 Color, 2 Breathing, 3 Single-color wave, 4 Dual-color wave,
     /// 8 Pulse, 9 Mixed pulse, 10 Night Rider, 11 Laser. (No spectrum on APIv5.)
     /// </summary>
     public Task<CliResult> SetKeyboardEffectAsync(int type, byte r, byte g, byte b) =>
-        _cli.RunAsync($"setglobal={_s.KeyboardDevice},{type},1,{r},{g},{b}");
+        Run($"setglobal={_s.KeyboardDevice},{type},1,{r},{g},{b}");
 
     /// <summary>Second color for the two-color effects: purple, or cyan when the main color is purple.</summary>
     public static byte[] SecondColor(byte[] c) =>
@@ -131,7 +140,7 @@ public sealed class AlienFx
             _ => $"setone={_s.ChassisDevice},{light},{a[0]},{a[1]},{a[2]}",
         };
         var chassis = Chassis(Act);
-        return await _cli.RunAsync(_s.OffKeyboard ? chassis : $"{chassis} {kb}");
+        return await Run(_s.OffKeyboard ? chassis : $"{chassis} {kb}");
     }
 
     /// <summary>Firmware color-cycle on the chassis lights (APIv4 spectrum/rainbow action), power button skipped.</summary>
@@ -140,7 +149,7 @@ public sealed class AlienFx
         await KeyboardOffAsync();
         var act = rainbow ? "rainbow" : "spectrum";
         var chassis = Chassis(i => $"setaction={_s.ChassisDevice},{i},{act},255,0,0");
-        return await _cli.RunAsync(_s.OffKeyboard ? chassis : $"setglobal={_s.KeyboardDevice},0,1 " + chassis);
+        return await Run(_s.OffKeyboard ? chassis : $"setglobal={_s.KeyboardDevice},0,1 " + chassis);
     }
 
     /// <summary>One software-animation frame: every key its own color (status keys white if on).</summary>
@@ -156,5 +165,5 @@ public sealed class AlienFx
         try { return _hid.SetKeys(keys); } catch { return false; }
     }
 
-    public Task<CliResult> StatusAsync() => _cli.RunAsync("status");
+    public Task<CliResult> StatusAsync() => Run("status");
 }

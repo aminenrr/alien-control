@@ -150,6 +150,7 @@ Why things are the way they are. Newest decisions win.
   approved before any code (docs/mockups/1.3.1-beta.2).
 - Tiles show the light state (lit = on); settings still store the "off" switches, so beta.1 settings carry over as is.
 - All tile is an action, not a state: All off while anything is on, All on when everything is off (his rule).
+  beta.3 (Amine): labels Turn off / Turn on, accent while lights are on, plain when all are off; no focus border.
 - Double flip: a 350 ms debounce per menu, not per tile, so a double-click on any tile is one action.
 - Status keys: SetOff(false) sends brightness 255 then the held frame; the firmware seems to miss a frame right after
   the brightness command (inferred: the swatch click, which sends the same frame later, always fixed it). So the frame

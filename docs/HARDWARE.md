@@ -82,6 +82,14 @@ F7 (keyboard brightness) is handled by the firmware and sends **no consumer repo
 only 02-6F / 02-70 screen brightness, 02-E9 / 02-EA volume, 02-E2 mute showed up). F7 has 3 steps (off, mid, full)
 that scale the app's brightness: at 50% it gives off, 25%, 50%. 1.3.1-beta.2's F7 test checks the low-level hook and
 an HID read-back next.
+Result (beta.2 F7 test, 2026-10-18 22:44): nothing at all. No key down in the low-level hook, no Alienware report, and the
+lighting state read back (feature A1-01-CC-00...) never changed; input report refused. **The app can't see F7**, so the
+Keyboard tile only follows what you tap.
+
+Keyboard off over HID: brightness 0 (0x83 turnOnSet) works on its own (timeout fade goes dark), but an alienfx-cli run
+right after it relit the keys and dropped the 5 status keys (beta.2: "only the 5 keys turn off"). Inferred: the CLI
+resets the keyboard brightness when it opens the devices. From beta.3 brightness 0 is re-sent after every CLI run while
+the keyboard is off or dark.
 
 ### Keyboard (device 0)
 - IDs don't follow physical key order and the saved probe names are unreliable. Esc = 0.

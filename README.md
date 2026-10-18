@@ -88,7 +88,7 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 - Fans, temps, **CPU % / GPU %** (v1.3) and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
 - Per-key keyboard color and effects, chassis lights, status keys (G-Mode, mutes, touchpad) lit by the app.
 - **Lights menu** (v1.3.1, beta): a laptop button opens tiles for the keyboard, the rear ring and the Alienhead (lit = on,
-  tap to switch) plus All off / All on. F7 still sets the keyboard level after it's off. The power button light is never touched.
+  tap to switch) plus Turn off / Turn on. F7 still sets the keyboard level after it's off. The power button light is never touched.
 - **Keyboard light timeout** (v1.3): fades the keys out after 1 / 2 / 5 / 10 min without input (optionally on battery
   only, paused in fullscreen games); any key, mouse or touchpad input brings them straight back.
 - GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt), plus **iGPU only** (v1.2): turns the RTX off for battery life when NVIDIA is set to Optimus. It lists the apps using the RTX first, and HDMI / Mini DP stay dark until you switch back.
@@ -372,7 +372,7 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout, CPU / GPU %, smoother slides, security hardening), tested on my m15 R7. Pre-release **1.3.1-beta.2** (Lights menu, rounder / shorter notifications) is on the Releases page for testing. Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
+**v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout, CPU / GPU %, smoother slides, security hardening), tested on my m15 R7. Pre-release **1.3.1-beta.3** (Lights menu, rounder / shorter notifications) is on the Releases page for testing. Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the
 [CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md).
 

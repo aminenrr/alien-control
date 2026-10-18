@@ -12,7 +12,7 @@ namespace AlienControl;
 /// <summary>
 /// 1.3.1-beta.2 Lights menu (replaces the beta.1 Off menu). The laptop button opens a popup above it with four tiles:
 /// Keyboard, Rear ring, Alienhead (lit tile = that light is ON, a tap switches it) and an action tile that reads
-/// "All off" (lamp with a line) while any light is on and "All on" (lamp) once all three are off.
+/// "Turn off" (lamp with a line, accent) while any light is on and "Turn on" (lamp, plain) once all three are off.
 /// The keyboard goes off through its hardware brightness (colors kept, frames held, see KeyboardHid.SetOff), so the
 /// firmware F7 key can still bring it back. The chassis lights get black (AlienFx.Chassis); the power button is never
 /// sent. Settings keep the "off" switches (OffKeyboard / OffRing / OffAlienhead), only the UI shows them as "on".
@@ -56,10 +56,20 @@ public partial class MainWindow
         ZoneKeyboard.IsChecked = !_settings.OffKeyboard;
         ZoneRing.IsChecked = !_settings.OffRing;
         ZoneHead.IsChecked = !_settings.OffAlienhead;
+        // 1.3.1-beta.3 (Amine): "Turn off" / "Turn on", accent while any light is on (like a lit tile), plain once all are off
         bool allOff = LightsOffCount == 3;
-        ZoneAll.Content = allOff ? "All on" : "All off";
+        ZoneAll.Content = allOff ? "Turn on" : "Turn off";
         ZoneAll.SetResourceReference(TagProperty, allOff ? "Icon.Bulb" : "Icon.BulbOff");
-        if (allOff) ZoneAll.SetResourceReference(ForegroundProperty, "AccentBrush"); else ZoneAll.ClearValue(ForegroundProperty);
+        if (allOff)
+        {
+            ZoneAll.ClearValue(ForegroundProperty); ZoneAll.ClearValue(BackgroundProperty); ZoneAll.ClearValue(BorderBrushProperty);
+        }
+        else
+        {
+            ZoneAll.SetResourceReference(ForegroundProperty, "AccentBrush");
+            ZoneAll.SetResourceReference(BackgroundProperty, "AccentFaint");
+            ZoneAll.SetResourceReference(BorderBrushProperty, "AccentBrush");
+        }
         _zoneUiBusy = false;
         UpdateLightsButton();
     }
@@ -100,7 +110,7 @@ public partial class MainWindow
     private async void ZoneAll_Click(object sender, RoutedEventArgs e)
     {
         if (ZoneDebounced()) return;
-        bool off = LightsOffCount < 3;   // All off while any light is on; All on once all three are off
+        bool off = LightsOffCount < 3;   // Turn off while any light is on; Turn on once all three are off
         await SetZonesAsync(off, off, off);
     }
 

@@ -3,7 +3,17 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v1.3.1-beta.2 (2026-10-18), untested
+## v1.3.1-beta.3 (2026-10-18), untested
+Fixes from the beta.2 test.
+- Fix: Keyboard off only turned off the 5 white status keys, the rest stayed lit. The rear ring / Alienhead command
+  (alienfx-cli) most likely set the keyboard back to full brightness. Brightness 0 is now re-sent after every
+  alienfx-cli run while the keyboard is off (also keeps the backlight timeout dark).
+- The 4th tile reads **Turn off** / **Turn on** (was All off / All on). It's in the accent color while lights are on
+  and plain once all are off (was the other way round).
+- No focus border after clicking a tile (the Turn off tile kept a colored outline).
+- F7 test result: F7 is invisible to the app (no key, no report, no state change), so the tile keeps following taps only.
+
+## v1.3.1-beta.2 (2026-10-18), tested: Keyboard off and the All tile fixed in beta.3
 Redesign after the beta.1 test (rest of beta.1 worked). Mockups: docs/mockups/1.3.1-beta.2.
 
 **Lights menu (replaces the Off menu)**
