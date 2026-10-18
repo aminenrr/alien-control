@@ -85,6 +85,9 @@ an HID read-back next.
 Result (beta.2 F7 test, 2026-10-18 22:44): nothing at all. No key down in the low-level hook, no Alienware report, and the
 lighting state read back (feature A1-01-CC-00...) never changed; input report refused. **F7 is not on the macro collection
 or the key hook.** beta.4 watches every other Alienware HID collection (Amine: F7 is a Fn-lock row hotkey like F2..F5).
+Result (beta.4, 2026-10-18 23:07, hotkey mode): collections 187C:0550 FF00/01 and 0D62:CABC 0C/01 watched, nothing from
+F7 on either, no key down, state unchanged. **F7 is handled in the firmware / EC and is invisible to Windows**, so the
+Keyboard tile follows taps only. (With Fn-lock off F7 is a plain F7 key.)
 
 Keyboard off over HID: brightness 0 (0x83 turnOnSet) works on its own (timeout fade goes dark), but an alienfx-cli run
 right after it relit the keys and dropped the 5 status keys (beta.2: "only the 5 keys turn off"). Inferred: the CLI
