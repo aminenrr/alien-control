@@ -138,6 +138,9 @@ Why things are the way they are. Newest decisions win.
 - 1.3.0: Amine shipped beta.2 straight to stable (Soft chimes crackled, the rest fine). Sounds moved from PlaySound to
   a one-buffer waveOut per sound: no app-side refill can starve, and the device is closed right after (zero idle).
   Hardware ACPI calls can still stall the whole machine; the 150 ms gap keeps the attack clean.
+  Tested 2026-10-18: fixed as far as possible for now, much less noticeable. Not chasing it further in 1.3; if it
+  matters later, try a longer gap or a shorter Soft tail first (ROADMAP > Later). The beta.2 checklist was skipped
+  because Amine tested beta.2 directly and went to stable.
 - The pill fades (instead of sliding) with Reduce motion / Windows animations off, as the directive asks; the
   classic card stays instant there, as in 1.2.
 
