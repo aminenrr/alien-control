@@ -907,37 +907,6 @@
                                         <ColumnDefinition Width="Auto" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Log frame gaps" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Each slide's steps/s to crash.log" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="FrameLogToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="Debug_Click" ToolTip="For testing animations" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="F7 test" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="20 s: press F7 a few times, results to crash.log" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Button x:Name="F7ProbeButton" Style="{DynamicResource GhostButton}" Margin="8,0,0,0" VerticalAlignment="Center" Click="F7Probe_Click"
-                                                ToolTip="Logs every key press for 20 s, so don't type anything private meanwhile">Watch F7</Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
                                         <TextBlock Text="Reset settings" Style="{DynamicResource FooterText}" />
                                         <TextBlock Text="Back to defaults, then the app restarts" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                                     </StackPanel>

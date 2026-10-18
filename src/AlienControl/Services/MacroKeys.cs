@@ -21,7 +21,15 @@ public sealed class MacroKeys : IDisposable
     [StructLayout(LayoutKind.Sequential)] private struct RIDL { public IntPtr Device; public uint Type; }
     [DllImport("user32.dll")] private static extern uint GetRawInputDeviceList([Out] RIDL[]? list, ref uint n, uint cb);
 
-    private const int WM_INPUT = 0x00FF;
+    private const int WM_INPUT = 0x00FF, WM_HOTKEY = 0x0312;
+    [DllImport("user32.dll", SetLastError = true)] private static extern bool RegisterHotKey(IntPtr h, int id, uint mods, uint vk);
+    [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr h, int id);
+    private const int LightsHotkeyId = 0xA1F;
+    private const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_NOREPEAT = 0x4000, VK_F = 0x46;
+
+    /// <summary>1.3.1: Ctrl + Alt + F (all lights: full, off, 50%). A system hotkey on this message window: no hook,
+    /// no polling, held keys don't repeat. Raised on the input thread.</summary>
+    public event Action? LightsHotkey;
     private const uint RIDEV_INPUTSINK = 0x100, RIDEV_REMOVE = 0x1, RID_INPUT = 0x10000003, RIDI_DEVICEINFO = 0x2000000b;
     private const ushort Vid = 0x0D62;
     private const ushort VidElc = 0x187C;   // Alienware AW-ELC lighting controller (chassis lights)
@@ -52,12 +60,19 @@ public sealed class MacroKeys : IDisposable
         var p = new HwndSourceParameters("AlienControlMacroKeys") { ParentWindow = new IntPtr(-3), WindowStyle = 0 };   // HWND_MESSAGE
         _src = new HwndSource(p);
         _src.AddHook(WndProc);
+        if (!RegisterHotKey(_src.Handle, LightsHotkeyId, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_F))
+            Log.Info("MacroKeys", $"Ctrl+Alt+F not registered (error {Marshal.GetLastWin32Error()}, another app may own it)");
         var r = new[] { new RID { Page = 0x0C, Usage = 0x01, Flags = RIDEV_INPUTSINK, Target = _src.Handle } };
         return RegisterRawInputDevices(r, 1, (uint)Marshal.SizeOf<RID>());
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == WM_HOTKEY)
+        {
+            if (wParam.ToInt32() == LightsHotkeyId) { LightsHotkey?.Invoke(); handled = true; }
+            return IntPtr.Zero;
+        }
         if (msg != WM_INPUT) return IntPtr.Zero;
         try
         {
@@ -184,6 +199,7 @@ public sealed class MacroKeys : IDisposable
     {
         if (_src is null) return;
         try { RegisterRawInputDevices(new[] { new RID { Page = 0x0C, Usage = 0x01, Flags = RIDEV_REMOVE } }, 1, (uint)Marshal.SizeOf<RID>()); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MacroKeys.cs:81", __e); }
+        try { UnregisterHotKey(_src.Handle, LightsHotkeyId); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MacroKeys.Hotkey", __e); }
         _src.Dispose(); _src = null;
     }
 }

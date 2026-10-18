@@ -25,6 +25,9 @@ public partial class MainWindow
     private long _lightsClosedAt;
     private long _zoneLastClick;
 
+    /// <summary>Brightness the lights are painted at: the app's setting, or half of it in the Ctrl+Alt+F 50% step.</summary>
+    private int LightBrightness => _settings.LightsHalf ? _settings.Brightness / 2 : _settings.Brightness;
+
     private int LightsOffCount => (_settings.OffKeyboard ? 1 : 0) + (_settings.OffRing ? 1 : 0) + (_settings.OffAlienhead ? 1 : 0);
 
     private void Lights_Click(object sender, RoutedEventArgs e)
@@ -111,6 +114,7 @@ public partial class MainWindow
     {
         if (ZoneDebounced()) return;
         bool off = LightsOffCount < 3;   // Turn off while any light is on; Turn on once all three are off
+        if (!off) _settings.LightsHalf = false;   // Turn on = full brightness
         await SetZonesAsync(off, off, off);
     }
 
@@ -153,7 +157,28 @@ public partial class MainWindow
         if (_settings.LastEffect != 0 || _settings.OffKeyboard) return;
         await Task.Delay(150);
         ReadIndicatorStates();
-        bool ok = await _fx.SetKeyboardAsync(_lastColor, _indicators, _settings.Brightness);
+        bool ok = await _fx.SetKeyboardAsync(_lastColor, _indicators, LightBrightness);
         Log.Info("Lights", $"keyboard on: status keys re-sent {(ok ? "ok" : "FAILED")}");
+    }
+
+    // ---------- 1.3.1: Ctrl + Alt + F ----------
+    // Amine: one shortcut for all three lights (keyboard, rear ring, Alienhead; never the power button), in F7's order:
+    // full -> off -> 50% -> full. 50% = half of the app's brightness. The menu tiles follow; the step is saved.
+    private long _cycleLast;
+
+    private async Task CycleLightsAsync()
+    {
+        long now = Environment.TickCount64;
+        if (now - _cycleLast < 200) return;
+        _cycleLast = now;
+        string title, icon;
+        if (LightsOffCount == 3) { _settings.LightsHalf = true; title = "Lights 50%"; icon = "Icon.Bulb"; }
+        else if (_settings.LightsHalf) { _settings.LightsHalf = false; title = "Lights on"; icon = "Icon.Bulb"; }
+        else { _settings.LightsHalf = false; title = "Lights off"; icon = "Icon.BulbOff"; }
+        bool off = title == "Lights off";
+        Log.Info("Lights", $"Ctrl+Alt+F: {title}");
+        await SetZonesAsync(off, off, off);
+        if (_settings.Toasts)
+            Toast.Show(IsLegend, new Toast.Info(CurrentProfile, icon, title, "Keyboard · rear ring · Alienhead", Toast.Right.None, !off), Motion.Enabled);
     }
 }

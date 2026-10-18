@@ -30,9 +30,8 @@ public sealed class TrayMenuStyle
     /// <summary>First installed font of the list (WinForms silently substitutes a missing one).</summary>
     public Font MakeFont()
     {
-        var (names, size) = Legend
-            ? (new[] { "Cascadia Mono", "JetBrains Mono", "Consolas" }, 9f)
-            : (new[] { "Segoe UI Variable Text", "Segoe UI" }, 9.5f);
+        // 1.3.1 (Amine): the app's text font (UiFont) in both themes; Legend used Cascadia Mono caps before
+        var (names, size) = (new[] { "Segoe UI Variable Text", "Segoe UI" }, 9.5f);
         foreach (var n in names)
         {
             var f = new Font(n, size, FontStyle.Regular, GraphicsUnit.Point);
@@ -49,7 +48,7 @@ public sealed class TrayMenuStyle
     public void ApplyCorners(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero) return;
-        int pref = Legend ? DWMWCP_DONOTROUND : DWMWCP_ROUND;
+        int pref = DWMWCP_ROUND;   // 1.3.1: rounded in both themes, like the app window (Legend was square)
         try { DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int)); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("TrayMenu.cs:53", __e); }
     }
 }
@@ -73,10 +72,7 @@ public sealed class TrayMenuRenderer : WinForms.ToolStripRenderer
 
     protected override void OnRenderToolStripBorder(WinForms.ToolStripRenderEventArgs e)
     {
-        if (!_s.Legend) return;   // Fluent: the rounded DWM frame draws the edge
-        using var p = new Pen(_s.Border);
-        var r = e.AffectedBounds;
-        e.Graphics.DrawRectangle(p, r.X, r.Y, r.Width - 1, r.Height - 1);
+        // 1.3.1: rounded in both themes, so the DWM frame draws the edge (a square border would show in the corners)
     }
 
     protected override void OnRenderSeparator(WinForms.ToolStripSeparatorRenderEventArgs e)
@@ -84,7 +80,7 @@ public sealed class TrayMenuRenderer : WinForms.ToolStripRenderer
         var r = e.Item.ContentRectangle;
         int y = r.Top + r.Height / 2;
         using var p = new Pen(_s.Separator);
-        e.Graphics.DrawLine(p, r.Left + (_s.Legend ? 4 : 8), y, r.Right - (_s.Legend ? 4 : 8), y);
+        e.Graphics.DrawLine(p, r.Left + 8, y, r.Right - 8, y);
     }
 
     protected override void OnRenderMenuItemBackground(WinForms.ToolStripItemRenderEventArgs e)
@@ -93,24 +89,17 @@ public sealed class TrayMenuRenderer : WinForms.ToolStripRenderer
         var g = e.Graphics;
         var r = new Rectangle(Point.Empty, e.Item.Size);
         using var b = new SolidBrush(_s.Hover);
-        if (_s.Legend)
-        {
-            g.FillRectangle(b, r.X + 2, r.Y, r.Width - 4, r.Height);
-            using var bar = new SolidBrush(_s.Accent);   // terminal-style accent bar on the hovered row
-            g.FillRectangle(bar, r.X + 2, r.Y + 3, 2, r.Height - 6);
-        }
-        else
-        {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            using var path = Round(new Rectangle(r.X + 4, r.Y + 1, r.Width - 9, r.Height - 3), 4);
-            g.FillPath(b, path);
-            g.SmoothingMode = SmoothingMode.Default;
-        }
+        // 1.3.1 (Amine): a rounded highlight like the app's hover, in both themes (Legend had a square row + accent bar)
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = Round(new Rectangle(r.X + 4, r.Y + 1, r.Width - 9, r.Height - 3), 5);
+        g.FillPath(b, path);
+        g.SmoothingMode = SmoothingMode.Default;
     }
 
     protected override void OnRenderItemText(WinForms.ToolStripItemTextRenderEventArgs e)
     {
-        e.TextColor = _s.Accent;
+        // 1.3.1: a preset's name is in its own color (item.Tag); greyed when disabled (Battery on AC); the rest accent
+        e.TextColor = !e.Item.Enabled ? Color.FromArgb(0x6E, 0x7A, 0x86) : e.Item.Tag is Color c ? c : _s.Accent;
         base.OnRenderItemText(e);
     }
 

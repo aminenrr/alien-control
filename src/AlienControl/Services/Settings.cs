@@ -43,6 +43,8 @@ public sealed class Settings
     public bool OffKeyboard { get; set; }
     public bool OffRing { get; set; }
     public bool OffAlienhead { get; set; }
+    /// <summary>1.3.1 Ctrl + Alt + F: lights at half of Brightness (keyboard, rear ring, Alienhead).</summary>
+    public bool LightsHalf { get; set; }
 
     // Status keys. Any software color switches the keyboard out of firmware mode, which stops it
     // lighting these, so the app does it: normal color when off, IndicatorOnColor when on.

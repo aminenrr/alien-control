@@ -74,9 +74,12 @@ public partial class App : Application
 
     private void CreateTray()
     {
-        // v0.8.7: themed menu (TrayMenu.cs): accent text, Legend / Fluent palette, check column + profile tint dot.
-        var menu = new WinForms.ContextMenuStrip { ShowCheckMargin = true, ShowImageMargin = true, DropShadowEnabled = true };
+        // v0.8.7: themed menu (TrayMenu.cs). 1.3.1 (Amine): no check column; each preset shows its own icon (accent on
+        // the selected preset, muted on the others) and its name in the preset's color; rounded, app font, both themes.
+        var menu = new WinForms.ContextMenuStrip { ShowCheckMargin = false, ShowImageMargin = true, DropShadowEnabled = true };
         menu.Renderer = new TrayMenuRenderer(_menuStyle);
+        int iconPx = TrayIconPx();
+        menu.ImageScalingSize = new System.Drawing.Size(iconPx, iconPx);
         WinForms.ToolStripMenuItem Add(string text, EventHandler click, Image? img = null)
         {
             var it = new WinForms.ToolStripMenuItem(text, img, click);
@@ -90,8 +93,8 @@ public partial class App : Application
         {
             if (p == TrayProfile.GMode) continue;   // v0.9.8: display-only, G-Mode lives on F1 / the window
             var profile = p;
-            var item = Add(Profiles.Label(p), async (_, _) => { if (_window is not null) await _window.ApplyProfileAsync(profile); },
-                           TrayMenuRenderer.Dot(Profiles.Tint(p)));
+            var item = Add(Profiles.Label(p), async (_, _) => { if (_window is not null) await _window.ApplyProfileAsync(profile); });
+            item.Tag = Profiles.Tint(p);   // name color (TrayMenuRenderer)
             item.ToolTipText = Profiles.Describe(p);
             _profileItems[p] = item;
         }
@@ -157,19 +160,69 @@ public partial class App : Application
         var pad = legend ? new WinForms.Padding(0, 3, 0, 3) : new WinForms.Padding(0, 5, 0, 5);
         foreach (var (item, text) in _menuTexts)
         {
-            item.Text = legend ? text.ToUpperInvariant() : text;   // Legend caps, like the header chip
+            item.Text = text;   // 1.3.1: the app's text font in normal case in both themes (was Legend caps)
             item.Padding = pad;
         }
         _menu.BackColor = _menuStyle.Back;
+        RefreshProfileIcons();
         _menu.Invalidate();
     }
 
     [DllImport("user32.dll")] private static extern bool DestroyIcon(IntPtr handle);
 
+    private TrayProfile? _shownProfile;
+
+    /// <summary>Icon size in device pixels: 16 px at the system DPI (20 px at 125%).</summary>
+    private static int TrayIconPx()
+    {
+        try { using var g = Graphics.FromHwnd(IntPtr.Zero); return (int)Math.Round(16 * g.DpiX / 96f); }
+        catch { return 16; }
+    }
+
+    /// <summary>1.3.1: the preset icons of the current theme, accent on the selected preset and muted on the others.</summary>
+    private void RefreshProfileIcons()
+    {
+        if (_menu is null) return;
+        var accent = System.Windows.Media.Color.FromRgb(_menuStyle.Accent.R, _menuStyle.Accent.G, _menuStyle.Accent.B);
+        var muted = (TryFindResource("TextMuted") as System.Windows.Media.SolidColorBrush)?.Color ?? System.Windows.Media.Color.FromRgb(0x6E, 0x7A, 0x86);
+        int px = _menu.ImageScalingSize.Width;
+        foreach (var (key, item) in _profileItems)
+        {
+            var old = item.Image;
+            item.Image = RenderIcon(Profiles.IconKey(key), key == _shownProfile ? accent : muted, px);
+            old?.Dispose();
+        }
+    }
+
+    /// <summary>Draws a theme icon resource (WPF vector) into a bitmap for the WinForms menu.</summary>
+    private Bitmap? RenderIcon(string key, System.Windows.Media.Color color, int px)
+    {
+        try
+        {
+            if (TryFindResource(key) is not FrameworkElement icon) return null;
+            var brush = new System.Windows.Media.SolidColorBrush(color);
+            brush.Freeze();
+            var host = new System.Windows.Controls.Border { Width = px, Height = px, Padding = new Thickness(px * 0.06), Child = icon };
+            System.Windows.Documents.TextElement.SetForeground(host, brush);
+            host.Measure(new System.Windows.Size(px, px));
+            host.Arrange(new Rect(0, 0, px, px));
+            host.UpdateLayout();
+            var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(px, px, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            rtb.Render(host);
+            var bmp = new Bitmap(px, px, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            var data = bmp.LockBits(new Rectangle(0, 0, px, px), System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+            try { rtb.CopyPixels(Int32Rect.Empty, data.Scan0, data.Stride * px, data.Stride); }
+            finally { bmp.UnlockBits(data); }
+            return bmp;
+        }
+        catch (Exception ex) { Log.Warn("TrayMenu.Icon", ex); return null; }
+    }
+
     /// <summary>Checks the profile in the tray menu and tints the tray icon with its color.</summary>
     private void ShowProfile(TrayProfile p)
     {
-        foreach (var (key, item) in _profileItems) item.Checked = key == p;
+        _shownProfile = p;
+        RefreshProfileIcons();
         if (_tray is null || _baseIcon is null) return;
         _tray.Text = $"Alien Controls · {Profiles.Label(p)}";
         var tint = Profiles.Tint(p);
