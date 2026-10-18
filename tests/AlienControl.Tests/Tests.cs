@@ -83,7 +83,7 @@ public class SettingsTests
     [Fact]
     public void Black_from_130_off_becomes_three_off_switches()
     {
-        var s = Settings.Parse("{\"SettingsVersion\":6,\"LastColor\":[0,0,0]}")!;
+        var s = Settings.Parse("{\"SettingsVersion\":6,\"LastColor\":\"AAAA\"}")!;
         s.Clamp();
         Assert.True(s.OffKeyboard && s.OffRing && s.OffAlienhead);
         Assert.Equal(new byte[] { 0, 229, 255 }, s.LastColor);
@@ -92,10 +92,10 @@ public class SettingsTests
     [Fact]
     public void Lights_off_switches_default_on_and_are_kept()
     {
-        var d = Settings.Parse("{\"SettingsVersion\":6,\"LastColor\":[255,77,106]}")!;
+        var d = Settings.Parse("{\"SettingsVersion\":6,\"LastColor\":\"/01q\"}")!;
         d.Clamp();
         Assert.False(d.OffKeyboard || d.OffRing || d.OffAlienhead);
-        var s = Settings.Parse("{\"SettingsVersion\":6,\"LastColor\":[255,77,106],\"OffRing\":true}")!;
+        var s = Settings.Parse("{\"SettingsVersion\":6,\"LastColor\":\"/01q\",\"OffRing\":true}")!;
         s.Clamp();
         Assert.True(s.OffRing);
         Assert.False(s.OffKeyboard);
