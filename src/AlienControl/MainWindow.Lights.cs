@@ -114,34 +114,69 @@ public partial class MainWindow
     {
         if (ZoneDebounced()) return;
         bool off = LightsOffCount < 3;   // Turn off while any light is on; Turn on once all three are off
+        bool half = _settings.LightsHalf;
         if (!off) _settings.LightsHalf = false;   // Turn on = full brightness
-        await SetZonesAsync(off, off, off);
+        await SetZonesAsync(off, off, off, half != _settings.LightsHalf);
     }
 
-    private async Task SetZonesAsync(bool keyboard, bool ring, bool head)
+    private async Task SetZonesAsync(bool keyboard, bool ring, bool head, bool halfChanged = false)
     {
         await _zoneGate.WaitAsync();   // quick taps apply one after the other, never interleaved
         try
         {
             bool kbChanged = keyboard != _settings.OffKeyboard;
+            bool chassisChanged = ring != _settings.OffRing || head != _settings.OffAlienhead || halfChanged;
             _settings.OffKeyboard = keyboard;
             _settings.OffRing = ring;
             _settings.OffAlienhead = head;
             _settings.Save();
             SyncZoneTiles();
             if (!_fx.IsAvailable) return;
-            if (kbChanged)
+            Log.Info("Lights", $"keyboard {(keyboard ? "off" : "on")}, rear ring {(ring ? "off" : "on")}, Alienhead {(head ? "off" : "on")}{(_settings.LightsHalf ? ", 50%" : "")}");
+            if (_settings.LastEffect != 0 || !_lightsManaged)
             {
-                if (keyboard) StopAnimation();
-                bool ok = await Task.Run(() => { try { return _fx.Hid.SetOff(keyboard); } catch (Exception ex) { Log.Warn("Lights.SetOff", ex); return false; } });
-                Log.Info("Lights", $"keyboard {(keyboard ? "off" : "on")} (hardware brightness {(keyboard ? 0 : 255)}) {(ok ? "ok" : "FAILED")}");
-                UpdateKbdTimer();
+                // effects: the old full apply (the CLI owns the keyboard effect)
+                if (kbChanged)
+                {
+                    if (keyboard) StopAnimation();
+                    bool ok = await Task.Run(() => { try { return _fx.Hid.SetOff(keyboard); } catch (Exception ex) { Log.Warn("Lights.SetOff", ex); return false; } });
+                    Log.Info("Lights", $"keyboard hardware brightness {(keyboard ? 0 : 255)} {(ok ? "ok" : "FAILED")}");
+                    UpdateKbdTimer();
+                }
+                _f2Dirty = true;
+                await ApplyLightingAsync(_lastColor);
+                if (kbChanged && !keyboard) await RefreshStatusKeysAsync();
+                SelectSwatch(_lastColor);
+                return;
             }
-            Log.Info("Lights", $"keyboard {(keyboard ? "off" : "on")}, rear ring {(ring ? "off" : "on")}, Alienhead {(head ? "off" : "on")}");
-            _f2Dirty = true;
-            await ApplyLightingAsync(_lastColor);   // chassis black / color, keyboard frame (held while off), effect restart
-            if (kbChanged && !keyboard) await RefreshStatusKeysAsync();
-            SelectSwatch(_lastColor);
+            // 1.3.2 (Amine: every change flashed): static color = touch only what changed. The keyboard goes over HID
+            // alone; the chassis gets only its own setone lines. The CLI run can relight a dark keyboard for a moment,
+            // so it runs while the keyboard is still lit (turning off) or before it lights up (turning on).
+            bool kbRepaint = !keyboard && (kbChanged || halfChanged);
+            if (kbChanged && keyboard)   // turning off: chassis first, then brightness 0
+            {
+                if (chassisChanged) await _fx.SetChassisAsync(_lastColor, LightBrightness);
+                bool ok = await Task.Run(() => { try { return _fx.Hid.SetOff(true); } catch (Exception ex) { Log.Warn("Lights.SetOff", ex); return false; } });
+                Log.Info("Lights", $"keyboard off (hardware brightness 0) {(ok ? "ok" : "FAILED")}");
+            }
+            else
+            {
+                if (chassisChanged) await _fx.SetChassisAsync(_lastColor, LightBrightness);
+                if (kbRepaint)
+                {
+                    // turning on: the new frame is held while off and goes out with brightness 255, so the old colors
+                    // (or full brightness for the 50% step) never show
+                    ReadIndicatorStates();
+                    await _fx.SetKeyboardAsync(_lastColor, _indicators, LightBrightness);
+                }
+                if (kbChanged)
+                {
+                    bool ok = await Task.Run(() => { try { return _fx.Hid.SetOff(false); } catch (Exception ex) { Log.Warn("Lights.SetOff", ex); return false; } });
+                    Log.Info("Lights", $"keyboard on (hardware brightness 255) {(ok ? "ok" : "FAILED")}");
+                    await RefreshStatusKeysAsync();
+                }
+            }
+            if (kbChanged) UpdateKbdTimer();
         }
         finally { _zoneGate.Release(); }
     }
@@ -172,12 +207,13 @@ public partial class MainWindow
         if (now - _cycleLast < 200) return;
         _cycleLast = now;
         string title, icon;
+        bool wasHalf = _settings.LightsHalf;
         if (LightsOffCount == 3) { _settings.LightsHalf = true; title = "Lights 50%"; icon = "Icon.Bulb"; }
         else if (_settings.LightsHalf) { _settings.LightsHalf = false; title = "Lights on"; icon = "Icon.Bulb"; }
         else { _settings.LightsHalf = false; title = "Lights off"; icon = "Icon.BulbOff"; }
         bool off = title == "Lights off";
         Log.Info("Lights", $"Ctrl+Alt+F: {title}");
-        await SetZonesAsync(off, off, off);
+        await SetZonesAsync(off, off, off, wasHalf != _settings.LightsHalf);
         if (_settings.Toasts)
             Toast.Show(IsLegend, new Toast.Info(CurrentProfile, icon, title, "Keyboard · rear ring · Alienhead", Toast.Right.None, !off), Motion.Enabled);
     }

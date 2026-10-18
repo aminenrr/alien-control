@@ -75,6 +75,14 @@ public sealed class AlienFx
         return await Run(string.Join(" ", cmds));
     }
 
+    /// <summary>1.3.2: only the chassis lights (rear ring, Alienhead; turned-off ones black, never the power button), for a
+    /// Lights menu / Ctrl+Alt+F change. No setglobal and no keyboard frame, so the keyboard doesn't blink.</summary>
+    public Task<CliResult> SetChassisAsync(byte[] color, int brightness)
+    {
+        var c = Dim(color, brightness);
+        return Run(Chassis(i => $"setone={_s.ChassisDevice},{i},{c[0]},{c[1]},{c[2]}"));
+    }
+
     /// <summary>v0.9.10: per-key colors on top of the base color (F2 preset tint). Status keys still win.</summary>
     public System.Collections.Generic.Dictionary<int, byte[]> KeyOverrides { get; } = new();
 
