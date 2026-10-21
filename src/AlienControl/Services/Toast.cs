@@ -52,7 +52,7 @@ public static class Toast
     }
     private static Color Col(TrayProfile p) { var t = Profiles.Tint(p); return Color.FromRgb(t.R, t.G, t.B); }
     /// <summary>1.3.4: the sub line, with the OC tag as its own run (Performance tint when on).</summary>
-    private static TextBlock SubLine(Info info, Color subC, FontFamily ui, double size, double top)
+    private static TextBlock SubLine(Info info, Color subC, FontFamily ui, double size, double top, bool ocInline = true)
     {
         var tb = new TextBlock
         {
@@ -60,7 +60,7 @@ public static class Toast
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
         tb.Inlines.Add(new System.Windows.Documents.Run(info.Sub));
-        if (info.Oc is { } oc)
+        if (ocInline && info.Oc is { } oc)
         {
             tb.Inlines.Add(new System.Windows.Documents.Run(" · "));
             tb.Inlines.Add(new System.Windows.Documents.Run(oc)
@@ -70,6 +70,19 @@ public static class Toast
             });
         }
         return tb;
+    }
+
+    /// <summary>1.3.4-beta.4: Classic card is narrow, so the OC tag gets its own third line there.</summary>
+    private static TextBlock? OcLine(Info info, Color subC, FontFamily ui, double size)
+    {
+        if (info.Oc is not { } oc) return null;
+        return new TextBlock
+        {
+            Text = oc, FontFamily = ui, FontSize = size, Margin = new Thickness(0, 3, 0, 0),
+            Foreground = info.OcLit ? B(Col(TrayProfile.Performance)) : B(subC),
+            FontWeight = info.OcLit ? FontWeights.SemiBold : FontWeights.Normal,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
     }
 
     private static string Spaced(string s) => string.Join("\u200A", s.ToUpperInvariant().ToCharArray());
@@ -204,7 +217,8 @@ public static class Toast
             FontSize = legend ? 13.5 : 15, FontWeight = legend ? FontWeights.Bold : FontWeights.SemiBold,
             Foreground = B(txt), TextTrimming = TextTrimming.CharacterEllipsis,
         });
-        text.Children.Add(SubLine(info, subC, ui, 12, 5));
+        text.Children.Add(SubLine(info, subC, ui, 12, 5, ocInline: false));
+        if (OcLine(info, subC, ui, 12) is { } ocLine) text.Children.Add(ocLine);
         Grid.SetColumn(text, 1);
         g.Children.Add(text);
 
