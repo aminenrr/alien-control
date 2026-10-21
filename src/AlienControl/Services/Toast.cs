@@ -25,7 +25,10 @@ public static class Toast
 
     /// <param name="Tint">Preset whose color tints the tile, bar and chip.</param>
     /// <param name="Lit">False draws the tile dim (G-Mode off).</param>
-    public sealed record Info(TrayProfile Tint, string IconKey, string Title, string Sub, Right Right = Right.None, bool Lit = true);
+    /// <param name="Oc">1.3.4: GPU OC tag added after Sub ("OC +200 / +200" or "OC off"); null = none.</param>
+    /// <param name="OcLit">True draws the OC tag in the Performance tint (OC running), false in the sub text grey.</param>
+    public sealed record Info(TrayProfile Tint, string IconKey, string Title, string Sub, Right Right = Right.None, bool Lit = true,
+                              string? Oc = null, bool OcLit = false);
 
     private const int Inset = 16, HoldMs = 1600, InMs = 140, OutMs = 260, CardW = 360;
     private const int PillInMs = 220, PillOutMs = 160, PillW = 640, PillH = 76;
@@ -48,6 +51,27 @@ public static class Toast
         var b = new SolidColorBrush(a >= 1 ? c : Color.FromArgb((byte)(a * 255), c.R, c.G, c.B)); b.Freeze(); return b;
     }
     private static Color Col(TrayProfile p) { var t = Profiles.Tint(p); return Color.FromRgb(t.R, t.G, t.B); }
+    /// <summary>1.3.4: the sub line, with the OC tag as its own run (Performance tint when on).</summary>
+    private static TextBlock SubLine(Info info, Color subC, FontFamily ui, double size, double top)
+    {
+        var tb = new TextBlock
+        {
+            FontFamily = ui, FontSize = size, Foreground = B(subC), Margin = new Thickness(0, top, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        tb.Inlines.Add(new System.Windows.Documents.Run(info.Sub));
+        if (info.Oc is { } oc)
+        {
+            tb.Inlines.Add(new System.Windows.Documents.Run(" · "));
+            tb.Inlines.Add(new System.Windows.Documents.Run(oc)
+            {
+                Foreground = info.OcLit ? B(Col(TrayProfile.Performance)) : B(subC),
+                FontWeight = info.OcLit ? FontWeights.SemiBold : FontWeights.Normal,
+            });
+        }
+        return tb;
+    }
+
     private static string Spaced(string s) => string.Join("\u200A", s.ToUpperInvariant().ToCharArray());
 
     public static void Show(bool legend, Info info, bool animate, int holdMs = HoldMs)
@@ -180,11 +204,7 @@ public static class Toast
             FontSize = legend ? 13.5 : 15, FontWeight = legend ? FontWeights.Bold : FontWeights.SemiBold,
             Foreground = B(txt), TextTrimming = TextTrimming.CharacterEllipsis,
         });
-        text.Children.Add(new TextBlock
-        {
-            Text = info.Sub, FontFamily = ui, FontSize = 12, Foreground = B(subC), Margin = new Thickness(0, 5, 0, 0),
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        });
+        text.Children.Add(SubLine(info, subC, ui, 12, 5));
         Grid.SetColumn(text, 1);
         g.Children.Add(text);
 
@@ -326,11 +346,7 @@ public static class Toast
             Text = info.Title, FontFamily = ui, FontSize = 18, FontWeight = FontWeights.SemiBold,
             Foreground = B(lit ? txt : subC), TextTrimming = TextTrimming.CharacterEllipsis,
         });
-        text.Children.Add(new TextBlock
-        {
-            Text = info.Sub, FontFamily = ui, FontSize = 13.5, Foreground = B(subC), Margin = new Thickness(0, 3, 0, 0),
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        });
+        text.Children.Add(SubLine(info, subC, ui, 13.5, 3));
         Grid.SetColumn(text, 1);
         g.Children.Add(text);
 
