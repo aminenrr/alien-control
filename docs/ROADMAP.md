@@ -33,7 +33,7 @@
 ## 1.3.4
 - [x] 1.3.4-beta.1..4 (pre-releases, 2026-10-21): GPU OC in the Performance preset (header toggle), accent hint,
   OC state on toasts (Classic: own line). PR #5.
-- [ ] Amine tests on the m15 R7, then merge PR #5 and tag 1.3.4.
+- [x] 1.3.4 (2026-10-21): tested on the m15 R7, PR #5 merged.
 
 ## Later
 - Effect speed; map keyboard columns for the rainbow wave.
