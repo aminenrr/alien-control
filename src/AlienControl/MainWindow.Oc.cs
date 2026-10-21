@@ -2,13 +2,15 @@ using System;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using AlienControl.Services;
 
 namespace AlienControl;
 
 /// <summary>
-/// v0.9.7 GPU overclock row (plan OK'd by Amine 2026-10-15). Offsets only run in G-Mode on AC:
+/// v0.9.7 GPU overclock row (plan OK'd by Amine 2026-10-15). Offsets only run in G-Mode on AC
+/// (1.3.4: or in the Performance preset on AC when the header Performance toggle is on):
 /// Apply writes them and starts a 20 s keep-or-revert, Keep saves them, and from then on entering G-Mode on AC
 /// applies them and leaving G-Mode, unplugging or quitting the app puts +0 back. No stress test, no voltage,
 /// power limit or fan controls, and profiles never touch the GPU mode.
@@ -26,7 +28,10 @@ public partial class MainWindow
     private static bool OnAc =>
         System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
 
-    private bool OcAllowed => _gmodeOn && OnAc;
+    /// <summary>1.3.4: true when the Performance toggle is on and the Performance preset is running (not G-Mode).</summary>
+    private bool OcPerfActive => _settings.OcInPerformance && !_gmodeOn && CurrentProfile == TrayProfile.Performance;
+
+    private bool OcAllowed => OnAc && (_gmodeOn || OcPerfActive);
 
     /// <summary>Called once from the constructor.</summary>
     private void InitOc()
@@ -270,6 +275,35 @@ public partial class MainWindow
         await SyncOcAsync();   // Revert / timeout / left G-Mode: writes +0
     }
 
+    /// <summary>1.3.4: Performance toggle in the section header. Saves, re-syncs (applies or drops the offsets now).</summary>
+    private async void OcPerfToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.OcInPerformance = !_settings.OcInPerformance;
+        _settings.Save();
+        Status(_settings.OcInPerformance ? "GPU OC: on in G-Mode and Performance." : "GPU OC: G-Mode only.");
+        await SyncOcAsync();
+    }
+
+    /// <summary>1.3.4: OC tag for a toast. scopeOk = the mode being entered runs the OC (G-Mode, or Performance with the
+    /// toggle lit). On = kept offsets, on AC, not +0.</summary>
+    private (string Text, bool On) OcToastTag(bool scopeOk)
+    {
+        bool on = scopeOk && _settings.OcOn && OnAc && (_settings.OcCore | _settings.OcMem) != 0;
+        return on ? ($"OC +{_settings.OcCore} / +{_settings.OcMem}", true) : ("OC off", false);
+    }
+
+    private void ShowOcPerfToggle()
+    {
+        bool on = _settings.OcInPerformance;
+        var t = Profiles.Tint(TrayProfile.Performance);
+        var b = on ? new SolidColorBrush(Color.FromRgb(t.R, t.G, t.B)) : new SolidColorBrush(Color.FromArgb(150, 0x7F, 0x8B, 0x97));
+        b.Freeze();
+        OcPerfToggle.Foreground = b;
+        OcPerfToggle.ToolTip = on
+            ? "GPU OC runs in G-Mode and the Performance preset. Click for G-Mode only"
+            : "GPU OC runs in G-Mode only. Click to also run it in the Performance preset";
+    }
+
     private void ShowOcCountdown() =>
         OcCountdown.Text = IsLegend ? $"back to +0 in {_ocLeft} s" : $"Back to +0 in {_ocLeft} s";
 
@@ -295,10 +329,15 @@ public partial class MainWindow
         string active = _ocApplied is { } a && a != (0, 0) ? $"+{a.Core} / +{a.Mem}" : "+0 / +0";
         OcActive.Text = IsLegend ? $"ACTIVE {active}" : $"Active: {active}";
 
-        if (!_gmodeOn) SetHint(OcHint, "G-Mode only");
+        ShowOcPerfToggle();
+        bool perf = _settings.OcInPerformance;
+        // 1.3.4-beta.2 (Amine): with the toggle lit the hint names both and turns the lighting (accent) colour
+        if (perf) OcHint.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+        else OcHint.ClearValue(TextBlock.ForegroundProperty);
+        if (!_gmodeOn && !OcPerfActive) SetHint(OcHint, perf ? "G-Mode + Perf" : "G-Mode only");
         else if (!OnAc) SetHint(OcHint, "Plug in to use");
         else if (_ocError is not null) SetHint(OcHint, "Driver error");
-        else if (_settings.OcOn) SetHint(OcHint, "On in G-Mode");
+        else if (_settings.OcOn) SetHint(OcHint, _gmodeOn ? "On in G-Mode" : "On in Performance");
         else SetHint(OcHint, "Off");
     }
 }

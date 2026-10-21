@@ -3,6 +3,33 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.3.4 (2026-10-21)
+Stable release of 1.3.4-beta.1 to beta.4. Tested on the m15 R7 (2026-10-21): works.
+- **GPU OC in Performance**: toggle with the Performance icon in the GPU Overclock header. Lit = the kept offsets also
+  apply in the Performance preset on AC; dark (default) = G-Mode only. Battery always resets to +0.
+- Header hint G-MODE + PERF in the lighting accent colour when lit.
+- Performance and G-Mode on toasts show "OC +core / +mem" (Performance tint) or grey "OC off"; Classic card puts it on
+  its own line.
+- App version 1.3.4.
+
+## v1.3.4-beta.4 (2026-10-21, prerelease)
+- Classic toast: the OC tag was cut off by the narrow card ("fans up..."), so it now has its own third line under the
+  detail. The Pill toast keeps it inline (wide enough). Untested.
+
+## v1.3.4-beta.3 (2026-10-21, prerelease)
+- Toasts show the GPU OC state: the Performance toast (F2) and the G-Mode on toast end with "OC +core / +mem" in the
+  Performance tint when the OC will run, or a grey "OC off" when it won't (toggle dark, nothing kept, or on battery). Untested.
+
+## v1.3.4-beta.2 (2026-10-21, prerelease)
+- With the Performance toggle lit, the GPU OC header hint reads G-MODE + PERF (or ON IN G-MODE / ON IN PERFORMANCE)
+  in the lighting accent colour. Dark toggle: grey G-MODE ONLY as before. Untested.
+
+## v1.3.4-beta.1 (2026-10-21, prerelease)
+- **GPU OC in Performance**: a toggle with the Performance icon at the right of the GPU Overclock header. Lit in the
+  Performance tint = the kept offsets also apply in the Performance preset on AC; dark (default) = G-Mode only, as
+  before. Entering or leaving Performance applies or drops the offsets; the hint reads G-MODE + PERF / ON IN
+  PERFORMANCE. New setting `OcInPerformance` (false by default, no migration needed). Untested.
+
 ## v1.3.0 (2026-10-18)
 Stable release of 1.3.0-beta.1 (confirmed on the m15 R7) and beta.2, plus the items below. Tested on the m15 R7
 (2026-10-18): works.

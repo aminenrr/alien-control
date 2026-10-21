@@ -84,6 +84,10 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 - **Compact view** (v1.1): the tray and **F3** open a short window (sensors, power, modes, light colors); **F4** or the footer button opens the full menu. F3 / F4 hide it again, games included (borderless).
 - Presets from the tray, the header preset button, the window or **F2**: Battery, Quiet, Balanced, Performance (power mode, CPU boost, refresh rate), plus Custom.
 - **F1 G-Mode**: fans max, Aggressive CPU boost, optional GPU overclock (core / memory offsets, AC only, keep-or-revert test).
+- **GPU OC in Performance** (v1.3.4): a toggle with the Performance icon in the GPU Overclock header. Lit (Performance
+  red) = your kept offsets also run in the Performance preset on AC, and the header reads **G-MODE + PERF** in your
+  lighting colour. Dark (default) = G-Mode only. The Performance and G-Mode on toasts show **OC +core / +mem** in red when
+  it runs, or a grey **OC off**.
 - **Auto preset**: Battery when unplugged, your last preset when plugged back in.
 - Fans, temps, **CPU % / GPU %** (v1.3) and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
 - Per-key keyboard color and effects, chassis lights, status keys (G-Mode, mutes, touchpad) lit by the app.
@@ -91,7 +95,7 @@ Command Center, whose background services keep *WMI Provider Host* busy.
   only, paused in fullscreen games); any key, mouse or touchpad input brings them straight back.
 - GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt), plus **iGPU only** (v1.2): turns the RTX off for battery life when NVIDIA is set to Optimus. It lists the apps using the RTX first, and HDMI / Mini DP stay dark until you switch back.
 - Toasts for F1, F2 and plug / unplug (v1.3): a **Pill** at the top center (default) or the 1.2 **Classic** card in the
-  top right, with a chime per preset from the **Soft** (default) or **Classic** pack.
+  top right, with a chime per preset from the **Soft** (default) or **Classic** pack. Since v1.3.4 they also show the GPU OC state.
 - Locked buttons (Battery under Auto preset, iGPU only outside Optimus) show a small lock; click a locked iGPU only to see why.
 - Two themes (Legend, Fluent), Reduce motion, Show in taskbar (off = tray only), Reset settings. One exe, ~0% CPU and a few MB of RAM in the tray.
 
@@ -370,7 +374,8 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout, CPU / GPU %, smoother slides, security hardening), tested on my m15 R7. Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
+**v1.3.4** (GPU OC in the Performance preset with a header toggle, OC state on toasts), tested on my m15 R7, on top of
+**v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout, CPU / GPU %, smoother slides, security hardening). Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the
 [CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md).
 
