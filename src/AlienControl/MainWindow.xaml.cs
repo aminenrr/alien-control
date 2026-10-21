@@ -1430,7 +1430,14 @@ public partial class MainWindow : Window
 
     private void SetProfile(TrayProfile p)
     {
-        if (p != TrayProfile.GMode && _settings.Profile != p.ToString()) { _settings.Profile = p.ToString(); _settings.Save(); }
+        if (p != TrayProfile.GMode && _settings.Profile != p.ToString())
+        {
+            bool perfEdge = p == TrayProfile.Performance || _settings.Profile == nameof(TrayProfile.Performance);
+            _settings.Profile = p.ToString();
+            _settings.Save();
+            // 1.3.4: entering or leaving Performance moves the OC when the Performance toggle is on
+            if (perfEdge && _settings.OcInPerformance) Dispatcher.BeginInvoke(new Action(async () => await SyncOcAsync()));
+        }
         UpdateProfileChip(p);
         UpdateF2Tint(p);
         ProfileChanged?.Invoke(p);
