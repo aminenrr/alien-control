@@ -3,6 +3,15 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.3.4 (2026-10-21)
+Stable release of 1.3.4-beta.1 to beta.4. Tested on the m15 R7 (2026-10-21): works.
+- **GPU OC in Performance**: toggle with the Performance icon in the GPU Overclock header. Lit = the kept offsets also
+  apply in the Performance preset on AC; dark (default) = G-Mode only. Battery always resets to +0.
+- Header hint G-MODE + PERF in the lighting accent colour when lit.
+- Performance and G-Mode on toasts show "OC +core / +mem" (Performance tint) or grey "OC off"; Classic card puts it on
+  its own line.
+- App version 1.3.4.
+
 ## v1.3.4-beta.4 (2026-10-21, prerelease)
 - Classic toast: the OC tag was cut off by the narrow card ("fans up..."), so it now has its own third line under the
   detail. The Pill toast keeps it inline (wide enough). Untested.
