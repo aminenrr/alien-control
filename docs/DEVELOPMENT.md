@@ -28,7 +28,8 @@ Needs the .NET 8 SDK on Windows (or `EnableWindowsTargeting` to compile-check on
 | `Services/SysExe.cs` | v1.2 full System32 paths for the Windows tools the app runs |
 | `MainWindow.Settings.cs` | 1.3.0-beta.2 settings page (gear): five tabs, back / Esc, dimmed dependent rows, chime pack + toast style rows |
 | `Services/Sounds.cs` | 1.3.0-beta.2 chime packs (`Assets/Sounds/{Soft,Classic}`), only the active pack cached |
-| `Services/Toast.cs` | toasts: 1.3.0-beta.2 Pill (top center) or Classic (1.2 card, top right) |
+| `Services/Toast.cs` | toasts: 1.3.0-beta.2 Pill (top center) or Classic (1.2 card, top right); 1.3.4 optional OC tag (`Info.Oc` / `OcLit`) |
+| `MainWindow.Oc.cs` | GPU overclock: NVML offsets, keep-or-revert test, G-Mode / Performance scope (1.3.4 `OcInPerformance` header toggle), OC toast tag |
 | `MainWindow.Presets.cs` | v1.1 header preset button and its preset list popup |
 | `Services/AwccSensors.cs` | v1.1 direct WMI temps and fan RPM (`AWCCWmiMethodFunction.Thermal_Information`), CLI fallback in `AlienFan` |
 | `Motion.cs` | all animations (v0.8.2, values and spline curves updated in v0.8.6), disabled by Reduce motion. The window slide is native since v0.8.8: `MainWindow.xaml.cs` (`PrepareShow` / `PlayOpen` / `HideToTray`) drives `Services/WindowSlide.cs` |
