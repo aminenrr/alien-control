@@ -323,7 +323,10 @@ public partial class MainWindow
 
         ShowOcPerfToggle();
         bool perf = _settings.OcInPerformance;
-        if (!_gmodeOn && !OcPerfActive) SetHint(OcHint, perf ? "G-Mode + Performance" : "G-Mode only");
+        // 1.3.4-beta.2 (Amine): with the toggle lit the hint names both and turns the lighting (accent) colour
+        if (perf) OcHint.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
+        else OcHint.ClearValue(TextBlock.ForegroundProperty);
+        if (!_gmodeOn && !OcPerfActive) SetHint(OcHint, perf ? "G-Mode + Perf" : "G-Mode only");
         else if (!OnAc) SetHint(OcHint, "Plug in to use");
         else if (_ocError is not null) SetHint(OcHint, "Driver error");
         else if (_settings.OcOn) SetHint(OcHint, _gmodeOn ? "On in G-Mode" : "On in Performance");
