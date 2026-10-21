@@ -284,6 +284,14 @@ public partial class MainWindow
         await SyncOcAsync();
     }
 
+    /// <summary>1.3.4: OC tag for a toast. scopeOk = the mode being entered runs the OC (G-Mode, or Performance with the
+    /// toggle lit). On = kept offsets, on AC, not +0.</summary>
+    private (string Text, bool On) OcToastTag(bool scopeOk)
+    {
+        bool on = scopeOk && _settings.OcOn && OnAc && (_settings.OcCore | _settings.OcMem) != 0;
+        return on ? ($"OC +{_settings.OcCore} / +{_settings.OcMem}", true) : ("OC off", false);
+    }
+
     private void ShowOcPerfToggle()
     {
         bool on = _settings.OcInPerformance;
