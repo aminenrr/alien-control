@@ -3,7 +3,7 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## Unreleased (feature/oc-performance-toggle)
+## v1.3.4-beta.1 (2026-10-21, prerelease)
 - **GPU OC in Performance**: a toggle with the Performance icon at the right of the GPU Overclock header. Lit in the
   Performance tint = the kept offsets also apply in the Performance preset on AC; dark (default) = G-Mode only, as
   before. Entering or leaving Performance applies or drops the offsets; the hint reads G-MODE + PERFORMANCE / ON IN
