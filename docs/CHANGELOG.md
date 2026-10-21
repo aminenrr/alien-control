@@ -3,6 +3,10 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.3.4-beta.4 (2026-10-21, prerelease)
+- Classic toast: the OC tag was cut off by the narrow card ("fans up..."), so it now has its own third line under the
+  detail. The Pill toast keeps it inline (wide enough). Untested.
+
 ## v1.3.4-beta.3 (2026-10-21, prerelease)
 - Toasts show the GPU OC state: the Performance toast (F2) and the G-Mode on toast end with "OC +core / +mem" in the
   Performance tint when the OC will run, or a grey "OC off" when it won't (toggle dark, nothing kept, or on battery). Untested.
