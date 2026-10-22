@@ -708,6 +708,94 @@ def legend():
         <Setter Property="Padding" Value="12" />
     </Style>
     <Style x:Key="PopupTitle" TargetType="TextBlock" BasedOn="{{StaticResource SectionTitle}}" />
+    <!-- 1.3.1-beta.2 Lights menu: laptop button, tiles lit = light ON (ZoneTile, a CheckBox), the Turn off / Turn on
+         action tile (ZoneAction, a Button), and the zone icons. Theme-neutral: colors come from the theme brushes,
+         so the block is the same in Legend and Fluent. -->
+    <Viewbox x:Key="Icon.Ring" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24">
+        <Path Data="M4 6h16v8h-16z" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="1.3" StrokeLineJoin="Round" Opacity="0.4" />
+        <Path Data="M4.5 15.5h15a2.5 2.5 0 0 1 2.5 2.5a2.5 2.5 0 0 1 -2.5 2.5h-15a2.5 2.5 0 0 1 -2.5 -2.5a2.5 2.5 0 0 1 2.5 -2.5z M5.5 18h13" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+    </Canvas></Viewbox>
+    <Viewbox x:Key="Icon.Alien" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24">
+        <Rectangle Canvas.Left="4.4" Canvas.Top="1" Width="15.2" Height="22" Fill="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}">
+            <Rectangle.OpacityMask><ImageBrush ImageSource="pack://application:,,,/Assets/logo.png" Stretch="Uniform" /></Rectangle.OpacityMask>
+        </Rectangle>
+    </Canvas></Viewbox>
+    <Viewbox x:Key="Icon.Laptop" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24"><Path Data="M3 19l18 0 M5 7a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -8" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
+    <Viewbox x:Key="Icon.Bulb" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24"><Path Data="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7 M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0 -1 3a2 2 0 0 1 -4 0a3.5 3.5 0 0 0 -1 -3 M9.7 17l4.6 0" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
+    <Viewbox x:Key="Icon.BulbOff" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24"><Path Data="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7 M11.089 7.083a5 5 0 0 1 5.826 5.84m-1.378 2.611a5.012 5.012 0 0 1 -.537 .466a3.5 3.5 0 0 0 -1 3a2 2 0 1 1 -4 0a3.5 3.5 0 0 0 -1 -3a5 5 0 0 1 -.528 -7.544 M9.7 17h4.6 M3 3l18 18" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
+    <Style x:Key="ZoneTile" TargetType="CheckBox">
+        <Setter Property="Width" Value="76" />
+        <Setter Property="Height" Value="80" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{{x:Null}}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid Background="Transparent">
+                        <Border x:Name="Glow" CornerRadius="6" Margin="6" Background="{{DynamicResource AccentGlow}}" Opacity="0">
+                            <Border.Effect><BlurEffect Radius="14" /></Border.Effect>
+                        </Border>
+                        <Border x:Name="Bd" CornerRadius="6" Background="#33000000" BorderBrush="#1FFFFFFF" BorderThickness="1" />
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="24" Height="24" HorizontalAlignment="Center" Margin="0,0,0,8"
+                                              TextElement.Foreground="{{DynamicResource TextMuted}}" Opacity="0.7" />
+                            <ContentPresenter x:Name="Lb" HorizontalAlignment="Center" TextElement.Foreground="{{DynamicResource TextMuted}}" />
+                        </StackPanel>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#48FFFFFF" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Glow" Property="Opacity" Value="1" />
+                            <Setter TargetName="Bd" Property="Background" Value="{{DynamicResource AccentFaint}}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{{DynamicResource AccentBrush}}" />
+                            <Setter TargetName="Ic" Property="TextElement.Foreground" Value="{{DynamicResource AccentBrush}}" />
+                            <Setter TargetName="Ic" Property="Opacity" Value="1" />
+                            <Setter TargetName="Lb" Property="TextElement.Foreground" Value="{{DynamicResource TextPrimary}}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.8" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="ZoneAction" TargetType="Button">
+        <Setter Property="Width" Value="76" />
+        <Setter Property="Height" Value="80" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{{x:Null}}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Foreground" Value="{{DynamicResource TextPrimary}}" />
+        <Setter Property="Background" Value="#12FFFFFF" />
+        <Setter Property="BorderBrush" Value="#24FFFFFF" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid Background="Transparent">
+                        <Border x:Name="Bd" CornerRadius="6" Background="{{TemplateBinding Background}}" BorderBrush="{{TemplateBinding BorderBrush}}" BorderThickness="1" />
+                        <Border x:Name="Hv" CornerRadius="6" Background="#10FFFFFF" Opacity="0" />
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <ContentPresenter Content="{{TemplateBinding Tag}}" Width="24" Height="24" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                            <ContentPresenter HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Hv" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.8" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <!-- 1.3.0-beta.2 settings page: card around each tab's rows, rows split by a hairline -->
     <Style x:Key="SetCard" TargetType="Border">
         <Setter Property="Background" Value="#0F1318" />
@@ -1195,6 +1283,94 @@ def fluent():
         <Setter Property="Padding" Value="14" />
     </Style>
     <Style x:Key="PopupTitle" TargetType="TextBlock" BasedOn="{{StaticResource SectionTitle}}" />
+    <!-- 1.3.1-beta.2 Lights menu: laptop button, tiles lit = light ON (ZoneTile, a CheckBox), the Turn off / Turn on
+         action tile (ZoneAction, a Button), and the zone icons. Theme-neutral: colors come from the theme brushes,
+         so the block is the same in Legend and Fluent. -->
+    <Viewbox x:Key="Icon.Ring" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24">
+        <Path Data="M4 6h16v8h-16z" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="1.3" StrokeLineJoin="Round" Opacity="0.4" />
+        <Path Data="M4.5 15.5h15a2.5 2.5 0 0 1 2.5 2.5a2.5 2.5 0 0 1 -2.5 2.5h-15a2.5 2.5 0 0 1 -2.5 -2.5a2.5 2.5 0 0 1 2.5 -2.5z M5.5 18h13" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="1.8" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+    </Canvas></Viewbox>
+    <Viewbox x:Key="Icon.Alien" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24">
+        <Rectangle Canvas.Left="4.4" Canvas.Top="1" Width="15.2" Height="22" Fill="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}">
+            <Rectangle.OpacityMask><ImageBrush ImageSource="pack://application:,,,/Assets/logo.png" Stretch="Uniform" /></Rectangle.OpacityMask>
+        </Rectangle>
+    </Canvas></Viewbox>
+    <Viewbox x:Key="Icon.Laptop" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24"><Path Data="M3 19l18 0 M5 7a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1l0 -8" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
+    <Viewbox x:Key="Icon.Bulb" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24"><Path Data="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7 M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0 -1 3a2 2 0 0 1 -4 0a3.5 3.5 0 0 0 -1 -3 M9.7 17l4.6 0" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
+    <Viewbox x:Key="Icon.BulbOff" x:Shared="False" Stretch="Uniform"><Canvas Width="24" Height="24"><Path Data="M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7 M11.089 7.083a5 5 0 0 1 5.826 5.84m-1.378 2.611a5.012 5.012 0 0 1 -.537 .466a3.5 3.5 0 0 0 -1 3a2 2 0 1 1 -4 0a3.5 3.5 0 0 0 -1 -3a5 5 0 0 1 -.528 -7.544 M9.7 17h4.6 M3 3l18 18" Stroke="{{Binding Path=(TextElement.Foreground), RelativeSource={{RelativeSource Self}}}}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
+    <Style x:Key="ZoneTile" TargetType="CheckBox">
+        <Setter Property="Width" Value="76" />
+        <Setter Property="Height" Value="80" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{{x:Null}}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid Background="Transparent">
+                        <Border x:Name="Glow" CornerRadius="6" Margin="6" Background="{{DynamicResource AccentGlow}}" Opacity="0">
+                            <Border.Effect><BlurEffect Radius="14" /></Border.Effect>
+                        </Border>
+                        <Border x:Name="Bd" CornerRadius="6" Background="#33000000" BorderBrush="#1FFFFFFF" BorderThickness="1" />
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <ContentPresenter x:Name="Ic" Content="{{TemplateBinding Tag}}" Width="24" Height="24" HorizontalAlignment="Center" Margin="0,0,0,8"
+                                              TextElement.Foreground="{{DynamicResource TextMuted}}" Opacity="0.7" />
+                            <ContentPresenter x:Name="Lb" HorizontalAlignment="Center" TextElement.Foreground="{{DynamicResource TextMuted}}" />
+                        </StackPanel>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#48FFFFFF" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Glow" Property="Opacity" Value="1" />
+                            <Setter TargetName="Bd" Property="Background" Value="{{DynamicResource AccentFaint}}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{{DynamicResource AccentBrush}}" />
+                            <Setter TargetName="Ic" Property="TextElement.Foreground" Value="{{DynamicResource AccentBrush}}" />
+                            <Setter TargetName="Ic" Property="Opacity" Value="1" />
+                            <Setter TargetName="Lb" Property="TextElement.Foreground" Value="{{DynamicResource TextPrimary}}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.8" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="ZoneAction" TargetType="Button">
+        <Setter Property="Width" Value="76" />
+        <Setter Property="Height" Value="80" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{{x:Null}}" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="Foreground" Value="{{DynamicResource TextPrimary}}" />
+        <Setter Property="Background" Value="#12FFFFFF" />
+        <Setter Property="BorderBrush" Value="#24FFFFFF" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid Background="Transparent">
+                        <Border x:Name="Bd" CornerRadius="6" Background="{{TemplateBinding Background}}" BorderBrush="{{TemplateBinding BorderBrush}}" BorderThickness="1" />
+                        <Border x:Name="Hv" CornerRadius="6" Background="#10FFFFFF" Opacity="0" />
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <ContentPresenter Content="{{TemplateBinding Tag}}" Width="24" Height="24" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                            <ContentPresenter HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Hv" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.8" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <!-- 1.3.0-beta.2 settings page: card around each tab's rows, rows split by a hairline -->
     <Style x:Key="SetCard" TargetType="Border">
         <Setter Property="Background" Value="#0BFFFFFF" />
