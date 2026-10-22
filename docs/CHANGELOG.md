@@ -3,6 +3,55 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.3.5 (2026-10-22)
+Fix release. 1.3.4 was built from `main`, which never got the 1.3.1 to 1.3.3 work (it lived on the `v1.3` branch), so
+1.3.4 dropped the Lights menu and the other 1.3.1 to 1.3.3 changes. 1.3.5 = 1.3.3 + the 1.3.4 GPU OC features.
+- Back: Lights menu (Keyboard / Rear ring / Alienhead tiles, Turn off / Turn on), Ctrl + Alt + F, restyled tray menu,
+  no-flash light switching, status keys kept lit (1.3.1 to 1.3.3).
+- Kept: GPU OC in Performance toggle, G-MODE + PERF hint, OC state on toasts (1.3.4).
+- Pill toast: since 1.3.1 the pill is 440 wide, too narrow for the OC tag inline, so it gets its own line and the pill
+  grows to 76 px tall when the tag is shown (62 otherwise).
+- Lights toast (Ctrl + Alt + F) uses the app accent, the laptop's light colour, instead of the current preset's tint
+  (was green under Balanced). New optional `Toast.Info.Accent`.
+- beta.1 tested on the m15 R7 (2026-10-22): lighting and OC features work together.
+
+## v1.3.4 (2026-10-21)
+Stable release of 1.3.4-beta.1 to beta.4. Tested on the m15 R7 (2026-10-21): works.
+- **GPU OC in Performance**: toggle with the Performance icon in the GPU Overclock header. Lit = the kept offsets also
+  apply in the Performance preset on AC; dark (default) = G-Mode only. Battery always resets to +0.
+- Header hint G-MODE + PERF in the lighting accent colour when lit.
+- Performance and G-Mode on toasts show "OC +core / +mem" (Performance tint) or grey "OC off"; Classic card puts it on
+  its own line.
+- App version 1.3.4.
+
+## v1.3.4-beta.4 (2026-10-21, prerelease)
+- Classic toast: the OC tag was cut off by the narrow card ("fans up..."), so it now has its own third line under the
+  detail. The Pill toast keeps it inline (wide enough). Untested.
+
+## v1.3.4-beta.3 (2026-10-21, prerelease)
+- Toasts show the GPU OC state: the Performance toast (F2) and the G-Mode on toast end with "OC +core / +mem" in the
+  Performance tint when the OC will run, or a grey "OC off" when it won't (toggle dark, nothing kept, or on battery). Untested.
+
+## v1.3.4-beta.2 (2026-10-21, prerelease)
+- With the Performance toggle lit, the GPU OC header hint reads G-MODE + PERF (or ON IN G-MODE / ON IN PERFORMANCE)
+  in the lighting accent colour. Dark toggle: grey G-MODE ONLY as before. Untested.
+
+## v1.3.4-beta.1 (2026-10-21, prerelease)
+- **GPU OC in Performance**: a toggle with the Performance icon at the right of the GPU Overclock header. Lit in the
+  Performance tint = the kept offsets also apply in the Performance preset on AC; dark (default) = G-Mode only, as
+  before. Entering or leaving Performance applies or drops the offsets; the hint reads G-MODE + PERF / ON IN
+  PERFORMANCE. New setting `OcInPerformance` (false by default, no migration needed). Untested.
+## v1.3.3 (2026-10-18)
+- Rear ring or Alienhead on / off alone no longer turns off the five white status keys (frame re-sent, no flash).
+
+## v1.3.2 (2026-10-18)
+- Lights switch without flashing: only the light that changes is updated (keyboard over HID, ring / Alienhead with
+  their own commands). Effects still use the full update.
+
+## v1.3.1 (2026-10-18)
+Stable release of 1.3.1-beta.1 to beta.4: Lights menu, Ctrl + Alt + F (full / off / 50%), tray menu with preset
+icons and colors, smaller Pill (440 x 62), rounder Classic cards; beta test switches (frame-gap log, F7 test) removed.
+
 ## v1.3.1-beta.4 (2026-10-18), untested
 Same as beta.3 (never tested on its own) plus a wider F7 test.
 - F7 test: beta.2 only watched the collection F2..F6 send on (consumer 0x0C / 0x01) and the key hook; F7 showed in

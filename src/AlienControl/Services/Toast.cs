@@ -25,10 +25,15 @@ public static class Toast
 
     /// <param name="Tint">Preset whose color tints the tile, bar and chip.</param>
     /// <param name="Lit">False draws the tile dim (G-Mode off).</param>
-    public sealed record Info(TrayProfile Tint, string IconKey, string Title, string Sub, Right Right = Right.None, bool Lit = true);
+    /// <param name="Oc">1.3.4: GPU OC tag added after Sub ("OC +200 / +200" or "OC off"); null = none.</param>
+    /// <param name="OcLit">True draws the OC tag in the Performance tint (OC running), false in the sub text grey.</param>
+    /// <param name="Accent">1.3.5: overrides the preset tint (Lights toast uses the app accent = the laptop's light colour).</param>
+    public sealed record Info(TrayProfile Tint, string IconKey, string Title, string Sub, Right Right = Right.None, bool Lit = true,
+                              string? Oc = null, bool OcLit = false, Color? Accent = null);
 
     private const int Inset = 16, HoldMs = 1600, InMs = 140, OutMs = 260, CardW = 360;
-    private const int PillInMs = 220, PillOutMs = 160, PillW = 440, PillH = 62;   // 1.3.1-beta.2: was 640 x 76 (dead space)
+    private const int PillInMs = 220, PillOutMs = 160, PillW = 440, PillH = 62, PillOcH = 76;   // 1.3.1-beta.2: was 640 x 76 (dead space); 1.3.5: 76 with an OC line
+    private static int PillHeight(Info info) => info.Oc is null ? PillH : PillOcH;
 
     public enum ToastStyle { Pill, Classic }
     /// <summary>1.3.0-beta.2: Pill (top-center capsule, default) or Classic (the v1.2 top-right card).</summary>
@@ -48,6 +53,40 @@ public static class Toast
         var b = new SolidColorBrush(a >= 1 ? c : Color.FromArgb((byte)(a * 255), c.R, c.G, c.B)); b.Freeze(); return b;
     }
     private static Color Col(TrayProfile p) { var t = Profiles.Tint(p); return Color.FromRgb(t.R, t.G, t.B); }
+    /// <summary>1.3.4: the sub line, with the OC tag as its own run (Performance tint when on).</summary>
+    private static TextBlock SubLine(Info info, Color subC, FontFamily ui, double size, double top, bool ocInline = true)
+    {
+        var tb = new TextBlock
+        {
+            FontFamily = ui, FontSize = size, Foreground = B(subC), Margin = new Thickness(0, top, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        tb.Inlines.Add(new System.Windows.Documents.Run(info.Sub));
+        if (ocInline && info.Oc is { } oc)
+        {
+            tb.Inlines.Add(new System.Windows.Documents.Run(" · "));
+            tb.Inlines.Add(new System.Windows.Documents.Run(oc)
+            {
+                Foreground = info.OcLit ? B(Col(TrayProfile.Performance)) : B(subC),
+                FontWeight = info.OcLit ? FontWeights.SemiBold : FontWeights.Normal,
+            });
+        }
+        return tb;
+    }
+
+    /// <summary>1.3.4-beta.4: Classic card is narrow, so the OC tag gets its own third line there.</summary>
+    private static TextBlock? OcLine(Info info, Color subC, FontFamily ui, double size)
+    {
+        if (info.Oc is not { } oc) return null;
+        return new TextBlock
+        {
+            Text = oc, FontFamily = ui, FontSize = size, Margin = new Thickness(0, 3, 0, 0),
+            Foreground = info.OcLit ? B(Col(TrayProfile.Performance)) : B(subC),
+            FontWeight = info.OcLit ? FontWeights.SemiBold : FontWeights.Normal,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+    }
+
     private static string Spaced(string s) => string.Join("\u200A", s.ToUpperInvariant().ToCharArray());
 
     public static void Show(bool legend, Info info, bool animate, int holdMs = HoldMs)
@@ -149,7 +188,7 @@ public static class Toast
         var subC = C(legend ? "#8A96A3" : "#A6ABB2");
         var dim = C(legend ? "#4A5561" : "#6E7A86");
         double r = legend ? 4 : 7;
-        var tint = Col(info.Tint);
+        var tint = info.Accent ?? Col(info.Tint);
         var ui = app.TryFindResource("UiFont") as FontFamily ?? new FontFamily("Segoe UI");
         var mono = app.TryFindResource("MonoFont") as FontFamily ?? new FontFamily("Consolas");
 
@@ -180,11 +219,8 @@ public static class Toast
             FontSize = legend ? 13.5 : 15, FontWeight = legend ? FontWeights.Bold : FontWeights.SemiBold,
             Foreground = B(txt), TextTrimming = TextTrimming.CharacterEllipsis,
         });
-        text.Children.Add(new TextBlock
-        {
-            Text = info.Sub, FontFamily = ui, FontSize = 12, Foreground = B(subC), Margin = new Thickness(0, 5, 0, 0),
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        });
+        text.Children.Add(SubLine(info, subC, ui, 12, 5, ocInline: false));
+        if (OcLine(info, subC, ui, 12) is { } ocLine) text.Children.Add(ocLine);
         Grid.SetColumn(text, 1);
         g.Children.Add(text);
 
@@ -295,7 +331,7 @@ public static class Toast
         var txt = C(legend ? "#E6EDF3" : "#FFFFFF");
         var subC = C(legend ? "#8A96A3" : "#A6ABB2");
         var dim = C(legend ? "#4A5561" : "#6E7A86");
-        var tint = Col(info.Tint);
+        var tint = info.Accent ?? Col(info.Tint);
         bool lit = info.Lit;
         var ui = app.TryFindResource("UiFont") as FontFamily ?? new FontFamily("Segoe UI");
         var accent = legend ? Colors.White : (app.TryFindResource("AccentBrush") as SolidColorBrush)?.Color ?? C("#4CC2FF");
@@ -326,11 +362,9 @@ public static class Toast
             Text = info.Title, FontFamily = ui, FontSize = 16, FontWeight = FontWeights.SemiBold,
             Foreground = B(lit ? txt : subC), TextTrimming = TextTrimming.CharacterEllipsis,
         });
-        text.Children.Add(new TextBlock
-        {
-            Text = info.Sub, FontFamily = ui, FontSize = 12.5, Foreground = B(subC), Margin = new Thickness(0, 2, 0, 0),
-            TextTrimming = TextTrimming.CharacterEllipsis,
-        });
+        // 1.3.5: the pill is 440 wide since 1.3.1, too narrow for the OC tag inline, so it gets its own line (pill grows)
+        text.Children.Add(SubLine(info, subC, ui, 12.5, 2, ocInline: false));
+        if (OcLine(info, subC, ui, 12.5) is { } ocLine) text.Children.Add(ocLine);
         Grid.SetColumn(text, 1);
         g.Children.Add(text);
 
@@ -391,10 +425,10 @@ public static class Toast
 
         var capsule = new Border
         {
-            Child = g, Width = PillW, Height = PillH, Padding = new Thickness(11, 0, 16, 0),
+            Child = g, Width = PillW, Height = PillHeight(info), Padding = new Thickness(11, 0, 16, 0),
             Background = B(card), BorderThickness = new Thickness(1),
             BorderBrush = legend && lit ? B(tint, 0.55) : B(neutral),
-            CornerRadius = new CornerRadius(PillH / 2.0),
+            CornerRadius = new CornerRadius(PillHeight(info) / 2.0),
             Effect = new DropShadowEffect { BlurRadius = 22, ShadowDepth = 6, Direction = 270, Opacity = 0.45, Color = Colors.Black },
         };
         if (!legend || !lit) return capsule;
