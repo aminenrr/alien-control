@@ -27,8 +27,9 @@ public static class Toast
     /// <param name="Lit">False draws the tile dim (G-Mode off).</param>
     /// <param name="Oc">1.3.4: GPU OC tag added after Sub ("OC +200 / +200" or "OC off"); null = none.</param>
     /// <param name="OcLit">True draws the OC tag in the Performance tint (OC running), false in the sub text grey.</param>
+    /// <param name="Accent">1.3.5: overrides the preset tint (Lights toast uses the app accent = the laptop's light colour).</param>
     public sealed record Info(TrayProfile Tint, string IconKey, string Title, string Sub, Right Right = Right.None, bool Lit = true,
-                              string? Oc = null, bool OcLit = false);
+                              string? Oc = null, bool OcLit = false, Color? Accent = null);
 
     private const int Inset = 16, HoldMs = 1600, InMs = 140, OutMs = 260, CardW = 360;
     private const int PillInMs = 220, PillOutMs = 160, PillW = 440, PillH = 62, PillOcH = 76;   // 1.3.1-beta.2: was 640 x 76 (dead space); 1.3.5: 76 with an OC line
@@ -187,7 +188,7 @@ public static class Toast
         var subC = C(legend ? "#8A96A3" : "#A6ABB2");
         var dim = C(legend ? "#4A5561" : "#6E7A86");
         double r = legend ? 4 : 7;
-        var tint = Col(info.Tint);
+        var tint = info.Accent ?? Col(info.Tint);
         var ui = app.TryFindResource("UiFont") as FontFamily ?? new FontFamily("Segoe UI");
         var mono = app.TryFindResource("MonoFont") as FontFamily ?? new FontFamily("Consolas");
 
@@ -330,7 +331,7 @@ public static class Toast
         var txt = C(legend ? "#E6EDF3" : "#FFFFFF");
         var subC = C(legend ? "#8A96A3" : "#A6ABB2");
         var dim = C(legend ? "#4A5561" : "#6E7A86");
-        var tint = Col(info.Tint);
+        var tint = info.Accent ?? Col(info.Tint);
         bool lit = info.Lit;
         var ui = app.TryFindResource("UiFont") as FontFamily ?? new FontFamily("Segoe UI");
         var accent = legend ? Colors.White : (app.TryFindResource("AccentBrush") as SolidColorBrush)?.Color ?? C("#4CC2FF");
