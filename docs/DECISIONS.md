@@ -85,6 +85,18 @@ Why things are the way they are. Newest decisions win.
   No stress test, no voltage curve, power limit or fan control. Profiles never change GPU mode.
 - Layout (Amine): Core and Memory side by side, Keep / Revert replace the button row, to keep the window short.
 
+## GPU OC in Performance (2026-10-21, v1.3.4)
+- Amine: the OC should be able to run in the Performance preset too, not just G-Mode. A header toggle with the
+  Performance icon (lit in the Performance tint) turns that on; off by default, so the old "G-Mode on AC only" rule stays
+  the default. Still AC only; battery, leaving the mode or quitting = +0.
+- Why: G-Mode holds the CPU near 35 W in capped, GPU-light games (Gears 5 at 60 fps) while Performance lets CPU power
+  follow the GPU, so Performance + OC is the better gaming mode there.
+- Header hint: G-MODE + PERF / ON IN PERFORMANCE in the lighting accent colour when the toggle is lit (Amine), grey
+  G-MODE ONLY when dark.
+- Toasts: Performance (F2) and G-Mode on end with "OC +core / +mem" in the Performance tint when the OC will run, or grey
+  "OC off". Pill keeps it inline; Classic gives it its own line (the 360 px card cut it off).
+- Setting `OcInPerformance` (default false), no settings migration needed.
+
 ## 1.1 (2026-10-16)
 - Sensors: temps and fan RPM read straight from `AWCCWmiMethodFunction.Thermal_Information` (73 ms vs 181 ms for the CLI
   for four reads). alienfan-cli stays for every command and as the fallback after an init failure or three errors.
