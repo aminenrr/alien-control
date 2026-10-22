@@ -156,3 +156,32 @@ Why things are the way they are. Newest decisions win.
 - The pill fades (instead of sliding) with Reduce motion / Windows animations off, as the directive asks; the
   classic card stays instant there, as in 1.2.
 
+## 1.3.1-beta.2 (2026-10-18)
+- Amine tested beta.1: the Off menu felt like a mess (lit = off was backwards, one click could flip twice, the popup
+  covered the panel) and status keys went dark after Keyboard off / on. He asked for a redesign; mockups + plan were
+  approved before any code (docs/mockups/1.3.1-beta.2).
+- Tiles show the light state (lit = on); settings still store the "off" switches, so beta.1 settings carry over as is.
+- All tile is an action, not a state: All off while anything is on, All on when everything is off (his rule).
+  beta.3 (Amine): labels Turn off / Turn on, accent while lights are on, plain when all are off; no focus border.
+- Double flip: a 350 ms debounce per menu, not per tile, so a double-click on any tile is one action.
+- Status keys: SetOff(false) sends brightness 255 then the held frame; the firmware seems to miss a frame right after
+  the brightness command (inferred: the swatch click, which sends the same frame later, always fixed it). So the frame
+  is sent again 150 ms later. Static only.
+- F7: no consumer report (crash.log). The F7 test is opt-in and 20 s only (it logs key presses, so never always-on).
+  Amine keeps the F7 cap: F7's levels scale the app brightness (at 50%: off, 25%, 50%), F7 never goes above it.
+- Toasts: Pill shortened rather than auto-sized, so every pill is the same width (calmer when they replace each other).
+
+## 1.3.1-beta.1 (2026-10-18)
+- Built directly by Hark at Amine's request (no separate plan round: the 1.3.1 directive and both mockups were the
+  approved plan). Mockups: docs/mockups/1.3.1.
+- Keyboard off = hardware brightness 0 + held frames (KeyboardHid.SetOff), not black. Why: 1.3.0 painted black and F7
+  (firmware) then scaled black. The timeout already proved brightness 0 + held frames on this keyboard. F7's own report
+  is not probed yet, so the app can't follow it: after F7 the tile still says Off, and new colors wait for the tile
+  (checklist step 13). The probe log is there to fix that in 1.3.2 without guessing.
+- Chassis zones stay black-painted (setone 0,0,0): setdim hits the power button and never reaches 0 on the ring.
+- Turning a light off never changes the saved color any more; picking a color doesn't turn lights back on.
+- The menu is a Popup like the custom color one (the 1.3 settings page hitch came from a big layered popup; this one is
+  small). Tile style + Icon.Ring (option C "ring from above") + Icon.Alien (the app's logo.png as a mask) are the same
+  block in both themes, also added to dev/gen_themes.py.
+- Status keys go dark with the keyboard (hardware brightness covers every key); they come back with it.
+
