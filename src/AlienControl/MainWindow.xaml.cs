@@ -605,8 +605,11 @@ public partial class MainWindow : Window
         // _gmodeOn is kept in sync by every read, so no extra getgmode call before acting.
         var current = _gmodeOn;
         if (!current)
-            Notify(new Toast.Info(TrayProfile.GMode, "Icon.GMode", "G-Mode on", "Fans max" + (_settings.OcOn && OnAc && (_settings.OcCore | _settings.OcMem) != 0
-                ? $" · OC +{_settings.OcCore} / +{_settings.OcMem}" : ""), Toast.Right.SwitchOn), Sounds.Kind.GModeOn);
+        {
+            var (oc, ocLit) = OcToastTag(true);
+            Notify(new Toast.Info(TrayProfile.GMode, "Icon.GMode", "G-Mode on", "Fans max", Toast.Right.SwitchOn, Oc: oc, OcLit: ocLit),
+                Sounds.Kind.GModeOn);
+        }
         else
             Notify(new Toast.Info(CurrentProfile, "Icon.GMode", "G-Mode off", $"Back to {Profiles.Label(CurrentProfile)} · fans auto",
                 Toast.Right.SwitchOff, Lit: false), Sounds.Kind.GModeOff);
@@ -1424,7 +1427,14 @@ public partial class MainWindow : Window
 
     private void SetProfile(TrayProfile p)
     {
-        if (p != TrayProfile.GMode && _settings.Profile != p.ToString()) { _settings.Profile = p.ToString(); _settings.Save(); }
+        if (p != TrayProfile.GMode && _settings.Profile != p.ToString())
+        {
+            bool perfEdge = p == TrayProfile.Performance || _settings.Profile == nameof(TrayProfile.Performance);
+            _settings.Profile = p.ToString();
+            _settings.Save();
+            // 1.3.4: entering or leaving Performance moves the OC when the Performance toggle is on
+            if (perfEdge && _settings.OcInPerformance) Dispatcher.BeginInvoke(new Action(async () => await SyncOcAsync()));
+        }
         UpdateProfileChip(p);
         UpdateF2Tint(p);
         ProfileChanged?.Invoke(p);
@@ -1451,8 +1461,10 @@ public partial class MainWindow : Window
         // v1.0.0-rc1: toast first, then apply (no ~1 s wait). Into / out of Battery changes the refresh rate,
         // which blanks the screen, so those still toast after the switch (Notify waits for the screen).
         bool rate = cur == TrayProfile.Battery || next == TrayProfile.Battery;
+        // 1.3.4 (Amine): the Performance toast says whether the GPU OC is on (Performance tint) or off
+        var (oc, ocLit) = next == TrayProfile.Performance ? OcToastTag(_settings.OcInPerformance) : (null, false);
         void Show() => Notify(new Toast.Info(next, Profiles.IconKey(next), Profiles.Label(next), PresetSub(next),
-            next == TrayProfile.Battery ? Toast.Right.Chip : Toast.Right.Pills), next switch
+            next == TrayProfile.Battery ? Toast.Right.Chip : Toast.Right.Pills, Oc: oc, OcLit: ocLit), next switch
         {
             TrayProfile.Quiet => Sounds.Kind.Quiet, TrayProfile.Performance => Sounds.Kind.Performance,
             TrayProfile.Battery => Sounds.Kind.Unplug, _ => Sounds.Kind.Balanced,
