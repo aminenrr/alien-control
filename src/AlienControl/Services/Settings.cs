@@ -84,6 +84,9 @@ public sealed class Settings
     public int OcMem { get; set; } = 200;
     public bool OcOn { get; set; } = false;
     public bool OcPending { get; set; } = false;
+    /// <summary>1.3.4 (Amine, 2026-10-21): header toggle in the GPU OC section. On = the kept offsets also apply in the
+    /// Performance preset (on AC), not just G-Mode. Off (default) = G-Mode only, as before.</summary>
+    public bool OcInPerformance { get; set; } = false;
 
     /// <summary>UI theme: "Legend" (default) or "Fluent".</summary>
     public string Theme { get; set; } = "Legend";
