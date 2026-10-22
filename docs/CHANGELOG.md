@@ -13,6 +13,8 @@ Fix release. 1.3.4 was built from `main`, which never got the 1.3.1 to 1.3.3 wor
   grows to 76 px tall when the tag is shown (62 otherwise).
 - Lights toast (Ctrl + Alt + F) uses the app accent, the laptop's light colour, instead of the current preset's tint
   (was green under Balanced). New optional `Toast.Info.Accent`.
+- Lights button (laptop icon) showed the previous state (lit with all lights off, muted with all on): the icon is now
+  rebuilt on each change. Amber dot when only some lights are off is unchanged.
 - beta.1 tested on the m15 R7 (2026-10-22): lighting and OC features work together.
 
 ## v1.3.4 (2026-10-21)
