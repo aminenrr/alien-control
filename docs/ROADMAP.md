@@ -28,12 +28,23 @@
 - [x] 1.3.0-beta.2: chime pack (Soft / Classic), toast style (Pill / Classic), settings page with tabs.
 - [x] 1.3.0 (2026-10-18): stable, tested on the m15 R7, plus the chime crackle fix (best effort for now, much less
   noticeable).
+- [x] 1.3.1-beta.1: Off menu, F7 after Off, Spectrum / Rainbow restart fix. Tested: menu redesigned in beta.2.
+- [ ] 1.3.1-beta.4: beta.3 + F7 test on every Alienware HID collection.
+- [ ] 1.3.1 stable (Amine): remove Settings > Advanced > "Log frame gaps" and "F7 test" (debug only, not needed).
+  Also (Amine): update CHANGELOG / release notes with what's new and the tests done (beta.1-4 results), and the README's
+  features section with the Lights menu, rounder / shorter notifications, using the 1.3.1 mockups as images.
+- [-] 1.3.1-beta.3 (superseded by beta.4): Keyboard off really off (brightness 0 after every CLI run), Turn off / Turn on tile, accent while on, no focus border.
+- [x] 1.3.1-beta.2: Lights menu (laptop button, lit = on, All off / All on), status-key fix, F7 test, Classic toast
+  corners, shorter Pill. Test with docs/BETA-1.3.1-CHECKLIST.md.
+- [ ] 1.3.1-beta.3 (only if the F7 test shows something): the Keyboard tile follows F7.
 - [x] 1.1.1 patch: shows as "Alien Controls" in startup lists, startup task renamed (old one migrated).
 
 ## 1.3.4
 - [x] 1.3.4-beta.1..4 (pre-releases, 2026-10-21): GPU OC in the Performance preset (header toggle), accent hint,
   OC state on toasts (Classic: own line). PR #5.
-- [x] 1.3.4 (2026-10-21): tested on the m15 R7, PR #5 merged.
+- [x] 1.3.4 (2026-10-21): tested on the m15 R7, PR #5 merged. Built from main, so it missed 1.3.1 to 1.3.3.
+- [x] 1.3.5 (2026-10-22): 1.3.3 + 1.3.4 merged (Lights menu back), OC tag on its own pill line, Lights toast in the
+  accent colour. Tested (beta.1), main brought up to v1.3.
 
 ## Later
 - Effect speed; map keyboard columns for the rainbow wave.
