@@ -27,11 +27,13 @@ public static class Toast
     /// <param name="Lit">False draws the tile dim (G-Mode off).</param>
     /// <param name="Oc">1.3.4: GPU OC tag added after Sub ("OC +200 / +200" or "OC off"); null = none.</param>
     /// <param name="OcLit">True draws the OC tag in the Performance tint (OC running), false in the sub text grey.</param>
+    /// <param name="Accent">1.3.5: overrides the preset tint (Lights toast uses the app accent = the laptop's light colour).</param>
     public sealed record Info(TrayProfile Tint, string IconKey, string Title, string Sub, Right Right = Right.None, bool Lit = true,
-                              string? Oc = null, bool OcLit = false);
+                              string? Oc = null, bool OcLit = false, Color? Accent = null);
 
     private const int Inset = 16, HoldMs = 1600, InMs = 140, OutMs = 260, CardW = 360;
-    private const int PillInMs = 220, PillOutMs = 160, PillW = 640, PillH = 76;
+    private const int PillInMs = 220, PillOutMs = 160, PillW = 440, PillH = 62, PillOcH = 76;   // 1.3.1-beta.2: was 640 x 76 (dead space); 1.3.5: 76 with an OC line
+    private static int PillHeight(Info info) => info.Oc is null ? PillH : PillOcH;
 
     public enum ToastStyle { Pill, Classic }
     /// <summary>1.3.0-beta.2: Pill (top-center capsule, default) or Classic (the v1.2 top-right card).</summary>
@@ -186,7 +188,7 @@ public static class Toast
         var subC = C(legend ? "#8A96A3" : "#A6ABB2");
         var dim = C(legend ? "#4A5561" : "#6E7A86");
         double r = legend ? 4 : 7;
-        var tint = Col(info.Tint);
+        var tint = info.Accent ?? Col(info.Tint);
         var ui = app.TryFindResource("UiFont") as FontFamily ?? new FontFamily("Segoe UI");
         var mono = app.TryFindResource("MonoFont") as FontFamily ?? new FontFamily("Consolas");
 
@@ -205,7 +207,7 @@ public static class Toast
         TextElement.SetForeground(icon, B(fg));
         g.Children.Add(new Border
         {
-            Width = 44, Height = 44, CornerRadius = new CornerRadius(r), BorderThickness = new Thickness(1),
+            Width = 44, Height = 44, CornerRadius = new CornerRadius(13), BorderThickness = new Thickness(1),
             Background = info.Lit ? B(tint, 0.14) : B(seg), BorderBrush = info.Lit ? B(tint, 0.7) : B(dim),
             VerticalAlignment = VerticalAlignment.Center, Child = icon,
         });
@@ -299,7 +301,7 @@ public static class Toast
             Child = g, Width = CardW,
             Padding = new Thickness(16),
             Background = B(card), BorderBrush = B(border), BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(r + 2),
+            CornerRadius = new CornerRadius(22),   // 1.3.1-beta.2: rounded (was 6 Legend / 9 Fluent)
             Effect = new DropShadowEffect { BlurRadius = 18, ShadowDepth = 4, Direction = 270, Opacity = 0.5, Color = Colors.Black },
         };
         UIElement root = cardB;
@@ -311,14 +313,14 @@ public static class Toast
             host.Children.Add(new Border
             {
                 Width = 3, HorizontalAlignment = HorizontalAlignment.Left, Background = B(tint),
-                Margin = new Thickness(0, 10, 0, 10),
+                Margin = new Thickness(1, 18, 0, 18), CornerRadius = new CornerRadius(1.5),   // inside the 22 px curve
             });
             root = host;
         }
         return root;
     }
 
-    /// <summary>1.3.0-beta.2 pill (Amine's handoff mockups toasts-legend.png / toasts-fluent.png): ~640 x 76 capsule,
+    /// <summary>1.3.0-beta.2 pill (Amine's handoff mockups toasts-legend.png / toasts-fluent.png): 440 x 62 capsule since 1.3.1-beta.2 (was 640 x 76),
     /// round icon tile tinted in the preset color, title + detail, state on the right (G-Mode switch, F2 position dots,
     /// preset chip). Legend: #0F1318 with a preset-tinted border and a soft glow under the icon. Fluent: #2A2C31 with a
     /// neutral border and the Fluent accent switch.</summary>
@@ -329,7 +331,7 @@ public static class Toast
         var txt = C(legend ? "#E6EDF3" : "#FFFFFF");
         var subC = C(legend ? "#8A96A3" : "#A6ABB2");
         var dim = C(legend ? "#4A5561" : "#6E7A86");
-        var tint = Col(info.Tint);
+        var tint = info.Accent ?? Col(info.Tint);
         bool lit = info.Lit;
         var ui = app.TryFindResource("UiFont") as FontFamily ?? new FontFamily("Segoe UI");
         var accent = legend ? Colors.White : (app.TryFindResource("AccentBrush") as SolidColorBrush)?.Color ?? C("#4CC2FF");
@@ -343,24 +345,26 @@ public static class Toast
         var fg = lit ? tint : dim;
         var icon = new ContentControl
         {
-            Content = app.TryFindResource(info.IconKey), Width = 22, Height = 22, Foreground = B(fg), Focusable = false,
+            Content = app.TryFindResource(info.IconKey), Width = 20, Height = 20, Foreground = B(fg), Focusable = false,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
         };
         TextElement.SetForeground(icon, B(fg));
         g.Children.Add(new Border
         {
-            Width = 48, Height = 48, CornerRadius = new CornerRadius(24),
+            Width = 40, Height = 40, CornerRadius = new CornerRadius(20),
             Background = lit ? B(tint, legend ? 0.13 : 0.16) : B(neutral, 0.8),
             VerticalAlignment = VerticalAlignment.Center, Child = icon,
         });
 
-        var text = new StackPanel { Margin = new Thickness(16, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+        var text = new StackPanel { Margin = new Thickness(13, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(new TextBlock
         {
-            Text = info.Title, FontFamily = ui, FontSize = 18, FontWeight = FontWeights.SemiBold,
+            Text = info.Title, FontFamily = ui, FontSize = 16, FontWeight = FontWeights.SemiBold,
             Foreground = B(lit ? txt : subC), TextTrimming = TextTrimming.CharacterEllipsis,
         });
-        text.Children.Add(SubLine(info, subC, ui, 13.5, 3));
+        // 1.3.5: the pill is 440 wide since 1.3.1, too narrow for the OC tag inline, so it gets its own line (pill grows)
+        text.Children.Add(SubLine(info, subC, ui, 12.5, 2, ocInline: false));
+        if (OcLine(info, subC, ui, 12.5) is { } ocLine) text.Children.Add(ocLine);
         Grid.SetColumn(text, 1);
         g.Children.Add(text);
 
@@ -376,7 +380,7 @@ public static class Toast
                     bool on = q == info.Tint;
                     dots.Children.Add(new Border
                     {
-                        Width = on ? 18 : 6, Height = on ? 8 : 6, Margin = new Thickness(8, 0, 0, 0),
+                        Width = on ? 15 : 6, Height = on ? 7 : 6, Margin = new Thickness(6, 0, 0, 0),
                         CornerRadius = new CornerRadius(4), Background = on ? B(Col(q)) : B(dim, 0.7),
                         VerticalAlignment = VerticalAlignment.Center,
                     });
@@ -387,15 +391,15 @@ public static class Toast
             case Right.SwitchOn or Right.SwitchOff:
             {
                 bool on = info.Right == Right.SwitchOn;
-                var track = new Grid { Width = 52, Height = 26, VerticalAlignment = VerticalAlignment.Center };
+                var track = new Grid { Width = 44, Height = 22, VerticalAlignment = VerticalAlignment.Center };
                 track.Children.Add(new Border
                 {
-                    CornerRadius = new CornerRadius(13),
+                    CornerRadius = new CornerRadius(11),
                     Background = on ? B(accent) : B(neutral),
                 });
                 track.Children.Add(new System.Windows.Shapes.Ellipse
                 {
-                    Width = 18, Height = 18, Margin = new Thickness(4, 0, 4, 0),
+                    Width = 15, Height = 15, Margin = new Thickness(3.5, 0, 3.5, 0),
                     Fill = on ? B(C("#14181D")) : B(dim), VerticalAlignment = VerticalAlignment.Center,
                     HorizontalAlignment = on ? HorizontalAlignment.Right : HorizontalAlignment.Left,
                 });
@@ -405,26 +409,26 @@ public static class Toast
             case Right.Chip:
                 right = new Border
                 {
-                    CornerRadius = new CornerRadius(13), BorderThickness = new Thickness(1), Height = 26,
-                    Background = B(tint, 0.12), BorderBrush = B(tint, 0.75), Padding = new Thickness(12, 0, 12, 0),
+                    CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), Height = 24,
+                    Background = B(tint, 0.12), BorderBrush = B(tint, 0.75), Padding = new Thickness(10, 0, 10, 0),
                     VerticalAlignment = VerticalAlignment.Center,
                     Child = new TextBlock
                     {
                         Text = legend ? Profiles.Label(info.Tint).ToUpperInvariant() : Profiles.Label(info.Tint),
-                        FontFamily = ui, FontSize = legend ? 11 : 12.5, VerticalAlignment = VerticalAlignment.Center,
+                        FontFamily = ui, FontSize = legend ? 10.5 : 12, VerticalAlignment = VerticalAlignment.Center,
                         FontWeight = legend ? FontWeights.Bold : FontWeights.SemiBold, Foreground = B(tint),
                     },
                 };
                 break;
         }
-        if (right is not null) { right.Margin = new Thickness(0, 0, 8, 0); Grid.SetColumn(right, 2); g.Children.Add(right); }
+        if (right is not null) { right.Margin = new Thickness(0, 0, 6, 0); Grid.SetColumn(right, 2); g.Children.Add(right); }
 
         var capsule = new Border
         {
-            Child = g, Width = PillW, Height = PillH, Padding = new Thickness(14, 0, 20, 0),
+            Child = g, Width = PillW, Height = PillHeight(info), Padding = new Thickness(11, 0, 16, 0),
             Background = B(card), BorderThickness = new Thickness(1),
             BorderBrush = legend && lit ? B(tint, 0.55) : B(neutral),
-            CornerRadius = new CornerRadius(PillH / 2.0),
+            CornerRadius = new CornerRadius(PillHeight(info) / 2.0),
             Effect = new DropShadowEffect { BlurRadius = 22, ShadowDepth = 6, Direction = 270, Opacity = 0.45, Color = Colors.Black },
         };
         if (!legend || !lit) return capsule;
@@ -437,7 +441,7 @@ public static class Toast
         glow.Freeze();
         host.Children.Add(new System.Windows.Shapes.Ellipse
         {
-            Width = 220, Height = 34, Fill = glow, HorizontalAlignment = HorizontalAlignment.Left,
+            Width = 160, Height = 28, Fill = glow, HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(18, 0, 0, -14),
         });
         host.Children.Add(capsule);
