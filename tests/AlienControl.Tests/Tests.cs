@@ -69,6 +69,39 @@ public class SettingsTests
         Assert.Equal(0, s.LastEffect);
     }
 
+    [Theory]
+    [InlineData(100)]
+    [InlineData(101)]
+    public void Spectrum_and_rainbow_survive_a_restart(int fx)
+    {
+        // 1.3.1: Clamp used to reset the app's own effects (100 Spectrum, 101 Rainbow wave) to Static
+        var s = Settings.Parse("{\"SettingsVersion\":6,\"LastEffect\":" + fx + "}")!;
+        s.Clamp();
+        Assert.Equal(fx, s.LastEffect);
+    }
+
+    [Fact]
+    public void Black_from_130_off_becomes_three_off_switches()
+    {
+        var s = Settings.Parse("{\"SettingsVersion\":6,\"LastColor\":\"AAAA\"}")!;
+        s.Clamp();
+        Assert.True(s.OffKeyboard && s.OffRing && s.OffAlienhead);
+        Assert.Equal(new byte[] { 0, 229, 255 }, s.LastColor);
+    }
+
+    [Fact]
+    public void Lights_off_switches_default_on_and_are_kept()
+    {
+        var d = Settings.Parse("{\"SettingsVersion\":6,\"LastColor\":\"/01q\"}")!;
+        d.Clamp();
+        Assert.False(d.OffKeyboard || d.OffRing || d.OffAlienhead);
+        var s = Settings.Parse("{\"SettingsVersion\":6,\"LastColor\":\"/01q\",\"OffRing\":true}")!;
+        s.Clamp();
+        Assert.True(s.OffRing);
+        Assert.False(s.OffKeyboard);
+        Assert.Equal(new byte[] { 255, 77, 106 }, s.LastColor);
+    }
+
     [Fact]
     public void Beta2_upgrade_gets_soft_and_pill()
     {

@@ -3,6 +3,18 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v1.3.5 (2026-10-22)
+Fix release. 1.3.4 was built from `main`, which never got the 1.3.1 to 1.3.3 work (it lived on the `v1.3` branch), so
+1.3.4 dropped the Lights menu and the other 1.3.1 to 1.3.3 changes. 1.3.5 = 1.3.3 + the 1.3.4 GPU OC features.
+- Back: Lights menu (Keyboard / Rear ring / Alienhead tiles, Turn off / Turn on), Ctrl + Alt + F, restyled tray menu,
+  no-flash light switching, status keys kept lit (1.3.1 to 1.3.3).
+- Kept: GPU OC in Performance toggle, G-MODE + PERF hint, OC state on toasts (1.3.4).
+- Pill toast: since 1.3.1 the pill is 440 wide, too narrow for the OC tag inline, so it gets its own line and the pill
+  grows to 76 px tall when the tag is shown (62 otherwise).
+- Lights toast (Ctrl + Alt + F) uses the app accent, the laptop's light colour, instead of the current preset's tint
+  (was green under Balanced). New optional `Toast.Info.Accent`.
+- beta.1 tested on the m15 R7 (2026-10-22): lighting and OC features work together.
+
 ## v1.3.4 (2026-10-21)
 Stable release of 1.3.4-beta.1 to beta.4. Tested on the m15 R7 (2026-10-21): works.
 - **GPU OC in Performance**: toggle with the Performance icon in the GPU Overclock header. Lit = the kept offsets also
@@ -29,6 +41,72 @@ Stable release of 1.3.4-beta.1 to beta.4. Tested on the m15 R7 (2026-10-21): wor
   Performance tint = the kept offsets also apply in the Performance preset on AC; dark (default) = G-Mode only, as
   before. Entering or leaving Performance applies or drops the offsets; the hint reads G-MODE + PERF / ON IN
   PERFORMANCE. New setting `OcInPerformance` (false by default, no migration needed). Untested.
+## v1.3.3 (2026-10-18)
+- Rear ring or Alienhead on / off alone no longer turns off the five white status keys (frame re-sent, no flash).
+
+## v1.3.2 (2026-10-18)
+- Lights switch without flashing: only the light that changes is updated (keyboard over HID, ring / Alienhead with
+  their own commands). Effects still use the full update.
+
+## v1.3.1 (2026-10-18)
+Stable release of 1.3.1-beta.1 to beta.4: Lights menu, Ctrl + Alt + F (full / off / 50%), tray menu with preset
+icons and colors, smaller Pill (440 x 62), rounder Classic cards; beta test switches (frame-gap log, F7 test) removed.
+
+## v1.3.1-beta.4 (2026-10-18), untested
+Same as beta.3 (never tested on its own) plus a wider F7 test.
+- F7 test: beta.2 only watched the collection F2..F6 send on (consumer 0x0C / 0x01) and the key hook; F7 showed in
+  neither. Amine: F7 is a Fn-lock row hotkey like F2..F5, so it may go out elsewhere. The test now also watches every
+  other HID collection of the Alienware keyboard (0D62) and the AW-ELC (187C) for its 20 s, and logs each report with
+  its collection, plus the list of collections found.
+
+## v1.3.1-beta.3 (2026-10-18), superseded by beta.4
+Fixes from the beta.2 test.
+- Fix: Keyboard off only turned off the 5 white status keys, the rest stayed lit. The rear ring / Alienhead command
+  (alienfx-cli) most likely set the keyboard back to full brightness. Brightness 0 is now re-sent after every
+  alienfx-cli run while the keyboard is off (also keeps the backlight timeout dark).
+- The 4th tile reads **Turn off** / **Turn on** (was All off / All on). It's in the accent color while lights are on
+  and plain once all are off (was the other way round).
+- No focus border after clicking a tile (the Turn off tile kept a colored outline).
+- F7 test result: F7 is invisible to the app (no key, no report, no state change), so the tile keeps following taps only.
+
+## v1.3.1-beta.2 (2026-10-18), tested: Keyboard off and the All tile fixed in beta.3
+Redesign after the beta.1 test (rest of beta.1 worked). Mockups: docs/mockups/1.3.1-beta.2.
+
+**Lights menu (replaces the Off menu)**
+- A laptop icon button replaces Off: accent when lights are on, an amber dot when some are off, muted when all are off.
+- The menu opens above the button, right edges lined up. Esc, a click outside or a second click on the button closes it.
+- A lit tile now means that light is **on**; tap Keyboard, Rear ring or Alienhead to switch it. The fourth tile reads
+  **All off** (lamp with a line) while any light is on and **All on** (lamp) once all three are off. "Turn all on" removed.
+- Fix: one click could switch a light on and straight back off (crash.log 21:55:15, 0.25 s apart). Taps within 350 ms
+  of the last one are ignored.
+- Fix: after Keyboard off then on, the 5 white status keys (F1, F12, mute, mic, right Win) stayed dark until a color
+  was clicked. Turning the keyboard on now re-sends the full frame (status keys included) 150 ms later.
+
+**Notifications**
+- Classic card: 22 px corners (was 6 Legend / 9 Fluent), rounder icon tile, the Legend color bar sits inside the curve.
+- Pill: 440 x 62 (was 640 x 76). Same layout, tighter: icon 40, title 16, detail 12.5, smaller switch / dots / chip.
+
+**F7 probe**
+- crash.log showed F7 sends no consumer report (the 5 logged ones were screen brightness, volume and mute).
+  Settings > Advanced > **F7 test** watches for 20 s: every key down (vk / scan), every Alienware report, and the
+  keyboard's lighting state read back over HID when it changes. If anything follows F7, beta.3 makes the tile follow it.
+
+## v1.3.1-beta.1 (2026-10-18), tested: Off menu redesigned in beta.2
+**New**
+- Lighting > Off is a multi-select menu: Keyboard, Rear ring (chassis IDs 0 + 1), Alienhead (ID 3), All off. Any mix;
+  each tile applies at once, the button shows the count ("2 off"), "Turn all on" resets. Power button (ID 2) never sent.
+  Saved as `OffKeyboard` / `OffRing` / `OffAlienhead`; 1.3.0's black color migrates to all three off + cyan.
+
+**Fixes**
+- F7 after Off: the keyboard goes off through its hardware brightness (0) with frames held, the same path as the
+  keyboard timeout, instead of black colors, so the firmware F7 key has colors to light. The chassis lights still get
+  black. Off zones are skipped by every color, effect and animation path (no keyboard `setglobal` while it's off).
+- Spectrum (100) and Rainbow wave (101) were reset to Static by the settings validation on every start.
+- Keyboard timeout doesn't run while the keyboard is turned off.
+
+**Probe**
+- Any other report on the Alienware keyboard collection (not F2..F6) goes to crash.log once (max 32), to learn what
+  F7 sends. Event-driven, no idle cost.
 
 ## v1.3.0 (2026-10-18)
 Stable release of 1.3.0-beta.1 (confirmed on the m15 R7) and beta.2, plus the items below. Tested on the m15 R7

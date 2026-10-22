@@ -77,6 +77,23 @@ The names saved by `probe`/`status` are **wrong**. Mapped by lighting one ID at 
 
 `setdim` on device 1 also dimmed the power button and never reached 0 on the ring, so it isn't used.
 
+1.3.1 Off menu zones: Keyboard = device 0, Rear ring = IDs 0 + 1, Alienhead = ID 3 (chassis lights off = `setone` black).
+F7 (keyboard brightness) is handled by the firmware and sends **no consumer report** (1.3.1-beta.1 probe, 2026-10-18:
+only 02-6F / 02-70 screen brightness, 02-E9 / 02-EA volume, 02-E2 mute showed up). F7 has 3 steps (off, mid, full)
+that scale the app's brightness: at 50% it gives off, 25%, 50%. 1.3.1-beta.2's F7 test checks the low-level hook and
+an HID read-back next.
+Result (beta.2 F7 test, 2026-10-18 22:44): nothing at all. No key down in the low-level hook, no Alienware report, and the
+lighting state read back (feature A1-01-CC-00...) never changed; input report refused. **F7 is not on the macro collection
+or the key hook.** beta.4 watches every other Alienware HID collection (Amine: F7 is a Fn-lock row hotkey like F2..F5).
+Result (beta.4, 2026-10-18 23:07, hotkey mode): collections 187C:0550 FF00/01 and 0D62:CABC 0C/01 watched, nothing from
+F7 on either, no key down, state unchanged. **F7 is handled in the firmware / EC and is invisible to Windows**, so the
+Keyboard tile follows taps only. (With Fn-lock off F7 is a plain F7 key.)
+
+Keyboard off over HID: brightness 0 (0x83 turnOnSet) works on its own (timeout fade goes dark), but an alienfx-cli run
+right after it relit the keys and dropped the 5 status keys (beta.2: "only the 5 keys turn off"). Inferred: the CLI
+resets the keyboard brightness when it opens the devices. From beta.3 brightness 0 is re-sent after every CLI run while
+the keyboard is off or dark.
+
 ### Keyboard (device 0)
 - IDs don't follow physical key order and the saved probe names are unreliable. Esc = 0.
 - Firmware status keys (the key shows its normal color when off, white when the feature is on):

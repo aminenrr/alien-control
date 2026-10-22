@@ -56,7 +56,6 @@ public partial class MainWindow : Window
         App.ApplyTheme(_settings.Theme);
         Motion.Enabled = !_settings.ReduceMotion && Motion.WindowsAnimations;   // v0.8.2 Reduce motion; 1.3: + Windows Animation effects
         InitializeComponent();
-        ApplyWindowMode();   // 1.3.0-beta.1 debug: normal window / slide engine
         ReduceMotionToggle.IsChecked = _settings.ReduceMotion;
         ThemeLegend.IsChecked = IsLegend;
         ThemeFluent.IsChecked = !IsLegend;
@@ -72,6 +71,7 @@ public partial class MainWindow : Window
         F3OpensToggle.IsChecked = _settings.F3Opens;
         TaskbarToggle.IsChecked = _settings.ShowInTaskbar;
         ShowInTaskbar = _settings.ShowInTaskbar;
+        _macro.LightsHotkey += () => Dispatcher.BeginInvoke(new Action(async () => await CycleLightsAsync()));   // 1.3.1 Ctrl+Alt+F
         _macro.Pressed += k =>
         {
             if (k == 0) Dispatcher.BeginInvoke(new Action(async () => await CyclePresetAsync()));
@@ -172,7 +172,7 @@ public partial class MainWindow : Window
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
         InitAuto(); // v0.9.11 auto preset + toasts
         InitKbdTimeout();   // 1.3.0-beta.1
-        InitDebugToggles();
+        UpdateLightsButton();   // 1.3.1
         InitSettingsPage();   // 1.3.0-beta.2
         _ = Task.Run(() => FolderSafety.UserWritable(AppContext.BaseDirectory)).ContinueWith(t =>
         {
@@ -388,14 +388,15 @@ public partial class MainWindow : Window
         if (!_fx.IsAvailable) return;
         _gmodeOn = await _fan.GetGModeAsync() == true;
         await _fx.ResetHardwareDimAsync();
+        if (_settings.OffKeyboard) await Task.Run(() => _fx.Hid.SetOff(true));   // 1.3.1: before any frame goes out
         ReadIndicatorStates();
         UpdateF2Tint(ShownProfile);
         // Reapply the user's color after boot (firmware resets to its default); otherwise leave firmware lighting alone.
         if (_settings.LastColor is { Length: 3 } c)
         {
             if (_settings.LastEffect >= 100) await ApplyLightingAsync(c);
-            else if (_settings.LastEffect == 0) await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, _settings.Brightness);
-            else await _fx.SetEffectAsync(_settings.LastEffect, c, _settings.Brightness);
+            else if (_settings.LastEffect == 0) await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, LightBrightness);
+            else await _fx.SetEffectAsync(_settings.LastEffect, c, LightBrightness);
             _lightsManaged = true;
         }
         _indicatorTimer.Start();
@@ -430,7 +431,7 @@ public partial class MainWindow : Window
             var changed = ReadIndicatorStates();
             if (!_lightsManaged || _settings.LastEffect != 0) return; // a static frame would stop the effect
             // One full frame: writing a single status key would blank the others.
-            if (changed.Count > 0 || _f2Dirty) { _f2Dirty = false; await _fx.SetKeyboardAsync(_lastColor, _indicators, _settings.Brightness); }
+            if (changed.Count > 0 || _f2Dirty) { _f2Dirty = false; await _fx.SetKeyboardAsync(_lastColor, _indicators, LightBrightness); }
         }
         finally { _indicatorBusy = false; }
     }
@@ -672,7 +673,7 @@ public partial class MainWindow : Window
     private async Task ApplyColorAsync(byte[] c)
     {
         ReadIndicatorStates();
-        Report(await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, _settings.Brightness));
+        Report(await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, LightBrightness));
         _lightsManaged = true;
         ApplyAccent(c);
         _settings.LastColor = c;
@@ -694,7 +695,7 @@ public partial class MainWindow : Window
             return;
         }
         if (_settings.LastEffect == 0 || c.All(v => v == 0)) { await ApplyColorAsync(c); return; }
-        Report(await _fx.SetEffectAsync(_settings.LastEffect, c, _settings.Brightness));
+        Report(await _fx.SetEffectAsync(_settings.LastEffect, c, LightBrightness));
         _lightsManaged = true;
         ApplyAccent(c);
         _settings.LastColor = c;
@@ -720,6 +721,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void StartAnimation(bool wave)
     {
+        if (_settings.OffKeyboard) return;   // 1.3.1: keyboard turned off, nothing to animate (frames would be held anyway)
         var cts = new System.Threading.CancellationTokenSource();
         _anim = cts;
         var token = cts.Token;
@@ -730,7 +732,7 @@ public partial class MainWindow : Window
             {
                 var ind = new System.Collections.Generic.Dictionary<int, bool>(_indicators);
                 double hueBase = t;
-                _fx.SendFrame(i => HsvToRgb(wave ? hueBase + KeyColumn(i) * 15 : hueBase, 1), ind, _settings.Brightness);
+                _fx.SendFrame(i => HsvToRgb(wave ? hueBase + KeyColumn(i) * 15 : hueBase, 1), ind, LightBrightness);
                 t = (t + (wave ? 10 : 6)) % 360; // v0.6.3: about 1.7x faster (user found it slow)
                 try { await Task.Delay(50, token); } catch { break; }
             }
@@ -816,14 +818,6 @@ public partial class MainWindow : Window
             < 240 => (0d, x, c), < 300 => (x, 0d, c), _ => (c, 0d, x),
         };
         return new[] { (byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255) };
-    }
-
-    private async void LightsOff_Click(object sender, RoutedEventArgs e)
-    {
-        StopAnimation();
-        _lastColor = new byte[] { 0, 0, 0 };
-        SelectSwatch(_lastColor);
-        await ApplyColorAsync(_lastColor);
     }
 
     private void Brightness_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
