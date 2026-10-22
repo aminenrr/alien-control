@@ -83,6 +83,10 @@ public partial class MainWindow
         int n = LightsOffCount;
         if (n == 3) LightsIcon.SetResourceReference(ForegroundProperty, "TextMuted");
         else LightsIcon.SetResourceReference(ForegroundProperty, "AccentBrush");
+        // 1.3.5 (Amine): the icon showed the previous state (lit with all lights off, muted with all on): the path's
+        // stroke binding to the inherited foreground didn't refresh while the popup was open. A fresh icon instance
+        // (Icon.Laptop is x:Shared=False) binds to the new foreground every time.
+        LightsIcon.Content = TryFindResource("Icon.Laptop");
         LightsDot.Visibility = n is > 0 and < 3 ? Visibility.Visible : Visibility.Collapsed;
         LightsButton.ToolTip = n == 0 ? "Lights: all on" : n == 3 ? "Lights: all off" : "Lights off: " + string.Join(", ",
             new[] { _settings.OffKeyboard ? "keyboard" : null, _settings.OffRing ? "rear ring" : null, _settings.OffAlienhead ? "Alienhead" : null }
