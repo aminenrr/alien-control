@@ -218,6 +218,7 @@ public partial class MainWindow
         Log.Info("Lights", $"Ctrl+Alt+F: {title}");
         await SetZonesAsync(off, off, off, wasHalf != _settings.LightsHalf);
         if (_settings.Toasts)
-            Toast.Show(IsLegend, new Toast.Info(CurrentProfile, icon, title, "Keyboard · rear ring · Alienhead", Toast.Right.None, !off), Motion.Enabled);
+            Toast.Show(IsLegend, new Toast.Info(CurrentProfile, icon, title, "Keyboard · rear ring · Alienhead", Toast.Right.None, !off,
+                Accent: (Application.Current.Resources["AccentBrush"] as System.Windows.Media.SolidColorBrush)?.Color), Motion.Enabled);   // 1.3.5: laptop light colour
     }
 }
