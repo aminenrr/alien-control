@@ -47,7 +47,7 @@ public partial class MainWindow
     /// <summary>The timer runs only while it can matter: a timeout is set, the keys are lit (and plugged-in rules allow).</summary>
     private void UpdateKbdTimer()
     {
-        bool on = _settings.KbdTimeoutMin > 0 && !_kbdDark && (!_settings.KbdTimeoutBatteryOnly || !OnAc);
+        bool on = _settings.KbdTimeoutMin > 0 && !_kbdDark && !_settings.OffKeyboard && (!_settings.KbdTimeoutBatteryOnly || !OnAc);
         if (on && !_kbdTimer.IsEnabled) _kbdTimer.Start();
         else if (!on && _kbdTimer.IsEnabled) _kbdTimer.Stop();
         if (!on && _kbdDark && _settings.KbdTimeoutMin == 0) KbdWake();
@@ -55,7 +55,7 @@ public partial class MainWindow
 
     private void KbdTick()
     {
-        if (_kbdDark || _settings.KbdTimeoutMin <= 0) { UpdateKbdTimer(); return; }
+        if (_kbdDark || _settings.KbdTimeoutMin <= 0 || _settings.OffKeyboard) { UpdateKbdTimer(); return; }
         if (_settings.KbdTimeoutBatteryOnly && OnAc) { UpdateKbdTimer(); return; }
         if (_anim is not null) return;                                           // Rainbow / Spectrum running
         if (_settings.KbdTimeoutPauseFullscreen && FullscreenApp()) return;
