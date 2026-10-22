@@ -42,6 +42,9 @@ public sealed class GKeyHook : IDisposable
     /// <summary>Raised when the G-key goes down (debounced).</summary>
     public event Action? Pressed;
 
+    /// <summary>1.3.1-beta.2 F7 probe: while set (20 s, from Settings), every key down is reported (vk, scan, flags).</summary>
+    public Action<int, int, int>? Probe { get; set; }
+
     /// <summary>When set, the next key down is reported here (vk, scan) instead of being matched.</summary>
     public Action<int, int>? LearnNext { get; set; }
 
@@ -64,6 +67,7 @@ public sealed class GKeyHook : IDisposable
         if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
         {
             var k = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+            Probe?.Invoke((int)k.vkCode, (int)k.scanCode, (int)k.flags);
             AnyKey?.Invoke();   // 1.3.0-beta.1: only set while the keyboard backlight is timed out
             var learn = LearnNext;
             if (learn is not null)
