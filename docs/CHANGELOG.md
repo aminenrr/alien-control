@@ -10,7 +10,10 @@ Fix release. 1.3.4 was built from `main`, which never got the 1.3.1 to 1.3.3 wor
   no-flash light switching, status keys kept lit (1.3.1 to 1.3.3).
 - Kept: GPU OC in Performance toggle, G-MODE + PERF hint, OC state on toasts (1.3.4).
 - Pill toast: since 1.3.1 the pill is 440 wide, too narrow for the OC tag inline, so it gets its own line and the pill
-  grows to 76 px tall when the tag is shown (62 otherwise). Untested.
+  grows to 76 px tall when the tag is shown (62 otherwise).
+- Lights toast (Ctrl + Alt + F) uses the app accent, the laptop's light colour, instead of the current preset's tint
+  (was green under Balanced). New optional `Toast.Info.Accent`.
+- beta.1 tested on the m15 R7 (2026-10-22): lighting and OC features work together.
 
 ## v1.3.4 (2026-10-21)
 Stable release of 1.3.4-beta.1 to beta.4. Tested on the m15 R7 (2026-10-21): works.
