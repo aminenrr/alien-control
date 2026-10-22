@@ -48,10 +48,46 @@ public sealed class KeyboardHid
     private static IReadOnlyList<(byte id, byte r, byte g, byte b)>? _held;
     public static bool IsDark { get { lock (Gate) return _dark; } }
 
+    // 1.3.1: the user turned the keyboard off (Lighting > Off > Keyboard). Same mechanism as the timeout: hardware
+    // brightness 0 and frames held, so the colors stay in the firmware and F7 (the firmware brightness key) can bring
+    // the keys back. 1.3.0 painted the keys black instead, so F7 had nothing to light.
+    private static bool _off;
+    public static bool IsOff { get { lock (Gate) return _off; } }
+
+    /// <summary>1.3.1: keyboard off (brightness 0, frames held) or back on (full brightness + the newest held frame,
+    /// unless the timeout has it dark). Off is re-sent every call, since sleep / resume can reset the firmware level.</summary>
+    public bool SetOff(bool off)
+    {
+        IReadOnlyList<(byte id, byte r, byte g, byte b)>? held = null;
+        bool dark;
+        lock (Gate)
+        {
+            _off = off;
+            dark = _dark;
+            if (!off && !dark) { held = _held; _held = null; }
+        }
+        if (off) return WithDevice((dev, len) => SetBrightness(dev, len, 0));
+        if (dark) return true;                                   // the timeout wake restores it
+        bool ok = WithDevice((dev, len) => SetBrightness(dev, len, 255));
+        if (held is not null) ok &= SetKeys(held);
+        return ok;
+    }
+
+    /// <summary>1.3.1-beta.3: brightness 0 again while the keyboard is off or dark. beta.2 test: Keyboard off only blanked the
+    /// 5 status keys and the rest stayed lit. Most likely alienfx-cli (run right after, for the rear ring / Alienhead)
+    /// sets the keyboard's hardware brightness back to full when it opens the devices, and its reset drops the status keys
+    /// from the frame. The timeout (no CLI run after its fade) did go dark. So every CLI run is followed by this.</summary>
+    public bool Reassert()
+    {
+        lock (Gate) if (!_off && !_dark) return true;
+        return WithDevice((dev, len) => SetBrightness(dev, len, 0));
+    }
+
     /// <summary>Fades the keyboard's hardware brightness to 0 over ms (one-shot, ~10 steps). False = cancelled/failed.</summary>
     public bool FadeOut(int ms, System.Threading.CancellationToken token)
     {
         const int steps = 10;
+        lock (Gate) if (_off) { _dark = true; return true; }     // 1.3.1: already off, nothing to fade
         for (int i = steps - 1; i >= 0; i--)
         {
             if (token.IsCancellationRequested) return false;
@@ -67,7 +103,12 @@ public sealed class KeyboardHid
     public bool Wake()
     {
         IReadOnlyList<(byte id, byte r, byte g, byte b)>? held;
-        lock (Gate) { _dark = false; held = _held; _held = null; }
+        lock (Gate)
+        {
+            _dark = false;
+            if (_off) return true;                               // 1.3.1: user turned the keyboard off, stay off
+            held = _held; _held = null;
+        }
         bool ok = WithDevice((dev, len) => SetBrightness(dev, len, 255));
         if (held is not null) ok &= SetKeys(held);
         return ok;
@@ -76,7 +117,7 @@ public sealed class KeyboardHid
     /// <summary>Sends every key's color in one frame.</summary>
     public bool SetKeys(IReadOnlyList<(byte id, byte r, byte g, byte b)> keys)
     {
-        lock (Gate) if (_dark) { _held = keys; return true; }
+        lock (Gate) if (_dark || _off) { _held = keys; return true; }
         return WithDevice((dev, len) => SetKeys(dev, len, keys));
     }
 
@@ -110,6 +151,25 @@ public sealed class KeyboardHid
         var buf = NewBuffer(len, new byte[] { 0x83, 0x38, 0x9c });  // turnOnSet
         buf[4] = (byte)Math.Clamp(brightness, 0, 255);
         return ok & HidD_SetFeature(dev, buf, len);
+    }
+
+    /// <summary>
+    /// 1.3.1-beta.2 F7 probe (Settings > Advanced > Watch F7): reads what the lighting collection hands back, without
+    /// writing anything. Returns the feature report and the input report (report id 0xcc) as hex, or "fail" for one the
+    /// device refuses. If a byte follows F7, the app can show F7's level; if nothing changes, the firmware keeps it.
+    /// </summary>
+    public string ReadState()
+    {
+        string feat = "fail", input = "fail";
+        WithDevice((dev, len) =>
+        {
+            var b = new byte[len]; b[0] = ReportId;
+            if (HidD_GetFeature(dev, b, len)) feat = BitConverter.ToString(b, 0, Math.Min(len, 34));
+            var c = new byte[len]; c[0] = ReportId;
+            if (HidD_GetInputReport(dev, c, len)) input = BitConverter.ToString(c, 0, Math.Min(len, 34));
+            return true;   // a refused read is a result, not a dropped device
+        });
+        return $"feature {feat} | input {input}";
     }
 
     private static byte[] NewBuffer(int len, byte[] cmd)
@@ -188,6 +248,8 @@ public sealed class KeyboardHid
     [DllImport("hid.dll")] private static extern bool HidD_FreePreparsedData(IntPtr p);
     [DllImport("hid.dll")] private static extern int HidP_GetCaps(IntPtr p, out HIDP_CAPS c);
     [DllImport("hid.dll")] private static extern bool HidD_SetFeature(SafeFileHandle h, byte[] b, int len);
+    [DllImport("hid.dll")] private static extern bool HidD_GetFeature(SafeFileHandle h, byte[] b, int len);
+    [DllImport("hid.dll")] private static extern bool HidD_GetInputReport(SafeFileHandle h, byte[] b, int len);
     [DllImport("setupapi.dll")] private static extern IntPtr SetupDiGetClassDevs(ref Guid g, IntPtr e, IntPtr w, int f);
     [DllImport("setupapi.dll")] private static extern bool SetupDiEnumDeviceInterfaces(IntPtr s, IntPtr d, ref Guid g, uint i, ref SP_DEVICE_INTERFACE_DATA data);
     [DllImport("setupapi.dll", CharSet = CharSet.Unicode)] private static extern bool SetupDiGetDeviceInterfaceDetail(IntPtr s, ref SP_DEVICE_INTERFACE_DATA d, IntPtr detail, int size, out int req, IntPtr info);
