@@ -482,12 +482,40 @@
                                             </Border>
                                         </Popup>
                                     </StackPanel>
-                                    <Button Style="{DynamicResource GhostButton}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="LightsOff_Click" ToolTip="Lights off">
-                                        <StackPanel Orientation="Horizontal">
-                                            <ContentControl Style="{DynamicResource ButtonIcon}" Content="{DynamicResource Icon.Power}" />
-                                            <TextBlock Text="Off" VerticalAlignment="Center" />
-                                        </StackPanel>
+                                    <!-- 1.3.1-beta.2: laptop button opens the Lights menu (tiles lit = light on), MainWindow.Lights.cs -->
+                                    <Button x:Name="LightsButton" Style="{DynamicResource GhostButton}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                            Click="Lights_Click" ToolTip="Lights">
+                                        <Grid>
+                                            <ContentControl x:Name="LightsIcon" Content="{DynamicResource Icon.Laptop}" Width="16" Height="16" Focusable="False" IsTabStop="False" />
+                                            <Ellipse x:Name="LightsDot" Width="7" Height="7" Fill="#FFB020" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                     Margin="0,-4,-5,0" Visibility="Collapsed" IsHitTestVisible="False" />
+                                        </Grid>
                                     </Button>
+                                    <Popup x:Name="LightsPopup" PlacementTarget="{Binding ElementName=LightsButton}" Placement="Top"
+                                           StaysOpen="False" AllowsTransparency="True" VerticalOffset="-6" Closed="LightsPopup_Closed">
+                                        <Border x:Name="LightsPanel" Style="{DynamicResource PopupPanel}" Width="368" UseLayoutRounding="True"
+                                                TextOptions.TextFormattingMode="Display" RenderOptions.ClearTypeHint="Enabled" PreviewKeyDown="LightsPanel_KeyDown">
+                                            <StackPanel>
+                                                <Grid Margin="0,0,0,10">
+                                                    <TextBlock Text="Lights" Style="{DynamicResource PopupTitle}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Lit = on · tap to switch" Style="{DynamicResource BodyText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                                </Grid>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
+                                                            KeyboardNavigation.DirectionalNavigation="Cycle" KeyboardNavigation.TabNavigation="Cycle">
+                                                    <CheckBox x:Name="ZoneKeyboard" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Keys}" Content="Keyboard"
+                                                              Click="Zone_Click" ToolTip="Keyboard backlight. F7 still sets its level" />
+                                                    <CheckBox x:Name="ZoneRing" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Ring}" Content="Rear ring"
+                                                              Click="Zone_Click" ToolTip="The light bar around the back" />
+                                                    <CheckBox x:Name="ZoneHead" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Alien}" Content="Alienhead"
+                                                              Click="Zone_Click" ToolTip="The logo on the lid" />
+                                                    <Border Width="1" Margin="0,10,8,10" Background="{DynamicResource TextMuted}" Opacity="0.35" />
+                                                    <Button x:Name="ZoneAll" Style="{DynamicResource ZoneAction}" Tag="{DynamicResource Icon.BulbOff}" Content="Turn off"
+                                                            Click="ZoneAll_Click" ToolTip="Keyboard, rear ring and Alienhead. The power button light is never changed" />
+                                                </StackPanel>
+                                                <TextBlock Text="F7 still sets the keyboard level" Style="{DynamicResource BodyText}" Margin="0,12,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Popup>
                                 </Grid>
                                 <Grid x:Name="LightFxRow" Margin="0,10,0,0">
                                     <Grid.ColumnDefinitions>
@@ -876,21 +904,6 @@
                     <Border x:Name="SetAdvanced" Style="{DynamicResource SetCard}" VerticalAlignment="Top" Visibility="Hidden">
                         <StackPanel>
                             <Border Style="{DynamicResource SetRowFirst}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Log frame gaps" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Each slide's steps/s to crash.log" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="FrameLogToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="Debug_Click" ToolTip="For testing animations" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
