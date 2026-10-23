@@ -87,6 +87,9 @@ public sealed class Settings
     /// <summary>1.3.4 (Amine, 2026-10-21): header toggle in the GPU OC section. On = the kept offsets also apply in the
     /// Performance preset (on AC), not just G-Mode. Off (default) = G-Mode only, as before.</summary>
     public bool OcInPerformance { get; set; } = false;
+    /// <summary>2.0.0-beta1.2 (Amine): G-MODE and + PERF are separate switches. On (default, as before) = the kept
+    /// offsets apply in G-Mode (on AC). Both off = the overclock never runs, even with offsets kept.</summary>
+    public bool OcInGMode { get; set; } = true;
 
     /// <summary>Tray profile: Battery, Quiet, Balanced, Performance or Custom.</summary>
     public string Profile { get; set; } = "Custom";
