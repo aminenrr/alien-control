@@ -15,6 +15,15 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
+      - name: XAML duplicate keys
+        shell: pwsh
+        run: |
+          $bad = $false
+          Get-ChildItem src -Recurse -Filter *.xaml | ForEach-Object {
+            $keys = [regex]::Matches((Get-Content $_.FullName -Raw), 'x:Key="([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
+            $keys | Group-Object | Where-Object Count -gt 1 | ForEach-Object { Write-Host "::error::duplicate x:Key '$($_.Name)'"; $bad = $true }
+          }
+          if ($bad) { exit 1 }
       - name: Test
         run: dotnet test tests/AlienControl.Tests -c Release
       - name: Publish

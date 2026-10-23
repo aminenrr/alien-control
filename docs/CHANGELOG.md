@@ -3,6 +3,12 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta1.1 (2026-10-23, prerelease)
+Hotfix for beta1, which closed on launch without showing anything.
+- **Fix**: the 2.0 styles file had two resources named `Card2` (a brush and the card style), so WPF threw while
+  loading the theme and the app quit before the window or tray icon appeared. The unused brush is now `Card2Brush`.
+- **CI**: the build now fails if any XAML file declares the same `x:Key` twice.
+
 ## v2.0.0-beta1 (2026-10-23, prerelease)
 The new 2.0 look, built from the approved mockups (docs/mockups/2.0). All 1.3.5 features, new layout. The in-game
 overlay comes in 2.0.0-beta2. Branch `v2.0`. Untested on the laptop.

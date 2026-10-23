@@ -36,7 +36,7 @@
 
     <SolidColorBrush x:Key="Line2" Color="#1C2127" />
     <SolidColorBrush x:Key="LineSoft" Color="#16191E" />
-    <SolidColorBrush x:Key="Card2" Color="#0E1013" />
+    <SolidColorBrush x:Key="Card2Brush" Color="#0E1013" />
     <SolidColorBrush x:Key="SelBg" Color="#0A1A1F" />
     <SolidColorBrush x:Key="TextFaint" Color="#6E7A86" />
     <!-- rainbow swatch (custom colour), as in the mockup: warm top, cool bottom -->
