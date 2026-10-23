@@ -19,6 +19,7 @@ namespace AlienControl;
 /// </summary>
 public partial class MainWindow
 {
+    // 2.0.0-beta1.3 (ui review #1): the one lighting gate. Zone changes and every ApplyLightingAsync go through it.
     private readonly SemaphoreSlim _zoneGate = new(1, 1);
     private bool _zoneUiBusy;
     private long _zoneLastClick;
@@ -107,7 +108,7 @@ public partial class MainWindow
                     UpdateKbdTimer();
                 }
                 _f2Dirty = true;
-                await ApplyLightingAsync(_lastColor);
+                await ApplyLightingCoreAsync(_lastColor);   // 2.0.0-beta1.3: this method already holds the lighting gate
                 if (kbChanged && !keyboard) await RefreshStatusKeysAsync();
                 SelectSwatch(_lastColor);
                 return;
