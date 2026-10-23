@@ -310,6 +310,41 @@
             </Setter.Value>
         </Setter>
     </Style>
+    <!-- 2.0.0-beta1.2: same look as PillItem2, but each item switches on and off on its own (GPU OC G-MODE / + PERF) -->
+    <Style x:Key="PillToggle2" TargetType="ToggleButton">
+        <Setter Property="Foreground" Value="#6E7A86" />
+        <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <Border x:Name="Bd" CornerRadius="3" Background="Transparent" />
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="#A9B4BF" /></Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#06303A" />
+                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!-- 2.0.0-beta1.2: thin vertical divider between the items of a strip -->
+    <Style x:Key="StripDivider2" TargetType="Border">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Height" Value="14" />
+        <Setter Property="Background" Value="#1C2127" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
     <!-- body-font variant (Pill / Classic, Soft / Classic in Settings) -->
     <Style x:Key="PillItemText2" TargetType="RadioButton" BasedOn="{StaticResource PillItem2}">
         <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
