@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace AlienControl.Services;
@@ -29,16 +28,38 @@ public static class CpuFreq
         return await Run("/setactive scheme_current");
     }
 
+    /// <summary>2.0.0-beta1.3 (services review #2): clears the cap synchronously (no cap on AC or battery), for the
+    /// crash handler and Windows ending the session, where nothing async gets to run. Each powercfg call has a 3 s
+    /// timeout.</summary>
+    public static string? Clear()
+    {
+        foreach (var g in new[] { Max0, Max1 })
+        {
+            var e = RunSync($"/setacvalueindex scheme_current {Sub} {g} 0") ?? RunSync($"/setdcvalueindex scheme_current {Sub} {g} 0");
+            if (e is not null && g == Max0) return e;   // PROCFREQMAX1 is missing on non-hybrid CPUs: fine
+        }
+        return RunSync("/setactive scheme_current");
+    }
+
+    // 2.0.0-beta1.3 (services review #7): through ProcessRunner (timeout, stdout and stderr read together)
+    private const int TimeoutMs = 10000;
+
     private static async Task<string?> Run(string args)
     {
         try
         {
-            var psi = new ProcessStartInfo(SysExe.Get("powercfg.exe"), args)
-            { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
-            using var p = Process.Start(psi)!;
-            string o = await p.StandardOutput.ReadToEndAsync() + await p.StandardError.ReadToEndAsync();
-            await p.WaitForExitAsync();
-            return p.ExitCode == 0 ? null : "powercfg: " + o.Trim();
+            var r = await ProcessRunner.RunAsync(SysExe.Get("powercfg.exe"), args, TimeoutMs, kill: true);
+            return r.Started && !r.TimedOut && r.ExitCode == 0 ? null : "powercfg: " + r.Output;
+        }
+        catch (System.Exception ex) { return "powercfg: " + ex.Message; }
+    }
+
+    private static string? RunSync(string args)
+    {
+        try
+        {
+            var r = ProcessRunner.Run(SysExe.Get("powercfg.exe"), args, 3000);
+            return r.Started && !r.TimedOut && r.ExitCode == 0 ? null : "powercfg: " + r.Output;
         }
         catch (System.Exception ex) { return "powercfg: " + ex.Message; }
     }
