@@ -75,9 +75,10 @@ public sealed class PowerMeter : IDisposable
     }
 
     // ---------- GPU: NVML ----------
+    // 2.0.0-beta1.3 (services review #1): through the shared NvmlSession (one lock and one handle with GpuOc; closed
+    // and refused while the RTX is removed). The meter keeps the session open between samples, as before.
 
-    private bool _nvmlDead, _nvmlUp;
-    private IntPtr _nvDevice;
+    private bool _nvmlDead;
 
     private readonly object _nvLock = new();
     private bool _gpuOff;
@@ -92,7 +93,7 @@ public sealed class PowerMeter : IDisposable
             lock (_nvLock)
             {
                 _gpuOff = value;
-                if (value && _nvmlUp) { try { Nvml.nvmlShutdown(); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("PowerMeter.cs:95", __e); } _nvmlUp = false; }
+                if (value) NvmlSession.Release();
             }
         }
     }
@@ -107,14 +108,12 @@ public sealed class PowerMeter : IDisposable
         if (_nvmlDead || _gpuOff) return null;
         try
         {
-            if (!_nvmlUp)
+            // driver present but GPU off (iGPU only), or the RTX is being switched: retry later
+            return NvmlSession.Run<double?>(true, dev =>
             {
-                if (Nvml.nvmlInit_v2() != 0) return null;              // driver present but GPU off (iGPU only): retry later
-                if (Nvml.nvmlDeviceGetHandleByIndex_v2(0, out _nvDevice) != 0) { Nvml.nvmlShutdown(); return null; }
-                _nvmlUp = true;
-            }
-            if (Nvml.nvmlDeviceGetPowerUsage(_nvDevice, out uint mw) != 0) { Nvml.nvmlShutdown(); _nvmlUp = false; return null; }
-            return mw / 1000.0;
+                if (Nvml.nvmlDeviceGetPowerUsage(dev, out uint mw) != 0) { NvmlSession.Release(); return null; }
+                return mw / 1000.0;
+            }, (_, _) => null);
         }
         catch (DllNotFoundException) { _nvmlDead = true; }
         catch (EntryPointNotFoundException) { _nvmlDead = true; }
@@ -246,6 +245,8 @@ public sealed class PowerMeter : IDisposable
     public void Dispose()
     {
         _rapl?.Dispose();
-        if (_nvmlUp) { try { Nvml.nvmlShutdown(); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("PowerMeter.cs:249", __e); } _nvmlUp = false; }
+        // 2.0.0-beta1.3 (services review #1): under the NVML lock, so a Sample() still running on a pool thread
+        // finishes its read before the session closes
+        lock (_nvLock) { _gpuOff = true; NvmlSession.Release(); }
     }
 }

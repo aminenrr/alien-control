@@ -3,6 +3,37 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta1.3 (2026-10-23, prerelease)
+Tier 1 fixes from the 2.0 code review (services + UI). Untested on the laptop.
+- **NVML**: one shared session (`NvmlSession`, one lock, one handle) for the GPU overclock and the power readout.
+  RTX off / on calls `BeginDeviceRemoval` / `EndDeviceRemoval`, so no NVML call runs while pnputil removes or re-adds
+  the RTX (an in-flight OC write could, the 1.2.0-beta.4 crash class). `PowerMeter.Dispose` takes the lock. The OC
+  range check and the both-or-zero rollback are unchanged.
+- **Crash, logoff, shutdown**: the two fatal crash handlers and Windows ending the session put the OC back to +0 and
+  clear the CPU cap (synchronous, bounded). Startup reads the driver's offsets on AC (`GpuOc.Read`, the same
+  `nvmlDeviceGetClockOffsets` call) instead of assuming +0. Settings that fall back to defaults count as `OcPending`
+  (one +0 write on start, silent).
+- **Reset settings** awaits Quit's cleanup (CPU cap cleared, boost restored, no iGPU prompt) and no longer blocks the
+  UI thread (`RestoreBoostOnExit` and its `.Wait(4000)` are gone).
+- **Lights**: one lighting gate for every apply and zone change, and starting an animation stops the old one (two
+  Spectrum / Rainbow loops could run, one unstoppable).
+- **Commands**: one gate for G-Mode, presets and power modes (F1, Home switch, Tuning radios, tray, Home tiles,
+  header, F2, Auto preset, resume). F1 shares the Home switch's busy state; a second F1 during a switch toggles the
+  state being switched to (never "on" twice). State re-read, status keys and OC sync mark themselves dirty and run
+  again after the current run instead of being dropped (OC +0 on unplug during a write).
+- **Minimized**: no sensor polling while minimized; restore starts it again.
+- **Keyboard timeout**: a fade generation bumped by `Wake` (checked under the HID lock) fixes keys lit but "dark";
+  `SetOff` / `Wake` send the held frame inside the lock. The 30 ms wake delay is gone.
+- **Run on startup**: the task XML in %TEMP% is locked (deny write / delete) and verified while schtasks reads it. The
+  task is rebuilt when its `<Command>` isn't the running exe.
+- **Refresh rate** targets the internal panel (QueryDisplayConfig, shared with GpuMode), the primary display only when
+  no internal panel is active.
+- **Processes**: pnputil, net and powercfg run through `ProcessRunner` (timeout, stdout and stderr read together).
+  pnputil is never killed: after 60 s the app reports it and keeps NVML closed until it exits.
+- **UI text**: Lights hint **CTRL + ALT + F · LIGHT LEVEL** (was F7 · KEYBOARD LEVEL), Keyboard tile tooltip and
+  README Zones line name Ctrl + Alt + F instead of F7.
+- **Tests**: settings defaults mark `OcPending`; the startup task is rebuilt for another exe path.
+
 ## v2.0.0-beta1.2 (2026-10-23, prerelease)
 Three beta1 fixes. Untested on the laptop.
 - **Live strips**: Tuning strip is now CPU | GPU | PWR | FANS (fans far right, the fans value no longer runs into

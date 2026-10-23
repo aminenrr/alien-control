@@ -92,7 +92,7 @@ on the laptop. In 2.0.0-beta1 the Overlay tab is shown but disabled ("Coming in 
 - Fans, temps, **CPU % / GPU %** (v1.3) and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
 - Per-key keyboard color and effects, chassis lights, status keys (G-Mode, mutes, touchpad) lit by the app.
 - **Zones** (v1.3.1, inline on the Lights tab since 2.0): tiles for the keyboard, the rear ring and the Alienhead (lit = on,
-  tap to switch) plus Turn off / Turn on. F7 still sets the keyboard level after it's off. The power button light is never touched.
+  tap to switch) plus Turn off / Turn on. Ctrl + Alt + F cycles the light level of all three (full, off, 50%). The power button light is never touched.
 - **Keyboard light timeout** (v1.3): fades the keys out after 1 / 2 / 5 / 10 min without input (optionally on battery
   only, paused in fullscreen games); any key, mouse or touchpad input brings them straight back.
 - GPU mode: Advanced Optimus / Ultimate through the Dell BIOS switch (restart prompt), plus **iGPU only** (v1.2): turns the RTX off for battery life when NVIDIA is set to Optimus. It lists the apps using the RTX first, and HDMI / Mini DP stay dark until you switch back.

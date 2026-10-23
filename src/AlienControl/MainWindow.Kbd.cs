@@ -93,7 +93,8 @@ public partial class MainWindow
         InputThread.Dispatcher.BeginInvoke(new Action(() => _macro.WatchMouse(null)));
         _ = Task.Run(async () =>
         {
-            await Task.Delay(30);   // let a cancelled fade step finish
+            // 2.0.0-beta1.3 (services review #3): no 30 ms wait for a cancelled fade step any more. Wake bumps the fade
+            // generation under the HID lock, so the fade can't set "dark" after it.
             _fx.Hid.Wake();
             await Dispatcher.InvokeAsync(async () => { _f2Dirty = true; await SyncIndicatorsAsync(); }).Task.Unwrap();
         });

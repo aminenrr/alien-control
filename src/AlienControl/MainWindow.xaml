@@ -541,7 +541,7 @@
                                 <ColumnDefinition Width="*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <CheckBox x:Name="ZoneKeyboard" Grid.Column="0" Style="{DynamicResource ZoneTile}" Width="Auto" Height="Auto" Margin="0" FontSize="12"
-                                      Tag="{DynamicResource Icon.Keys}" Content="Keyboard" Click="Zone_Click" ToolTip="Keyboard backlight. F7 still sets its level" />
+                                      Tag="{DynamicResource Icon.Keys}" Content="Keyboard" Click="Zone_Click" ToolTip="Keyboard backlight. Ctrl + Alt + F cycles the light level" />
                             <CheckBox x:Name="ZoneRing" Grid.Column="2" Style="{DynamicResource ZoneTile}" Width="Auto" Height="Auto" Margin="0" FontSize="12"
                                       Tag="{DynamicResource Icon.Ring}" Content="Rear ring" Click="Zone_Click" ToolTip="The light bar around the back" />
                             <CheckBox x:Name="ZoneHead" Grid.Column="4" Style="{DynamicResource ZoneTile}" Width="Auto" Height="Auto" Margin="0" FontSize="12"
@@ -586,7 +586,7 @@
                             <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Sparkles}" />
                             <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Fx}" Style="{DynamicResource SecTitle2}" />
                             <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
-                            <TextBlock Grid.Column="3" Text="F7 · KEYBOARD LEVEL" Style="{DynamicResource SecHint2}" />
+                            <TextBlock Grid.Column="3" Text="CTRL + ALT + F · LIGHT LEVEL" Style="{DynamicResource SecHint2}" />
                         </Grid>
                         <Border Style="{DynamicResource Card2}" Height="52" Padding="12,0">
                             <Grid VerticalAlignment="Center">

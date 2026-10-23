@@ -35,14 +35,33 @@ public static class Startup
             return;
         }
         // battery conditions from the pre-1.3 task, or a task pointing at another exe path: rebuild it
-        if (Schtasks($"/Query /TN \"{TaskName}\" /XML", out var xml) == 0 && NeedsRebuild(xml)) SetEnabled(true);
+        if (Schtasks($"/Query /TN \"{TaskName}\" /XML", out var xml) == 0 && NeedsRebuild(xml, Environment.ProcessPath)) SetEnabled(true);
     }
 
-    internal static bool NeedsRebuild(string xml) =>
+    /// <summary>2.0.0-beta1.3 (services review #4): exe = the running exe. The task is also rebuilt when its
+    /// &lt;Command&gt; points somewhere else (a release zip extracted to a new folder kept launching the old exe).
+    /// Null exe skips that check.</summary>
+    internal static bool NeedsRebuild(string xml, string? exe = null) =>
         xml.Contains("<DisallowStartIfOnBatteries>true", StringComparison.OrdinalIgnoreCase)
         || xml.Contains("<StopIfGoingOnBatteries>true", StringComparison.OrdinalIgnoreCase)
         || xml.Contains("<ExecutionTimeLimit>PT72H", StringComparison.OrdinalIgnoreCase)
-        || !xml.Contains("<DisallowStartIfOnBatteries>", StringComparison.OrdinalIgnoreCase);
+        || !xml.Contains("<DisallowStartIfOnBatteries>", StringComparison.OrdinalIgnoreCase)
+        || (!string.IsNullOrEmpty(exe) && !SamePath(TaskCommand(xml), exe));
+
+    /// <summary>The task's &lt;Command&gt;, XML entities decoded and quotes trimmed; null when there is none.</summary>
+    internal static string? TaskCommand(string xml)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(xml, @"<Command>(.*?)</Command>",
+            System.Text.RegularExpressions.RegexOptions.Singleline | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return m.Success ? System.Net.WebUtility.HtmlDecode(m.Groups[1].Value).Trim().Trim('"') : null;
+    }
+
+    private static bool SamePath(string? a, string b)
+    {
+        if (string.IsNullOrEmpty(a)) return false;
+        try { return string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase); }
+        catch { return string.Equals(a, b, StringComparison.OrdinalIgnoreCase); }
+    }
 
     private static bool Exists(string name) => Schtasks($"/Query /TN \"{name}\"", out _) == 0;
 
@@ -52,9 +71,25 @@ public static class Startup
         var exe = Environment.ProcessPath ?? "";
         var user = $"{Environment.UserDomainName}\\{Environment.UserName}";
         var file = Path.Combine(Path.GetTempPath(), $"AlienControls-task-{Guid.NewGuid():N}.xml");
+        var enc = System.Text.Encoding.Unicode;
+        byte[] bytes = [.. enc.GetPreamble(), .. enc.GetBytes(TaskXml(exe, user))];
         try
         {
-            File.WriteAllText(file, TaskXml(exe, user), System.Text.Encoding.Unicode);
+            // 2.0.0-beta1.3 (services review #4): %TEMP% is writable by any unelevated process of this user, and the
+            // task runs elevated at every logon. The file is written, then reopened read-only with FileShare.Read
+            // (no write, no delete, no rename) and held open until schtasks exits. Its bytes are read back through that
+            // handle first, so a file swapped between the write and the reopen is refused instead of registered.
+            using (var w = new FileStream(file, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            { w.Write(bytes); w.Flush(true); }
+            using var pin = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var back = new byte[bytes.Length + 1];
+            int n = 0, k;
+            while (n < back.Length && (k = pin.Read(back, n, back.Length - n)) > 0) n += k;
+            if (n != bytes.Length || !back.AsSpan(0, n).SequenceEqual(bytes))
+            {
+                Log.Info("Startup", "task XML changed on disk before schtasks read it: not registered");
+                return false;
+            }
             return Schtasks($"/Create /TN \"{TaskName}\" /XML \"{file}\" /F", out _) == 0;
         }
         catch (Exception ex) { Log.Warn("Startup.SetEnabled", ex); return false; }

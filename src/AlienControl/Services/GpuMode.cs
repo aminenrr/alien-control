@@ -178,25 +178,59 @@ public static class GpuMode
     private const uint QDC_ONLY_ACTIVE_PATHS = 2;
     private const uint OUTPUT_INTERNAL = 0x80000000, OUTPUT_LVDS = 6, OUTPUT_DP_EMBEDDED = 11, OUTPUT_UDI_EMBEDDED = 13;
 
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct SOURCE_NAME
+    {
+        public uint type, size; public LUID adapterId; public uint id;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string viewGdiDeviceName;
+    }
+    [DllImport("user32.dll")] private static extern int DisplayConfigGetDeviceInfo(ref SOURCE_NAME info);
+
+    /// <summary>2.0.0-beta1.3: the active path that drives the built-in panel (internal output technology), shared by
+    /// InternalPanelOnNvidia and InternalPanelGdiName. False = no internal panel active (lid closed), null = unknown.</summary>
+    private static bool? FindInternalPath(out PATH_INFO path)
+    {
+        path = default;
+        if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out uint np, out uint nm) != 0) return null;
+        var paths = new PATH_INFO[np];
+        var modes = new MODE_INFO[nm];
+        if (QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero) != 0) return null;
+        for (int i = 0; i < np; i++)
+        {
+            uint tech = paths[i].target.outputTechnology;
+            if (tech != OUTPUT_INTERNAL && tech != OUTPUT_LVDS && tech != OUTPUT_DP_EMBEDDED && tech != OUTPUT_UDI_EMBEDDED) continue;
+            path = paths[i];
+            return true;
+        }
+        return false;
+    }
+
     /// <summary>True when an NVIDIA adapter (VEN_10DE) drives the built-in panel, null if unknown.</summary>
     public static bool? InternalPanelOnNvidia()
     {
         try
         {
-            if (GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, out uint np, out uint nm) != 0) return null;
-            var paths = new PATH_INFO[np];
-            var modes = new MODE_INFO[nm];
-            if (QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ref np, paths, ref nm, modes, IntPtr.Zero) != 0) return null;
-            for (int i = 0; i < np; i++)
-            {
-                uint tech = paths[i].target.outputTechnology;
-                if (tech != OUTPUT_INTERNAL && tech != OUTPUT_LVDS && tech != OUTPUT_DP_EMBEDDED && tech != OUTPUT_UDI_EMBEDDED) continue;
-                var name = new ADAPTER_NAME { type = 4, size = (uint)Marshal.SizeOf<ADAPTER_NAME>(), adapterId = paths[i].target.adapterId };
-                if (DisplayConfigGetDeviceInfo(ref name) != 0) return null;
-                return name.adapterDevicePath.Contains("VEN_10DE", StringComparison.OrdinalIgnoreCase);
-            }
+            if (FindInternalPath(out var path) != true) return null;
+            var name = new ADAPTER_NAME { type = 4, size = (uint)Marshal.SizeOf<ADAPTER_NAME>(), adapterId = path.target.adapterId };
+            if (DisplayConfigGetDeviceInfo(ref name) != 0) return null;
+            return name.adapterDevicePath.Contains("VEN_10DE", StringComparison.OrdinalIgnoreCase);
         }
         catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.cs:196", __e); }
+        return null;
+    }
+
+    /// <summary>2.0.0-beta1.3 (services review #6): GDI name (\\.\DISPLAYn) of the built-in panel, for the refresh
+    /// rate. Null when no internal panel is active or it can't be read.</summary>
+    public static string? InternalPanelGdiName()
+    {
+        try
+        {
+            if (FindInternalPath(out var path) != true) return null;
+            var name = new SOURCE_NAME { type = 1, size = (uint)Marshal.SizeOf<SOURCE_NAME>(), adapterId = path.source.adapterId, id = path.source.id };
+            if (DisplayConfigGetDeviceInfo(ref name) != 0) return null;
+            return string.IsNullOrEmpty(name.viewGdiDeviceName) ? null : name.viewGdiDeviceName;
+        }
+        catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.InternalPanelGdiName", __e); }
         return null;
     }
 
@@ -257,26 +291,35 @@ public static class GpuMode
             int session = Process.GetCurrentProcess().SessionId;
             bool tray = Process.GetProcessesByName("nvcontainer").Any(p => { try { return p.SessionId == session; } catch { return false; } });
             if (tray) return;
+            // 2.0.0-beta1.3 (services review #7): 60 s timeout per net call, output read (it used to be redirected and never read)
             foreach (var verb in new[] { "stop", "start" })
             {
-                using var p = Process.Start(new ProcessStartInfo(SysExe.Get("net.exe"), $"{verb} NVDisplay.ContainerLocalSystem")
-                { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true })!;
-                await p.WaitForExitAsync();
+                var r = await ProcessRunner.RunAsync(SysExe.Get("net.exe"), $"{verb} NVDisplay.ContainerLocalSystem", 60000, kill: true);
+                if (r.TimedOut || r.ExitCode != 0) Log.Info("NvidiaTray", $"net {verb}: {(r.TimedOut ? "timed out" : $"exit {r.ExitCode}")} {r.Output}");
             }
         }
         catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.cs:264", __e); }
     }
 
+    /// <summary>2.0.0-beta1.3 (services review #7): how long the RTX switch waits for pnputil. After that the app stops
+    /// waiting and reports it, but pnputil is never killed mid-operation: PnpIdle completes once it has exited.</summary>
+    internal const int PnpTimeoutMs = 60000;
+
+    /// <summary>Completes when no pnputil run started by the app is still going (one that timed out may still be).</summary>
+    public static Task PnpIdle { get; private set; } = Task.CompletedTask;
+
     private static async Task<(bool Ok, string Output)> PnpUtil(string verb, string id)
     {
         try
         {
-            var psi = new ProcessStartInfo(SysExe.Get("pnputil.exe"), $"/{verb} \"{id}\"")
-            { CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
-            using var p = Process.Start(psi)!;
-            string o = await p.StandardOutput.ReadToEndAsync() + await p.StandardError.ReadToEndAsync();
-            await p.WaitForExitAsync();
-            return (p.ExitCode == 0 || p.ExitCode == 3010, o.Trim());
+            var r = await ProcessRunner.RunAsync(SysExe.Get("pnputil.exe"), $"/{verb} \"{id}\"", PnpTimeoutMs, kill: false);
+            if (!r.Started) return (false, r.Output);
+            if (r.TimedOut)
+            {
+                PnpIdle = r.Pending;
+                return (false, $"no answer after {PnpTimeoutMs / 1000} s. It may still finish: check again in a minute, or restart if the GPU row stays wrong.");
+            }
+            return (r.ExitCode == 0 || r.ExitCode == 3010, r.Output);
         }
         catch (Exception ex) { return (false, ex.Message); }
     }

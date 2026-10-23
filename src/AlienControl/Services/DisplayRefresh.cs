@@ -6,7 +6,8 @@ using System.Runtime.InteropServices;
 namespace AlienControl.Services;
 
 /// <summary>
-/// Refresh rate of the primary (built-in) display through EnumDisplaySettings / ChangeDisplaySettingsEx.
+/// Refresh rate of the built-in display through EnumDisplaySettings / ChangeDisplaySettingsEx (2.0.0-beta1.3: the
+/// internal panel, was the primary display).
 /// The resolution and color depth are kept; only dmDisplayFrequency changes. Read on demand, never polled.
 /// </summary>
 public static class DisplayRefresh
@@ -64,6 +65,11 @@ public static class DisplayRefresh
         return null;
     }
 
+    /// <summary>2.0.0-beta1.3 (services review #6): the built-in panel (QueryDisplayConfig, internal output technology,
+    /// the same path GpuMode uses), so an external monitor set as primary is never switched. The primary display only
+    /// when no internal panel is active (lid closed) or it can't be read.</summary>
+    private static string? TargetDevice() => GpuMode.InternalPanelGdiName() ?? PrimaryDevice();
+
     private static DEVMODE NewMode() => new() { dmSize = (short)Marshal.SizeOf<DEVMODE>(), dmDeviceName = "", dmFormName = "" };
 
     public sealed record State(int CurrentHz, int Width, int Height, IReadOnlyList<int> AvailableHz);
@@ -73,7 +79,7 @@ public static class DisplayRefresh
     {
         try
         {
-            var dev = PrimaryDevice();
+            var dev = TargetDevice();
             var cur = NewMode();
             if (!EnumDisplaySettings(dev, ENUM_CURRENT_SETTINGS, ref cur)) return null;
             var rates = new SortedSet<int>();
@@ -95,7 +101,7 @@ public static class DisplayRefresh
 
     public static bool IsActive(State s, int targetHz) => Math.Abs(s.CurrentHz - targetHz) <= 5;
 
-    /// <summary>Switches the primary display to targetHz. Returns null on success or an error message.</summary>
+    /// <summary>Switches the built-in display to targetHz. Returns null on success or an error message.</summary>
     public static string? Set(int targetHz)
     {
         try
@@ -104,7 +110,7 @@ public static class DisplayRefresh
             if (s is null) return "Couldn't read the display mode.";
             if (Match(s, targetHz) is not { } hz) return $"{targetHz} Hz isn't offered at {s.Width}x{s.Height}.";
             if (s.CurrentHz == hz) return null;
-            var dev = PrimaryDevice();
+            var dev = TargetDevice();
             var mode = NewMode();
             if (!EnumDisplaySettings(dev, ENUM_CURRENT_SETTINGS, ref mode)) return "Couldn't read the display mode.";
             mode.dmDisplayFrequency = hz;

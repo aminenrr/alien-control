@@ -144,15 +144,24 @@ public partial class MainWindow : Window
             }
         };
 
-        StateChanged += (_, _) =>
+        StateChanged += async (_, _) =>
         {
-            if (WindowState == WindowState.Minimized) { CloseSettings(instant: true); ShowPage(HomePage); }
-            else if (WindowState == WindowState.Normal && _minSlid)
+            // 2.0.0-beta1.3 (ui review #2): minimized = no sensor polling (SensorsShown is false), restored = polling again
+            if (WindowState == WindowState.Minimized) { CloseSettings(instant: true); ShowPage(HomePage); UpdatePolling(); }
+            else
             {
-                _minSlid = false;   // v0.8.9: restored from a slid minimize: rise back up from below the screen
-                _showGen++;
-                _hiding = false;
-                if (Motion.Enabled) SlideIn(); else SnapToCorner();
+                if (WindowState == WindowState.Normal && _minSlid)
+                {
+                    _minSlid = false;   // v0.8.9: restored from a slid minimize: rise back up from below the screen
+                    _showGen++;
+                    _hiding = false;
+                    if (Motion.Enabled) SlideIn(); else SnapToCorner();
+                }
+                int gen = _showGen;
+                if (Motion.Enabled) await Task.Delay(OpenMs + 40);   // like an open: reads wait until the slide has played
+                if (gen != _showGen || WindowState == WindowState.Minimized) return;
+                UpdatePolling();
+                if (SensorsShown) await RefreshSensorsAsync();
             }
         };
 
@@ -380,7 +389,9 @@ public partial class MainWindow : Window
         catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:388", __e); }
     }
 
-    public void AllowClose() { ResetOcOnExit(); RestoreBoostOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); InputThread.Invoke(() => { _gkey.Dispose(); _macro.Dispose(); }); InputThread.Shutdown(); _indicatorTimer.Stop(); _watch?.Dispose(); }
+    // 2.0.0-beta1.3 (ui review #3): no RestoreBoostOnExit here any more, PrepareExitAsync (awaited by Quit and Reset
+    // settings) restores the boost
+    public void AllowClose() { ResetOcOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); InputThread.Invoke(() => { _gkey.Dispose(); _macro.Dispose(); }); InputThread.Shutdown(); _indicatorTimer.Stop(); _watch?.Dispose(); }
 
     // ---------- status keys ----------
 
@@ -395,10 +406,15 @@ public partial class MainWindow : Window
         // Reapply the user's color after boot (firmware resets to its default); otherwise leave firmware lighting alone.
         if (_settings.LastColor is { Length: 3 } c)
         {
-            if (_settings.LastEffect >= 100) await ApplyLightingAsync(c);
-            else if (_settings.LastEffect == 0) await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, LightBrightness);
-            else await _fx.SetEffectAsync(_settings.LastEffect, c, LightBrightness);
-            _lightsManaged = true;
+            await _zoneGate.WaitAsync();   // 2.0.0-beta1.3: the one lighting gate (ui review #1)
+            try
+            {
+                if (_settings.LastEffect >= 100) await ApplyLightingCoreAsync(c);
+                else if (_settings.LastEffect == 0) await _fx.SetAllAsync(c[0], c[1], c[2], _indicators, LightBrightness);
+                else await _fx.SetEffectAsync(_settings.LastEffect, c, LightBrightness);
+                _lightsManaged = true;
+            }
+            finally { _zoneGate.Release(); }
         }
         _indicatorTimer.Start();
         // started to tray: trim once things have settled. 1.3.0-beta.2: 10 s (was 60 s), so the first-start peak
@@ -423,18 +439,28 @@ public partial class MainWindow : Window
         return changed;
     }
 
+    private bool _indicatorDirty;
+
+    /// <summary>2.0.0-beta1.3 (ui review #4): a call during a frame write marks it dirty and the running call syncs
+    /// once more when it's done (a mute change used to wait for the 30 s safety timer).</summary>
     private async Task SyncIndicatorsAsync()
     {
-        if (_indicatorBusy) return;
+        if (_indicatorBusy) { _indicatorDirty = true; return; }
         _indicatorBusy = true;
         try
         {
-            var changed = ReadIndicatorStates();
-            if (!_lightsManaged || _settings.LastEffect != 0) return; // a static frame would stop the effect
-            // One full frame: writing a single status key would blank the others.
-            if (changed.Count > 0 || _f2Dirty) { _f2Dirty = false; await _fx.SetKeyboardAsync(_lastColor, _indicators, LightBrightness); }
+            do { _indicatorDirty = false; await SyncIndicatorsCoreAsync(); }
+            while (_indicatorDirty);
         }
         finally { _indicatorBusy = false; }
+    }
+
+    private async Task SyncIndicatorsCoreAsync()
+    {
+        var changed = ReadIndicatorStates();
+        if (!_lightsManaged || _settings.LastEffect != 0) return; // a static frame would stop the effect
+        // One full frame: writing a single status key would blank the others.
+        if (changed.Count > 0 || _f2Dirty) { _f2Dirty = false; await _fx.SetKeyboardAsync(_lastColor, _indicators, LightBrightness); }
     }
 
     protected override void OnClosing(CancelEventArgs e)
@@ -449,15 +475,28 @@ public partial class MainWindow : Window
     private DateTime _stateReadUtc = DateTime.MinValue;
     private bool _stateBusy;
 
+    private bool _stateDirty, _stateDirtyFull;
+
     private async Task RefreshStateAsync(bool sensorsOnly = false)
     {
-        if (_stateBusy) return;   // 1.2.0-beta.5: never stack CLI/ACPI reads
+        // 1.2.0-beta.5: never stack CLI/ACPI reads. 2.0.0-beta1.3 (ui review #4): a request during a read is kept and
+        // runs once after it (a click within ~1 s of opening lost its re-read)
+        if (_stateBusy) { _stateDirty = true; _stateDirtyFull |= !sensorsOnly; return; }
         _stateBusy = true;
         try
         {
-            if (sensorsOnly) { await RefreshSensorsAsync(); return; }
-            await RefreshStateCoreAsync();
-            _stateReadUtc = DateTime.UtcNow;
+            while (true)
+            {
+                if (sensorsOnly) await RefreshSensorsAsync();
+                else
+                {
+                    await RefreshStateCoreAsync();
+                    _stateReadUtc = DateTime.UtcNow;
+                }
+                if (!_stateDirty) break;
+                sensorsOnly = !_stateDirtyFull;
+                _stateDirty = _stateDirtyFull = false;
+            }
         }
         finally { _stateBusy = false; }
     }
@@ -577,31 +616,44 @@ public partial class MainWindow : Window
 
     // ---------- actions ----------
 
+    // 2.0.0-beta1.3 (ui review #4): one gate for every G-Mode, preset and power-mode command (F1, the Home switch, the
+    // Tuning mode radios, ApplyProfileAsync from the tray, Home tiles, header, F2, auto preset and resume), so two
+    // can't interleave their CLI, powercfg and refresh-rate calls and leave the state from the other one.
+    private readonly System.Threading.SemaphoreSlim _cmdGate = new(1, 1);
+    /// <summary>The G-Mode state the running (or queued) change is heading to; null when none runs.</summary>
+    private bool? _gmodeTarget;
+    private int _gmodePending;
+
     private async void Mode_Click(object sender, RoutedEventArgs e)
     {
-        CliResult r;
-        if (sender == ModeGMode)
+        await _cmdGate.WaitAsync();
+        try
         {
-            r = await _fan.SetGModeAsync(true);
-            _gmodeOn = true;
-            SetHint(PowerHint, "G-Mode");
+            CliResult r;
+            if (sender == ModeGMode)
+            {
+                r = await _fan.SetGModeAsync(true);
+                _gmodeOn = true;
+                SetHint(PowerHint, "G-Mode");
+            }
+            else
+            {
+                if (_gmodeOn) await _fan.SetGModeAsync(false);
+                int idx = sender == ModeBattery ? _settings.BatteryPowerIndex
+                        : sender == ModeQuiet ? _settings.QuietPowerIndex
+                        : sender == ModeBalanced ? _settings.BalancedPowerIndex
+                        : _settings.PerformancePowerIndex;
+                r = await _fan.SetPowerAsync(idx);
+                _gmodeOn = false;
+                _lastPowerIndex = idx;
+                SetHint(PowerHint, ((RadioButton)sender).Content?.ToString() ?? "");
+            }
+            Report(r);
+            UpdateProfileFromState();
+            await SyncOcAsync();
+            await SyncIndicatorsAsync();
         }
-        else
-        {
-            if (_gmodeOn) await _fan.SetGModeAsync(false);
-            int idx = sender == ModeBattery ? _settings.BatteryPowerIndex
-                    : sender == ModeQuiet ? _settings.QuietPowerIndex
-                    : sender == ModeBalanced ? _settings.BalancedPowerIndex
-                    : _settings.PerformancePowerIndex;
-            r = await _fan.SetPowerAsync(idx);
-            _gmodeOn = false;
-            _lastPowerIndex = idx;
-            SetHint(PowerHint, ((RadioButton)sender).Content?.ToString() ?? "");
-        }
-        Report(r);
-        UpdateProfileFromState();
-        await SyncOcAsync();
-        await SyncIndicatorsAsync();
+        finally { _cmdGate.Release(); }
     }
 
     /// <summary>G-key press: toggle G-Mode; turning it off returns to the last power mode.</summary>
@@ -609,9 +661,10 @@ public partial class MainWindow : Window
     {
         // v1.0.0-rc1: toast + sound right on the key press (they used to wait for the CLI calls, ~1 s).
         // _gmodeOn is kept in sync by every read, so no extra getgmode call before acting.
-        var current = _gmodeOn;
-        if (_gmodeUiBusy) return;   // 2.0: the Home G-Mode switch is mid-change
-        if (!current)
+        // 2.0.0-beta1.3 (ui review #4): a press while a change runs (F1 or the Home switch) toggles the state that change
+        // is heading to and runs after it, so a quick second F1 means off and never sends "on" twice.
+        bool want = !(_gmodeTarget ?? _gmodeOn);
+        if (want)
         {
             var (oc, ocLit) = OcToastTag(_settings.OcInGMode);   // 2.0.0-beta1.2: G-MODE switch off = "OC off"
             Notify(new Toast.Info(TrayProfile.GMode, "Icon.GMode", "G-Mode on", "Fans max", Toast.Right.SwitchOn, Oc: oc, OcLit: ocLit),
@@ -620,22 +673,62 @@ public partial class MainWindow : Window
         else
             Notify(new Toast.Info(CurrentProfile, "Icon.GMode", "G-Mode off", $"Back to {Profiles.Label(CurrentProfile)} · fans auto",
                 Toast.Right.SwitchOff, Lit: false), Sounds.Kind.GModeOff);
-        await Task.Delay(150);   // 1.3.0: like F2, the chime's attack plays before the ACPI calls start (crackle)
-        if (current)
+        await SetGModeAsync(want, fromKey: true);
+    }
+
+    /// <summary>2.0.0-beta1.3: the one G-Mode on/off path for F1 and the Home switch. Both mark the change busy (the
+    /// Home switch greys out), run under the command gate, and keep their own follow-up order from 2.0.0-beta1.2.</summary>
+    private async Task SetGModeAsync(bool want, bool fromKey)
+    {
+        _gmodeTarget = want;
+        _gmodePending++;
+        _gmodeUiBusy = true;
+        HomeGModeToggle.IsEnabled = false;
+        try
         {
-            await _fan.SetGModeAsync(false);
-            Report(await _fan.SetPowerAsync(_lastPowerIndex));
-            _gmodeOn = false;
+            if (fromKey) await Task.Delay(150);   // 1.3.0: like F2, the chime's attack plays before the ACPI calls start (crackle)
+            await _cmdGate.WaitAsync();
+            try
+            {
+                if (want == _gmodeOn) return;   // a queued press whose state is already there
+                if (want)
+                {
+                    Report(await _fan.SetGModeAsync(true));
+                    _gmodeOn = true;
+                }
+                else
+                {
+                    await _fan.SetGModeAsync(false);
+                    Report(await _fan.SetPowerAsync(_lastPowerIndex));
+                    _gmodeOn = false;
+                }
+                if (fromKey)
+                {
+                    if (IsVisible) await RefreshStateAsync();
+                    UpdateProfileFromState();
+                    await SyncOcAsync();
+                    await SyncIndicatorsAsync();
+                }
+                else
+                {
+                    UpdateProfileFromState();
+                    await SyncOcAsync();
+                    await SyncIndicatorsAsync();
+                    if (IsVisible) await RefreshStateAsync();
+                }
+            }
+            finally { _cmdGate.Release(); }
         }
-        else
+        finally
         {
-            Report(await _fan.SetGModeAsync(true));
-            _gmodeOn = true;
+            if (--_gmodePending == 0)
+            {
+                _gmodeTarget = null;
+                _gmodeUiBusy = false;
+                HomeGModeToggle.IsEnabled = true;
+            }
+            UpdateHomeState();
         }
-        if (IsVisible) await RefreshStateAsync();
-        UpdateProfileFromState();
-        await SyncOcAsync();
-        await SyncIndicatorsAsync();
     }
 
     private void GKeyDetect_Click(object sender, RoutedEventArgs e)
@@ -688,8 +781,18 @@ public partial class MainWindow : Window
         _settings.Save();
     }
 
-    /// <summary>Applies the saved effect (Static = per-key frame with status keys) in the given color.</summary>
+    /// <summary>Applies the saved effect (Static = per-key frame with status keys) in the given color.
+    /// 2.0.0-beta1.3 (ui review #1): through the one lighting gate (_zoneGate, the Lights tab's), so two applies can't
+    /// overlap and start two animation loops. Code that already holds the gate (SetZonesAsync) calls the core.</summary>
     private async Task ApplyLightingAsync(byte[] c)
+    {
+        await _zoneGate.WaitAsync();
+        try { await ApplyLightingCoreAsync(c); }
+        finally { _zoneGate.Release(); }
+    }
+
+    /// <summary>The apply itself, ungated: only call it while holding _zoneGate (SemaphoreSlim isn't reentrant).</summary>
+    private async Task ApplyLightingCoreAsync(byte[] c)
     {
         StopAnimation();
         if (_settings.LastEffect >= 100 && !c.All(v => v == 0))
@@ -729,6 +832,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void StartAnimation(bool wave)
     {
+        StopAnimation();   // 2.0.0-beta1.3 (ui review #1): never two loops; the old one used to keep running, unstoppable
         if (_settings.OffKeyboard) return;   // 1.3.1: keyboard turned off, nothing to animate (frames would be held anyway)
         var cts = new System.Threading.CancellationTokenSource();
         _anim = cts;
@@ -1244,14 +1348,17 @@ public partial class MainWindow : Window
         // 1.2.0-beta.4 fix: the app closed when the RTX went off. The power meter kept an NVML handle to the RTX and
         // read it from a pool thread while pnputil removed the device (native crash, can't be caught). Stop the power
         // timer and close NVML first; GPU power and OC stay off while the RTX is disabled.
+        // 2.0.0-beta1.3 (services review #1): and every other NVML user too. BeginDeviceRemoval waits for an OC write
+        // already in flight, closes the shared session and refuses NVML calls until pnputil has exited.
         _rtxSwitching = true;
         _powerTimer.Stop();
-        await Task.Run(() => _power.GpuOff = true);
+        await Task.Run(() => { _power.GpuOff = true; NvmlSession.BeginDeviceRemoval(); });
         string? err;
         try { err = await GpuMode.SetDgpuEnabledAsync(false); }
-        finally { _rtxSwitching = false; }
+        finally { _rtxSwitching = false; _ = EndDeviceRemovalWhenIdleAsync(); }
         if (err is not null) _power.GpuOff = false;
-        if (IsVisible) _powerTimer.Start();
+        else _gpu = _gpu with { Kind = GpuModeKind.IGpuOnly };   // 2.0.0-beta1.3: OC syncs skip NVML until the re-read lands
+        UpdatePolling();   // 2.0.0-beta1.3 (ui review #14): only when a sensor page is on screen (was IsVisible)
         _ocApplied = null;   // the driver forgets the offsets with the device
         Status(err ?? "RTX is off. Click Advanced Optimus to turn it back on.");
     }
@@ -1261,9 +1368,10 @@ public partial class MainWindow : Window
     {
         Status("Turning the RTX back on...");
         _rtxSwitching = true;
+        await Task.Run(NvmlSession.BeginDeviceRemoval);   // 2.0.0-beta1.3: no NVML call while the device comes back
         string? err;
         try { err = await GpuMode.SetDgpuEnabledAsync(true); }
-        finally { _rtxSwitching = false; }
+        finally { _rtxSwitching = false; _ = EndDeviceRemovalWhenIdleAsync(); }
         if (err is not null) { Status(err); return; }
         _ocApplied = null;
         _ = Task.Run(async () => { await Task.Delay(4000); _power.GpuOff = false; });   // NVML again once the driver is up
@@ -1388,6 +1496,13 @@ public partial class MainWindow : Window
     // ---------- tray profiles (power mode + refresh rate; never GPU mode, never Ultimate) ----------
 
     public async Task ApplyProfileAsync(TrayProfile p)
+    {
+        await _cmdGate.WaitAsync();   // 2.0.0-beta1.3 (ui review #4): one command at a time
+        try { await ApplyProfileCoreAsync(p); }
+        finally { _cmdGate.Release(); }
+    }
+
+    private async Task ApplyProfileCoreAsync(TrayProfile p)
     {
         SetProfile(p);
         if (p == TrayProfile.Custom) return;

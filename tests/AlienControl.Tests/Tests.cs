@@ -76,6 +76,21 @@ public class SettingsTests
         Assert.False(off.OcInPerformance);
     }
 
+    // 2.0.0-beta1.3 (services review #2): no readable settings = the driver state is unknown, so the next start writes +0
+    [Fact]
+    public void Defaults_fallback_marks_oc_pending()
+    {
+        var d = Settings.Defaults();
+        Assert.True(d.OcPending);
+        Assert.True(d.LoadedDefaults);
+        Assert.False(d.OcOn);
+        var json = System.Text.Json.JsonSerializer.Serialize(d);
+        Assert.DoesNotContain("LoadedDefaults", json);   // never saved
+        var back = Settings.Parse(json)!;
+        Assert.True(back.OcPending);
+        Assert.False(back.LoadedDefaults);
+    }
+
     [Fact] public void Too_old_is_rejected() => Assert.Null(Settings.Parse("{\"SettingsVersion\":1}"));
 
     [Fact]
@@ -181,6 +196,28 @@ public class StartupTask
         Assert.Contains("<ExecutionTimeLimit>PT0S", x);
         Assert.False(Startup.NeedsRebuild(x));
         Assert.True(Startup.NeedsRebuild("<DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries>"));
+    }
+
+    // 2.0.0-beta1.3 (services review #4): a task that launches another exe (the zip extracted somewhere else) is rebuilt
+    [Fact]
+    public void Task_for_another_exe_is_rebuilt()
+    {
+        const string exe = @"C:\Program Files\Alien Controls\AlienControl.exe";
+        var x = Startup.TaskXml(exe, @"PC\amine");
+        Assert.Equal(exe, Startup.TaskCommand(x));
+        Assert.False(Startup.NeedsRebuild(x, exe));
+        Assert.False(Startup.NeedsRebuild(x, exe.ToUpperInvariant()));   // Windows paths are case-insensitive
+        Assert.True(Startup.NeedsRebuild(x, @"D:\Tools\Alien Controls 2\AlienControl.exe"));
+        Assert.True(Startup.NeedsRebuild(x.Replace("<Command>", "<Cmd>").Replace("</Command>", "</Cmd>"), exe));   // no command at all
+    }
+
+    [Fact]
+    public void Task_command_with_xml_escapes_matches()
+    {
+        const string exe = @"C:\Games & Tools\Alien Controls\AlienControl.exe";
+        var x = Startup.TaskXml(exe, @"PC\amine");
+        Assert.Contains("&amp;", x);
+        Assert.False(Startup.NeedsRebuild(x, exe));
     }
 }
 
