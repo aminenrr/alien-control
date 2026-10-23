@@ -37,8 +37,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
         // 1.2.0-beta.4: local crash log (%AppData%\AlienControl\crash.log), never sent anywhere
-        DispatcherUnhandledException += (_, a) => CrashLog("UI", a.Exception);
-        AppDomain.CurrentDomain.UnhandledException += (_, a) => CrashLog("Domain", a.ExceptionObject as Exception);
+        // 2.0.0-beta1.3 (services review #2): the two fatal ones also put the GPU OC back to +0 and clear the CPU cap
+        // (best effort, bounded), so a crash can't leave a kept overclock running on battery until reboot
+        DispatcherUnhandledException += (_, a) => { CrashLog("UI", a.Exception); CrashCleanup(); };
+        AppDomain.CurrentDomain.UnhandledException += (_, a) => { CrashLog("Domain", a.ExceptionObject as Exception); CrashCleanup(); };
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, a) => { CrashLog("Task", a.Exception); a.SetObserved(); };
         // 1.3.0-beta.1 (review #1): single instance. A second copy wakes the first one's window and exits, so there's
         // never two tray icons / two G-key hooks (F1 toggling twice, F2 skipping a preset).
@@ -70,6 +72,29 @@ public partial class App : Application
     }
 
     private static void CrashLog(string where, Exception? ex) => Log.Error(where, ex);
+
+    private void CrashCleanup()
+    {
+        try { _window?.EmergencyExitCleanup(3000); } catch (Exception ex) { Log.Warn("CrashCleanup", ex); }
+    }
+
+    /// <summary>2.0.0-beta1.3 (services review #2): logoff, user switch to sign-out, restart or shutdown. Quit's async
+    /// cleanup can't run here, so its synchronous parts do: OC +0 and the CPU cap cleared (bounded), then the normal
+    /// close (hooks, timers, tray icon). The G-Mode boost restore (an alienfan-cli run) is skipped.</summary>
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        base.OnSessionEnding(e);
+        if (e.Cancel || _quitting) return;
+        _quitting = true;
+        Log.Info("Session", $"Windows is ending the session ({e.ReasonSessionEnding})");
+        try
+        {
+            _window?.EmergencyExitCleanup(4000);
+            if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); _tray = null; }
+            _window?.AllowClose();
+        }
+        catch (Exception ex) { Log.Warn("SessionEnding", ex); }
+    }
 
     private void CreateTray()
     {
@@ -291,9 +316,15 @@ public partial class App : Application
         Shutdown();
     }
 
-    /// <summary>v0.9.15 Reset settings: clean exit (OC +0, boost restored), delete settings.json, start again with the window open.</summary>
-    public void RestartFresh()
+    /// <summary>v0.9.15 Reset settings: clean exit (OC +0, boost restored), delete settings.json, start again with the window open.
+    /// 2.0.0-beta1.3 (ui review #3): awaits the same exit cleanup as Quit (CPU cap cleared, boost restored), without the
+    /// iGPU prompt, and no longer blocks the UI thread.</summary>
+    public async void RestartFresh()
     {
+        if (_quitting) return;
+        _quitting = true;
+        try { if (_window is not null) await _window.PrepareExitAsync(promptIgpu: false); }
+        catch (Exception ex) { Log.Warn("PrepareExit", ex); }
         if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); _tray = null; }
         if (_tintHandle != IntPtr.Zero) { DestroyIcon(_tintHandle); _tintHandle = IntPtr.Zero; }
         _window?.AllowClose();
