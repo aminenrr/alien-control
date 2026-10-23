@@ -4,7 +4,7 @@
         xmlns:fx="clr-namespace:AlienControl"
         Title="Alien Controls"
         Icon="Assets/app.ico"
-        Width="440" SizeToContent="Height" ResizeMode="NoResize"
+        Width="460" Height="840" ResizeMode="NoResize"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="True"
         FontFamily="{DynamicResource UiFont}"
@@ -12,16 +12,10 @@
         TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
         RenderOptions.ClearTypeHint="Enabled">
 
-    <!-- Every look comes from the active theme dictionary (Themes/Legend.xaml or Themes/Fluent.xaml):
-         this file only references keys. No blur. v0.8.2 micro-animations (window open/hide, hover, press,
-         selection, flyout, profile chip) are one-shot Opacity / RenderTransform storyboards in Motion.cs and
-         MainWindow.xaml.cs; "Reduce motion" in the gear menu skips all of them. -->
-
-    <!-- 420 DIP card + 10 DIP margin for the shadow.
-         v0.8.3 sharpness fix: the shadow lives on its OWN empty Border behind the card. An Effect on the card itself
-         renders all text and icons through an offscreen bitmap (soft, grayscale, blurry at 125%). The card has an
-         opaque background, so ClearTypeHint lets text use ClearType even in this transparent window.
-         v0.8.8: open/hide slide the whole window natively (WindowSlide.cs), nothing inside it moves. -->
+    <!-- 2.0 (docs/mockups/2.0): one fixed 440 x 820 card (+10 DIP around it for the shadow), Legend only.
+         Rows: header 52, tabs 40, page, status 38, footer 52. Every tab page has the same height: spare height goes into
+         the flex tiles (star rows), the gaps are 18 (Home spreads its spare height over the gaps, like the mockup).
+         Styles come from Themes/Legend.xaml (generated) and Themes/Legend2.xaml (2.0, hand written). -->
     <Grid x:Name="RootCard" Margin="10">
     <Border x:Name="CardShadow" Style="{DynamicResource WindowCard}" IsHitTestVisible="False">
         <Border.Effect>
@@ -31,903 +25,1100 @@
     <Border x:Name="CardBody" Style="{DynamicResource WindowCard}" RenderOptions.ClearTypeHint="Enabled">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="52" />
+                <RowDefinition Height="40" />
                 <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="38" />
+                <RowDefinition Height="52" />
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Style="{DynamicResource TopLine}" />
+            <Border Grid.Row="0" Style="{DynamicResource HeaderPattern}" />
+            <Border Grid.Row="0" Height="2" Margin="14,0,14,0" VerticalAlignment="Top" CornerRadius="1" Background="{DynamicResource TopLineBrush}" Panel.ZIndex="2" />
 
-            <!-- Header -->
-            <Grid x:Name="MainHeader" Grid.Row="1">
-                <Border Style="{DynamicResource HeaderPattern}" />
-                <Border Style="{DynamicResource HeaderBar}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <!-- left side gets whatever the buttons leave (never overlaps them) -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" ClipToBounds="True">
-                            <Image Source="Assets/logo.png" Style="{DynamicResource LogoImage}" VerticalAlignment="Center"
-                                   RenderOptions.BitmapScalingMode="HighQuality" />
-                            <TextBlock Text="{DynamicResource Str.Title}" Style="{DynamicResource BrandText}" />
-                            <Border Style="{DynamicResource ModelBadge}">
-                                <TextBlock Text="m15 R7" Style="{DynamicResource ModelText}" />
+            <!-- ===== header ===== -->
+            <Border x:Name="MainHeader" Grid.Row="0" Style="{DynamicResource Header2}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" ClipToBounds="True">
+                        <Image Source="Assets/logo.png" Height="22" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="HighQuality" />
+                        <TextBlock Text="{DynamicResource Str.Title}" Style="{DynamicResource Brand2}" />
+                        <Border Style="{DynamicResource Chip2}">
+                            <TextBlock Text="m15 R7" Style="{DynamicResource ChipText2}" />
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- preset button: colour icon of the current preset. Hidden on Home. Click cycles like F2, right click lists them -->
+                        <Button x:Name="PresetButton" Style="{DynamicResource HeaderButton2}" Margin="0,0,4,0" Click="PresetButton_Click"
+                                MouseRightButtonUp="PresetButton_RightClick" Visibility="Collapsed" />
+                        <Popup x:Name="PresetPopup" PlacementTarget="{Binding ElementName=PresetButton}" Placement="Bottom"
+                               StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" Closed="PresetPopup_Closed">
+                            <Border x:Name="PresetPanel" Style="{DynamicResource PopupPanel}" Width="196" Padding="6" UseLayoutRounding="True">
+                                <StackPanel x:Name="PresetList" />
                             </Border>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <!-- v1.1 beta.5 (Amine): preset button replaces the header chip; icon + color of the active preset -->
-                            <Button x:Name="PresetButton" Style="{DynamicResource HeaderButton}" Click="PresetButton_Click" />
-                            <Popup x:Name="PresetPopup" PlacementTarget="{Binding ElementName=PresetButton}" Placement="Bottom"
-                                   StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade" Closed="PresetPopup_Closed">
-                                <Border x:Name="PresetPanel" Style="{DynamicResource PopupPanel}" Width="196" Padding="6" UseLayoutRounding="True">
-                                    <StackPanel x:Name="PresetList" />
-                                </Border>
-                            </Popup>
-                            <Button Style="{DynamicResource HeaderButton}" Content="{DynamicResource Icon.Minimize}" Click="Minimize_Click" ToolTip="Minimize" />
-                            <Button Style="{DynamicResource HeaderButton}" Content="{DynamicResource Icon.Close}" Click="Close_Click" ToolTip="Hide to tray" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
+                        </Popup>
+                        <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Minimize}" Click="Minimize_Click" ToolTip="Minimize" />
+                        <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Close}" Click="Close_Click" ToolTip="Hide to tray" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ===== tabs ===== -->
+            <Grid x:Name="MainTabs" Grid.Row="1">
+                <Border VerticalAlignment="Bottom" Height="1" Background="{DynamicResource Line2}" />
+                <UniformGrid Columns="4">
+                    <RadioButton x:Name="TabHome" GroupName="MainTab" Style="{DynamicResource Tab2}" Content="{DynamicResource Str2.Home}" IsChecked="True" Click="Tab_Click" />
+                    <RadioButton x:Name="TabTuning" GroupName="MainTab" Style="{DynamicResource Tab2}" Content="{DynamicResource Str2.Tuning}" Click="Tab_Click" />
+                    <RadioButton x:Name="TabLights" GroupName="MainTab" Style="{DynamicResource Tab2}" Content="{DynamicResource Str2.Lights}" Click="Tab_Click" />
+                    <RadioButton x:Name="TabOverlay" GroupName="MainTab" Style="{DynamicResource Tab2}" Content="{DynamicResource Str2.Overlay}" Click="Tab_Click" />
+                </UniformGrid>
             </Grid>
 
-            <StackPanel x:Name="MainBody" Grid.Row="2" Margin="{DynamicResource BodyMargin}">
+            <!-- ===== pages ===== -->
+            <Grid x:Name="MainBody" Grid.Row="2" Margin="16,14,16,0">
 
-                <!-- ===== Sensors ===== -->
-                <Border Style="{DynamicResource StatsCard}">
-                    <StackPanel>
-                        <Border Style="{DynamicResource StatsGrid}">
-                            <StackPanel>
-                                <UniformGrid Columns="4">
-                                    <Border Style="{DynamicResource StatCellFirst}">
-                                        <StackPanel>
-                                            <TextBlock Text="{DynamicResource Str.Cpu}" Style="{DynamicResource StatLabel}" />
-                                            <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="CpuTempText" Text="--" Style="{DynamicResource StatValue}" /><Run Text=" °C" Style="{DynamicResource StatUnit}" /></TextBlock>
-                                            <ProgressBar x:Name="CpuTempBar" Style="{DynamicResource StatBar}" Maximum="100" />
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Style="{DynamicResource StatCell}">
-                                        <StackPanel>
-                                            <TextBlock Text="{DynamicResource Str.CpuFan}" Style="{DynamicResource StatLabel}" />
-                                            <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="CpuFanText" Text="--" Style="{DynamicResource StatValue}" /><Run Text=" %" Style="{DynamicResource StatUnit}" /></TextBlock>
-                                            <ProgressBar x:Name="CpuFanBar" Style="{DynamicResource StatBar}" Maximum="100" />
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Style="{DynamicResource StatCell}">
-                                        <StackPanel>
-                                            <TextBlock Text="{DynamicResource Str.Gpu}" Style="{DynamicResource StatLabel}" />
-                                            <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="GpuTempText" Text="--" Style="{DynamicResource StatValue}" /><Run Text=" °C" Style="{DynamicResource StatUnit}" /></TextBlock>
-                                            <ProgressBar x:Name="GpuTempBar" Style="{DynamicResource StatBar}" Maximum="100" />
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Style="{DynamicResource StatCell}">
-                                        <StackPanel>
-                                            <TextBlock Text="{DynamicResource Str.GpuFan}" Style="{DynamicResource StatLabel}" />
-                                            <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="GpuFanText" Text="--" Style="{DynamicResource StatValue}" /><Run Text=" %" Style="{DynamicResource StatUnit}" /></TextBlock>
-                                            <ProgressBar x:Name="GpuFanBar" Style="{DynamicResource StatBar}" Maximum="100" />
-                                        </StackPanel>
-                                    </Border>
-                                </UniformGrid>
-                                <!-- 1.3.0-beta.1: CPU % / GPU % row (window open only, same timer as the temps) -->
-                                <Border x:Name="UsageRow" Style="{DynamicResource MemRow}">
-                                    <UniformGrid Columns="2">
-                                        <Border Style="{DynamicResource StatCellFirst}">
-                                            <StackPanel>
-                                                <TextBlock x:Name="CpuUseLabel" Text="{DynamicResource Str.CpuUse}" Style="{DynamicResource StatLabel}" />
-                                                <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="CpuUseText" Text="--" Style="{DynamicResource StatValue}" /><Run Text=" %" Style="{DynamicResource StatUnit}" /></TextBlock>
-                                                <ProgressBar x:Name="CpuUseBar" Style="{DynamicResource StatBar}" Maximum="100" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Style="{DynamicResource StatCell}">
-                                            <StackPanel>
-                                                <TextBlock x:Name="GpuUseLabel" Text="{DynamicResource Str.GpuUse}" Style="{DynamicResource StatLabel}" />
-                                                <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="GpuUseText" Text="--" Style="{DynamicResource StatValue}" /><Run x:Name="GpuUseUnit" Text=" %" Style="{DynamicResource StatUnit}" /></TextBlock>
-                                                <ProgressBar x:Name="GpuUseBar" Style="{DynamicResource StatBar}" Maximum="100" />
-                                            </StackPanel>
-                                        </Border>
-                                    </UniformGrid>
-                                </Border>
-                                <Border Style="{DynamicResource MemRow}">
-                                    <UniformGrid Columns="2">
-                                        <!-- v0.8.6: a Grid so the RAM card gets the same hover overlay as the buttons (RamHoverFx). -->
-                                        <Grid x:Name="RamCard" Background="Transparent" Cursor="Hand"
-                                              RenderTransformOrigin="0.5,0.5" fx:Motion.Interactive="True"
-                                              MouseLeftButtonUp="RamCard_LeftClick" MouseRightButtonUp="RamCard_RightClick"
-                                              ToolTip="Click: quick RAM clean · Right-click: deep clean (also clears the file cache)">
-                                        <Border Style="{DynamicResource StatCellFirst}">
-                                            <StackPanel>
-                                                <Grid>
-                                                    <TextBlock Text="{DynamicResource Str.Ram}" Style="{DynamicResource StatLabel}" />
-                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                        <ContentControl Width="11" Height="11" Margin="0,0,4,0" Focusable="False" IsTabStop="False"
-                                                                        TextElement.Foreground="{DynamicResource AccentBrush}" Content="{DynamicResource Icon.Clean}" />
-                                                        <TextBlock x:Name="CleanText" Text="{DynamicResource Str.Clean}" Style="{DynamicResource CleanText}" />
-                                                    </StackPanel>
-                                                </Grid>
-                                                <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="RamText" Text="--" Style="{DynamicResource StatValue}" /><Run x:Name="RamTextUnit" Text=" / -- GB" Style="{DynamicResource StatUnit}" /></TextBlock>
-                                                <ProgressBar x:Name="RamBar" Style="{DynamicResource StatBar}" Maximum="100" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border x:Name="RamHoverFx" Background="{DynamicResource HoverFxBrush}" CornerRadius="3" Opacity="0" IsHitTestVisible="False" />
-                                        </Grid>
-                                        <Border Style="{DynamicResource StatCell}">
-                                            <StackPanel>
-                                                <TextBlock Text="{DynamicResource Str.Vram}" Style="{DynamicResource StatLabel}" />
-                                                <TextBlock Style="{DynamicResource StatValueLine}"><Run x:Name="VramText" Text="--" Style="{DynamicResource StatValue}" /><Run x:Name="VramTextUnit" Text=" / -- GB" Style="{DynamicResource StatUnit}" /></TextBlock>
-                                                <ProgressBar x:Name="VramBar" Style="{DynamicResource StatBar}" Maximum="100" />
-                                            </StackPanel>
-                                        </Border>
-                                    </UniformGrid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                <!-- ================= HOME (A) ================= -->
+                <Grid x:Name="HomePage">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" MinHeight="8" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" MinHeight="8" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" MinHeight="8" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" MinHeight="8" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                        <!-- Power readout: hidden until a source answers; each part hides on its own -->
-                        <Border x:Name="PwrRow" Style="{DynamicResource PwrRow}" Visibility="Collapsed"
-                                ToolTip="CPU: Intel DTT RAPL counter · GPU: NVIDIA NVML (plugged in only) · Total: battery discharge (on battery only)">
-                            <Grid Style="{DynamicResource PwrGrid}">
+                    <!-- sensors (as 1.3.5) + PWR strip -->
+                    <StackPanel Grid.Row="0">
+                        <Border Style="{DynamicResource Card2}" Height="240" ClipToBounds="True">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <Grid Grid.Column="0" VerticalAlignment="Center">
-                                    <TextBlock Text="PWR" Style="{DynamicResource PwrItem}" Visibility="{DynamicResource LegendOnly}" />
-                                    <ContentControl Width="14" Height="14" Margin="0,0,6,0" Focusable="False" IsTabStop="False"
-                                                    Visibility="{DynamicResource FluentOnly}" TextElement.Foreground="{DynamicResource AccentBrush}"
-                                                    Content="{DynamicResource Icon.Bolt}" />
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" /><RowDefinition Height="*" /><RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Grid.Column="0">
+                                    <StackPanel Margin="12,12,12,0">
+                                        <TextBlock Text="{DynamicResource Str.Cpu}" Style="{DynamicResource CellLabel2}" />
+                                        <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="CpuTempText" Text="--" Style="{DynamicResource CellValue2}" /><Run Text=" °C" Style="{DynamicResource CellUnit2}" /></TextBlock>
+                                        <ProgressBar x:Name="CpuTempBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="0" Grid.Column="1" BorderBrush="{DynamicResource Line2}" BorderThickness="1,0,0,0">
+                                    <StackPanel Margin="12,12,12,0">
+                                        <TextBlock Text="{DynamicResource Str.CpuFan}" Style="{DynamicResource CellLabel2}" />
+                                        <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="CpuFanText" Text="--" Style="{DynamicResource CellValue2}" /><Run Text=" %" Style="{DynamicResource CellUnit2}" /></TextBlock>
+                                        <ProgressBar x:Name="CpuFanBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="0" Grid.Column="2" BorderBrush="{DynamicResource Line2}" BorderThickness="1,0,0,0">
+                                    <StackPanel Margin="12,12,12,0">
+                                        <TextBlock Text="{DynamicResource Str.Gpu}" Style="{DynamicResource CellLabel2}" />
+                                        <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="GpuTempText" Text="--" Style="{DynamicResource CellValue2}" /><Run Text=" °C" Style="{DynamicResource CellUnit2}" /></TextBlock>
+                                        <ProgressBar x:Name="GpuTempBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="0" Grid.Column="3" BorderBrush="{DynamicResource Line2}" BorderThickness="1,0,0,0">
+                                    <StackPanel Margin="12,12,12,0">
+                                        <TextBlock Text="{DynamicResource Str.GpuFan}" Style="{DynamicResource CellLabel2}" />
+                                        <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="GpuFanText" Text="--" Style="{DynamicResource CellValue2}" /><Run Text=" %" Style="{DynamicResource CellUnit2}" /></TextBlock>
+                                        <ProgressBar x:Name="GpuFanBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" BorderBrush="{DynamicResource Line2}" BorderThickness="0,1,0,0">
+                                    <StackPanel Margin="12,12,12,0">
+                                        <TextBlock Text="{DynamicResource Str.CpuUse}" Style="{DynamicResource CellLabel2}" />
+                                        <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="CpuUseText" Text="--" Style="{DynamicResource CellValue2}" /><Run Text=" %" Style="{DynamicResource CellUnit2}" /></TextBlock>
+                                        <ProgressBar x:Name="CpuUseBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" BorderBrush="{DynamicResource Line2}" BorderThickness="1,1,0,0">
+                                    <StackPanel Margin="12,12,12,0">
+                                        <TextBlock Text="{DynamicResource Str.GpuUse}" Style="{DynamicResource CellLabel2}" />
+                                        <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="GpuUseText" Text="--" Style="{DynamicResource CellValue2}" /><Run x:Name="GpuUseUnit" Text=" %" Style="{DynamicResource CellUnit2}" /></TextBlock>
+                                        <ProgressBar x:Name="GpuUseBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <!-- RAM: click = quick clean, right click = deep clean (hover overlay like the buttons) -->
+                                <Grid x:Name="RamCard" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Background="Transparent" Cursor="Hand"
+                                      RenderTransformOrigin="0.5,0.5" fx:Motion.Interactive="True"
+                                      MouseLeftButtonUp="RamCard_LeftClick" MouseRightButtonUp="RamCard_RightClick"
+                                      ToolTip="Click: quick RAM clean. Right click: deep clean (also clears the file cache)">
+                                    <Border BorderBrush="{DynamicResource Line2}" BorderThickness="0,1,0,0">
+                                        <StackPanel Margin="12,12,12,0">
+                                            <Grid>
+                                                <TextBlock Text="{DynamicResource Str.Ram}" Style="{DynamicResource CellLabel2}" />
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                    <ContentControl Width="12" Height="12" Margin="0,0,8,0" Focusable="False" IsTabStop="False"
+                                                                    TextElement.Foreground="{DynamicResource AccentBrush}" Content="{DynamicResource Icon.Clean}" />
+                                                    <TextBlock x:Name="CleanText" Text="{DynamicResource Str.Clean}" Style="{DynamicResource CellLabel2}" Foreground="{DynamicResource AccentBrush}" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="RamText" Text="--" Style="{DynamicResource CellValue2}" /><Run x:Name="RamTextUnit" Text=" / -- GB" Style="{DynamicResource CellUnit2}" /></TextBlock>
+                                            <ProgressBar x:Name="RamBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Border x:Name="RamHoverFx" Background="{DynamicResource HoverFxBrush}" Opacity="0" IsHitTestVisible="False" />
                                 </Grid>
-                                <TextBlock x:Name="PwrCpu" Grid.Column="2" Style="{DynamicResource PwrItem}">CPU <Run x:Name="PwrCpuValue" Text="--" Style="{DynamicResource PwrValue}" /></TextBlock>
-                                <TextBlock x:Name="PwrDot1" Grid.Column="4" Text="·" Style="{DynamicResource PwrItem}" />
-                                <TextBlock x:Name="PwrGpu" Grid.Column="6" Style="{DynamicResource PwrItem}">GPU <Run x:Name="PwrGpuValue" Text="--" Style="{DynamicResource PwrValue}" /></TextBlock>
-                                <TextBlock x:Name="PwrDot2" Grid.Column="8" Text="·" Style="{DynamicResource PwrItem}" />
-                                <TextBlock x:Name="PwrTotal" Grid.Column="10" Style="{DynamicResource PwrItem}">Total <Run x:Name="PwrTotalValue" Text="--" Style="{DynamicResource PwrTotal}" /></TextBlock>
+                                <Border Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" BorderBrush="{DynamicResource Line2}" BorderThickness="1,1,0,0">
+                                    <StackPanel Margin="12,12,12,0">
+                                        <TextBlock Text="{DynamicResource Str.Vram}" Style="{DynamicResource CellLabel2}" />
+                                        <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="VramText" Text="--" Style="{DynamicResource CellValue2}" /><Run x:Name="VramTextUnit" Text=" / -- GB" Style="{DynamicResource CellUnit2}" /></TextBlock>
+                                        <ProgressBar x:Name="VramBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+                        <!-- power: hidden (space kept) until a source answers; each part hides on its own -->
+                        <Border x:Name="PwrRow" Style="{DynamicResource Strip2}" Margin="0,8,0,0" Visibility="Hidden"
+                                ToolTip="CPU: Intel DTT RAPL counter. GPU: NVIDIA NVML (plugged in only). Total: battery discharge (on battery only)">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="66" /><ColumnDefinition Width="92" /><ColumnDefinition Width="26" />
+                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="PWR" Style="{DynamicResource StripLabel2}" />
+                                <TextBlock x:Name="PwrCpu" Grid.Column="1" Style="{DynamicResource StripLabel2}">CPU  <Run x:Name="PwrCpuValue" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                                <TextBlock x:Name="PwrDot1" Grid.Column="2" Text="·" Style="{DynamicResource StripLabel2}" />
+                                <TextBlock x:Name="PwrGpu" Grid.Column="3" Style="{DynamicResource StripLabel2}">GPU  <Run x:Name="PwrGpuValue" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                                <TextBlock x:Name="PwrDot2" Grid.Column="4" Text="" Style="{DynamicResource StripLabel2}" />
+                                <TextBlock x:Name="PwrTotal" Grid.Column="5" Style="{DynamicResource StripLabel2}">Total  <Run x:Name="PwrTotalValue" Text="--" Style="{DynamicResource StripAccent2}" /></TextBlock>
                             </Grid>
                         </Border>
                     </StackPanel>
-                </Border>
 
-                <!-- ===== 01 Performance mode ===== -->
-                <Border Style="{DynamicResource SectionPanel}">
-                    <StackPanel>
-                        <Grid Style="{DynamicResource SectionHeader}">
+                    <!-- PRESET (F2) -->
+                    <StackPanel Grid.Row="2">
+                        <Grid Style="{DynamicResource Sec2}">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="01" Style="{DynamicResource SectionNum}" />
-                            <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Activity}" />
-                            <TextBlock Grid.Column="2" Text="{DynamicResource Str.Perf}" Style="{DynamicResource SectionTitle}" />
-                            <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
-                            <TextBlock x:Name="PowerHint" Grid.Column="4" Style="{DynamicResource SectionHint}" />
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Adjust}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Preset}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock x:Name="HomePresetHint" Grid.Column="3" Text="F2" Style="{DynamicResource SecHint2}" />
                         </Grid>
-                        <Border Style="{DynamicResource Track}">
-                            <UniformGrid Columns="5">
-                                <!-- 1.2.0-beta.4: wrapper = lock badge top-right when locked (a disabled button passes clicks to it) -->
-                                <Grid Background="Transparent">
-                                    <RadioButton x:Name="ModeBattery" GroupName="Mode" Style="{DynamicResource ModeButton}" Click="Mode_Click"
-                                                 Tag="{DynamicResource Icon.Battery}" Content="Battery" ToolTip="Battery Saver (power index 3, a5)" />
-                                    <Viewbox x:Name="BatteryLock" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,6,0" IsHitTestVisible="False" Visibility="Collapsed"><Canvas Width="24" Height="24"><Path Data="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6 M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0 M8 11v-4a4 4 0 1 1 8 0v4" Stroke="#B8C2CC" StrokeThickness="2.4" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
-                                </Grid>
-                                <RadioButton x:Name="ModeQuiet" GroupName="Mode" Style="{DynamicResource ModeButton}" Click="Mode_Click"
-                                             Tag="{DynamicResource Icon.Quiet}" Content="Quiet" />
-                                <RadioButton x:Name="ModeBalanced" GroupName="Mode" Style="{DynamicResource ModeButton}" Click="Mode_Click"
-                                             Tag="{DynamicResource Icon.Balanced}" Content="Balanced" />
-                                <RadioButton x:Name="ModePerformance" GroupName="Mode" Style="{DynamicResource ModeButton}" Click="Mode_Click"
-                                             Tag="{DynamicResource Icon.Performance}" Content="Performance" />
-                                <RadioButton x:Name="ModeGMode" GroupName="Mode" Style="{DynamicResource GModeButton}" Click="Mode_Click"
-                                             Tag="{DynamicResource Icon.GMode}" Content="G-Mode" ToolTip="G-Mode · the G-key (F1) toggles it" />
-                            </UniformGrid>
+                        <UniformGrid Columns="5" Height="65" Margin="-2.5">
+                            <Grid>
+                                <RadioButton x:Name="HomeBattery" GroupName="HomePreset" Style="{DynamicResource Tile2}" Tag="{DynamicResource Icon.Battery}" Content="Battery" Click="HomePreset_Click" />
+                                <ContentControl x:Name="HomeBatteryLock" Style="{DynamicResource Lock2}" Content="{DynamicResource Icon.Lock}" />
+                            </Grid>
+                            <RadioButton x:Name="HomeQuiet" GroupName="HomePreset" Style="{DynamicResource Tile2}" Tag="{DynamicResource Icon.Quiet}" Content="Quiet" Click="HomePreset_Click" />
+                            <RadioButton x:Name="HomeBalanced" GroupName="HomePreset" Style="{DynamicResource Tile2}" Tag="{DynamicResource Icon.Balanced}" Content="Balanced" Click="HomePreset_Click" />
+                            <RadioButton x:Name="HomePerformance" GroupName="HomePreset" Style="{DynamicResource Tile2}" Tag="{DynamicResource Icon.Performance}" Content="Perform." Click="HomePreset_Click" ToolTip="Performance" />
+                            <RadioButton x:Name="HomeCustom" GroupName="HomePreset" Style="{DynamicResource Tile2}" Tag="{DynamicResource Icon.Sparkles}" Content="Custom" Click="HomePreset_Click" ToolTip="Your own mix: nothing is changed" />
+                        </UniformGrid>
+                    </StackPanel>
+
+                    <!-- G-MODE (F1) -->
+                    <StackPanel Grid.Row="4">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.GMode}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.GMode}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock Grid.Column="3" Text="F1" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <Border Style="{DynamicResource Card2}" Height="52" Padding="14,0">
+                            <Grid>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Fans max, aggressive boost" Style="{DynamicResource RowTitle2}" />
+                                    <TextBlock x:Name="HomeGModeSub" Text="No GPU overclock" Style="{DynamicResource RowSub2}" Margin="0,2,0,0" />
+                                </StackPanel>
+                                <CheckBox x:Name="HomeGModeToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="HomeGMode_Click"
+                                          ToolTip="G-Mode. The G-key (F1) toggles it too" />
+                            </Grid>
                         </Border>
                     </StackPanel>
-                </Border>
 
-                <!-- ===== 02 GPU mode ===== -->
-                <Border x:Name="GpuSection" Style="{DynamicResource SectionPanel}">
-                    <StackPanel>
-                        <Grid Style="{DynamicResource SectionHeader}">
+                    <!-- OVERLAY (F4): beta 2 -->
+                    <StackPanel Grid.Row="6" ToolTip="The in-game overlay comes in beta 2">
+                        <Grid Style="{DynamicResource Sec2}">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="02" Style="{DynamicResource SectionNum}" />
-                            <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Gpu}" />
-                            <TextBlock Grid.Column="2" Text="{DynamicResource Str.GpuMode}" Style="{DynamicResource SectionTitle}" />
-                            <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
-                            <TextBlock x:Name="GpuHint" Grid.Column="4" Style="{DynamicResource SectionHint}" Foreground="{DynamicResource AccentBrush}" />
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.ChartBar}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Overlay}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <Border Grid.Column="3" Style="{DynamicResource Badge2}" Margin="0,0,8,0"><TextBlock Text="BETA 2" Style="{DynamicResource BadgeText2}" /></Border>
+                            <TextBlock Grid.Column="4" Text="F4" Style="{DynamicResource SecHint2}" />
                         </Grid>
-                        <Border Style="{DynamicResource Track}">
-                            <!-- 1.2.0-beta.2: iGPU only (pnputil, NVIDIA on Optimus only) / Advanced Optimus / Ultimate. NVIDIA's Auto / Optimus / GPU only stay in its tray popup. -->
-                            <UniformGrid Columns="3">
-                                <Grid Background="Transparent" MouseLeftButtonUp="IgpuWrap_MouseUp">
-                                    <RadioButton x:Name="GpuIgpu" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click"
-                                                 Tag="{DynamicResource Icon.IGpu}" Content="iGPU only" ToolTip="Turns the RTX off (Intel only). Needs NVIDIA set to Optimus." />
-                                    <Viewbox x:Name="IgpuLock" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,6,0" IsHitTestVisible="False" Visibility="Collapsed"><Canvas Width="24" Height="24"><Path Data="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6 M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0 M8 11v-4a4 4 0 1 1 8 0v4" Stroke="#B8C2CC" StrokeThickness="2.4" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" /></Canvas></Viewbox>
-                                </Grid>
-                                <RadioButton x:Name="GpuOptimus" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click" IsChecked="True"
-                                             Tag="{DynamicResource Icon.Optimus}" Content="Advanced Optimus" ToolTip="Intel + RTX. Pick Auto / Optimus / GPU only from NVIDIA's tray icon." />
-                                <RadioButton x:Name="GpuUltimate" GroupName="Gpu" Style="{DynamicResource ModeButton}" Click="GpuMode_Click"
-                                             Tag="{DynamicResource Icon.Ultimate}" Content="Ultimate" ToolTip="Dell BIOS: Intel GPU off, the RTX drives everything. Needs a restart." />
+                        <Grid Height="50" Margin="16,0,16,0" Opacity="0.45" IsEnabled="False">
+                            <Border Height="4" CornerRadius="2" VerticalAlignment="Top" Margin="0,12,0,0" Background="#1C2127" />
+                            <UniformGrid Columns="5" Margin="-47,0,-47,0">
+                                <Grid><Ellipse Width="20" Height="20" VerticalAlignment="Top" Margin="0,4,0,0" Fill="#E9EEF2" /><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{DynamicResource AccentBrush}" /><TextBlock Text="OFF" Style="{DynamicResource SecHint2}" Foreground="#F2F6F9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="1" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="2" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="3" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="4" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
                             </UniformGrid>
-                        </Border>
-                        <!-- 1.2.0-beta.2: why iGPU only / Ultimate is locked, or that the RTX is off -->
-                        <TextBlock x:Name="GpuNote" Style="{DynamicResource FooterText}" TextWrapping="Wrap" Margin="2,8,2,0" Visibility="Collapsed" />
-                    </StackPanel>
-                </Border>
-
-                <!-- ===== 03 GPU overclock (v0.9.7): NVML clock offsets, G-Mode on AC only, 20 s keep-or-revert ===== -->
-                <Border x:Name="OcSection" Style="{DynamicResource SectionPanel}">
-                    <StackPanel>
-                        <Grid Style="{DynamicResource SectionHeader}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="03" Style="{DynamicResource SectionNum}" />
-                            <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.GMode}" />
-                            <TextBlock Grid.Column="2" Text="{DynamicResource Str.GpuOc}" Style="{DynamicResource SectionTitle}" />
-                            <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
-                            <TextBlock x:Name="OcHint" Grid.Column="4" Style="{DynamicResource SectionHint}" />
-                            <!-- 1.3.4 (Amine): Performance toggle. Lit in the Performance tint = OC also runs in the Performance preset -->
-                            <Button x:Name="OcPerfToggle" Grid.Column="5" Style="{DynamicResource HeaderButton}" Height="20" Width="26" Margin="6,-3,-4,-3"
-                                    Content="{DynamicResource Icon.Performance}" Click="OcPerfToggle_Click" />
                         </Grid>
-                        <Border Style="{DynamicResource LightPanel}">
-                            <StackPanel>
-                                <!-- v0.9.7 (Amine): Core and Memory side by side so the window stays short -->
+                    </StackPanel>
+
+                    <!-- LIGHTING: swatches + brightness -->
+                    <StackPanel Grid.Row="8">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Light}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Lighting}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock x:Name="HomeBrightnessHint" Grid.Column="3" Text="80%" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <Grid Height="26">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="44" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel x:Name="HomeSwatches" Orientation="Horizontal">
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#00E5FF" Tag="0,229,255" Click="Color_Click" ToolTip="Cyan" />
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#7C4DFF" Tag="124,77,255" Click="Color_Click" ToolTip="Purple" />
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#FF4D6A" Tag="255,77,106" Click="Color_Click" ToolTip="Red" />
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#40DC78" Tag="60,255,122" Click="Color_Click" ToolTip="Green" />
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#FFFFFF" Tag="255,255,255" Click="Color_Click" ToolTip="White" />
+                                <RadioButton x:Name="HomeCustomSwatch" GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Click="CustomSwatch_Click" ToolTip="Custom color" Background="{DynamicResource CustomSwatchBrush}" />
+                            </StackPanel>
+                            <Slider x:Name="HomeBrightnessSlider" Grid.Column="1" Margin="22,0,8,0" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="80"
+                                    IsMoveToPointEnabled="True" PreviewMouseUp="Brightness_Commit" ValueChanged="Brightness_Changed" VerticalAlignment="Center" ToolTip="Lighting brightness" />
+                            <TextBlock x:Name="HomeBrightnessValue" Grid.Column="2" Text="80%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" />
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ================= TUNING (A) ================= -->
+                <Grid x:Name="TuningPage" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="30" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- live strip -->
+                    <Border Grid.Row="0" Style="{DynamicResource Strip2}">
+                        <UniformGrid Columns="4">
+                            <TextBlock Style="{DynamicResource StripLabel2}">CPU  <Run x:Name="TuneCpuTemp" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                            <TextBlock Style="{DynamicResource StripLabel2}">GPU  <Run x:Name="TuneGpuTemp" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                            <TextBlock Style="{DynamicResource StripLabel2}">FANS  <Run x:Name="TuneFans" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                            <TextBlock Style="{DynamicResource StripLabel2}">PWR  <Run x:Name="TunePwr" Text="--" Style="{DynamicResource StripAccent2}" /></TextBlock>
+                        </UniformGrid>
+                    </Border>
+
+                    <!-- PERFORMANCE MODE -->
+                    <Grid Grid.Row="2">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Activity}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Perf}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock x:Name="PowerHint" Grid.Column="3" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <UniformGrid Grid.Row="1" Columns="5" Margin="-2.5">
+                            <!-- a disabled button passes clicks to its wrapper; the lock shows while Battery is locked on AC -->
+                            <Grid Background="Transparent">
+                                <RadioButton x:Name="ModeBattery" GroupName="Mode" Style="{DynamicResource Tile2}" Click="Mode_Click"
+                                             Tag="{DynamicResource Icon.Battery}" Content="Battery" />
+                                <ContentControl x:Name="BatteryLock" Style="{DynamicResource Lock2}" Content="{DynamicResource Icon.Lock}" />
+                            </Grid>
+                            <RadioButton x:Name="ModeQuiet" GroupName="Mode" Style="{DynamicResource Tile2}" Click="Mode_Click" Tag="{DynamicResource Icon.Quiet}" Content="Quiet" />
+                            <RadioButton x:Name="ModeBalanced" GroupName="Mode" Style="{DynamicResource Tile2}" Click="Mode_Click" Tag="{DynamicResource Icon.Balanced}" Content="Balanced" />
+                            <RadioButton x:Name="ModePerformance" GroupName="Mode" Style="{DynamicResource Tile2}" Click="Mode_Click" Tag="{DynamicResource Icon.Performance}" Content="Performance" FontSize="11.5" />
+                            <RadioButton x:Name="ModeGMode" GroupName="Mode" Style="{DynamicResource Tile2}" BorderBrush="#FFFFFF" Click="Mode_Click"
+                                         Tag="{DynamicResource Icon.GMode}" Content="G-Mode" ToolTip="G-Mode. The G-key (F1) toggles it" />
+                        </UniformGrid>
+                    </Grid>
+
+                    <!-- GPU MODE -->
+                    <Grid Grid.Row="4">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Gamepad}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.GpuMode}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock x:Name="GpuHint" Grid.Column="3" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <UniformGrid Grid.Row="1" Columns="3" Margin="-2.5">
+                            <Grid Background="Transparent" MouseLeftButtonUp="IgpuWrap_MouseUp">
+                                <RadioButton x:Name="GpuIgpu" GroupName="Gpu" Style="{DynamicResource Tile2}" Click="GpuMode_Click"
+                                             Tag="{DynamicResource Icon.IGpu}" Content="iGPU only" ToolTip="Turns the RTX off (Intel only). Needs NVIDIA set to Optimus." />
+                                <ContentControl x:Name="IgpuLock" Style="{DynamicResource Lock2}" Content="{DynamicResource Icon.Lock}" />
+                            </Grid>
+                            <RadioButton x:Name="GpuOptimus" GroupName="Gpu" Style="{DynamicResource Tile2}" Click="GpuMode_Click" IsChecked="True"
+                                         Tag="{DynamicResource Icon.Optimus}" Content="Advanced Optimus" ToolTip="Intel + RTX. Pick Auto / Optimus / GPU only from NVIDIA's tray icon." />
+                            <RadioButton x:Name="GpuUltimate" GroupName="Gpu" Style="{DynamicResource Tile2}" Click="GpuMode_Click"
+                                         Tag="{DynamicResource Icon.Ultimate}" Content="Ultimate" ToolTip="Dell BIOS: Intel GPU off, the RTX drives everything. Needs a restart." />
+                        </UniformGrid>
+                        <!-- why iGPU only / Ultimate is locked, or that the RTX is off (the tiles give it room) -->
+                        <TextBlock x:Name="GpuNote" Grid.Row="2" FontSize="11" TextWrapping="Wrap" Margin="2,6,2,0" Visibility="Collapsed" />
+                    </Grid>
+
+                    <!-- GPU OVERCLOCK: NVML offsets, 20 s keep or revert. Scope pill = the 1.3.4 "OC in Performance" setting -->
+                    <StackPanel Grid.Row="6">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.GMode}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.GpuOc}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <Border x:Name="OcScopeTrack" Grid.Column="3" Style="{DynamicResource PillTrack2}" Width="150" Height="21" Padding="2,1" Margin="0,-3,0,-3">
+                                <UniformGrid Columns="2">
+                                    <RadioButton x:Name="OcScopeG" GroupName="OcScope" Style="{DynamicResource PillItem2}" Content="G-MODE" FontSize="10" Click="OcScope_Click" />
+                                    <RadioButton x:Name="OcScopePerf" GroupName="OcScope" Style="{DynamicResource PillItem2}" Content="+ PERF" FontSize="10" Click="OcScope_Click" />
+                                </UniformGrid>
+                            </Border>
+                        </Grid>
+                        <Border Style="{DynamicResource Card2}" Height="110" Padding="14,10,14,10">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <Grid x:Name="OcBody">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" /><ColumnDefinition Width="14" /><ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <Grid>
-                                            <TextBlock Text="Core" Style="{DynamicResource BodyText}" />
-                                            <TextBlock x:Name="OcCoreValue" Text="+200 MHz" HorizontalAlignment="Right" FontWeight="SemiBold"
-                                                       Style="{DynamicResource BodyText}" Foreground="{DynamicResource AccentBrush}" />
+                                            <TextBlock Text="Core" FontSize="12" Foreground="#A9B4BF" />
+                                            <TextBlock x:Name="OcCoreValue" Text="+200 MHz" FontSize="12" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
                                         </Grid>
-                                        <Slider x:Name="OcCoreSlider" Style="{DynamicResource LightSlider}" Margin="0,6,0,0" Minimum="0" Maximum="300" Value="200"
+                                        <Slider x:Name="OcCoreSlider" Style="{DynamicResource LightSlider}" Margin="0,2,0,0" Minimum="0" Maximum="300" Value="200"
                                                 TickFrequency="25" IsSnapToTickEnabled="True" SmallChange="25" LargeChange="25" IsMoveToPointEnabled="True"
                                                 ValueChanged="Oc_Changed" ToolTip="Core offset, 0 to +300 MHz in 25 MHz steps" />
-                                        <Grid Margin="0,1,0,0">
-                                            <TextBlock Text="0" Style="{DynamicResource ValueSmall}" />
-                                            <TextBlock Text="300" HorizontalAlignment="Right" Style="{DynamicResource ValueSmall}" />
+                                        <Grid>
+                                            <TextBlock Text="0" Style="{DynamicResource SecHint2}" FontSize="9.5" />
+                                            <TextBlock Text="300" HorizontalAlignment="Right" Style="{DynamicResource SecHint2}" FontSize="9.5" />
                                         </Grid>
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <Grid>
-                                            <TextBlock Text="Memory" Style="{DynamicResource BodyText}" />
-                                            <TextBlock x:Name="OcMemValue" Text="+200 MHz" HorizontalAlignment="Right" FontWeight="SemiBold"
-                                                       Style="{DynamicResource BodyText}" Foreground="{DynamicResource AccentBrush}" />
+                                            <TextBlock Text="Memory" FontSize="12" Foreground="#A9B4BF" />
+                                            <TextBlock x:Name="OcMemValue" Text="+200 MHz" FontSize="12" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
                                         </Grid>
-                                        <Slider x:Name="OcMemSlider" Style="{DynamicResource LightSlider}" Margin="0,6,0,0" Minimum="0" Maximum="300" Value="200"
+                                        <Slider x:Name="OcMemSlider" Style="{DynamicResource LightSlider}" Margin="0,2,0,0" Minimum="0" Maximum="300" Value="200"
                                                 TickFrequency="25" IsSnapToTickEnabled="True" SmallChange="25" LargeChange="25" IsMoveToPointEnabled="True"
                                                 ValueChanged="Oc_Changed" ToolTip="Memory offset, 0 to +300 MHz in 25 MHz steps (AWCC scale)" />
-                                        <Grid Margin="0,1,0,0">
-                                            <TextBlock Text="0" Style="{DynamicResource ValueSmall}" />
-                                            <TextBlock Text="300" HorizontalAlignment="Right" Style="{DynamicResource ValueSmall}" />
+                                        <Grid>
+                                            <TextBlock Text="0" Style="{DynamicResource SecHint2}" FontSize="9.5" />
+                                            <TextBlock Text="300" HorizontalAlignment="Right" Style="{DynamicResource SecHint2}" FontSize="9.5" />
                                         </Grid>
                                     </StackPanel>
                                 </Grid>
-                                <!-- one row: Reset · Active · Apply, or during a test Revert · countdown · Keep -->
-                                <Grid Margin="0,10,0,0">
-                                    <Button x:Name="OcResetButton" Style="{DynamicResource GhostButton}" HorizontalAlignment="Left" MinWidth="76"
+                                <!-- Reset, active / state, Apply. During a test: Revert, countdown, Keep -->
+                                <Grid Grid.Row="1" Height="26">
+                                    <Button x:Name="OcResetButton" Style="{DynamicResource Button2}" Height="26" Width="90" HorizontalAlignment="Left"
                                             Content="Reset" Click="OcReset_Click" ToolTip="Back to stock clocks (+0 / +0)" />
-                                    <TextBlock x:Name="OcActive" HorizontalAlignment="Center" VerticalAlignment="Center" Style="{DynamicResource ValueSmall}" />
+                                    <StackPanel x:Name="OcActivePanel" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <TextBlock x:Name="OcActive" HorizontalAlignment="Center" Style="{DynamicResource SecHint2}" FontSize="10.5" />
+                                        <TextBlock x:Name="OcHint" HorizontalAlignment="Center" Style="{DynamicResource SecHint2}" FontSize="9" Margin="0,1,0,0" />
+                                    </StackPanel>
                                     <StackPanel x:Name="OcConfirm" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
                                         <TextBlock Text="{DynamicResource Str.OcKeep}" HorizontalAlignment="Center" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource OcWarnBrush}" Style="{DynamicResource ValueSmall}" />
-                                        <TextBlock x:Name="OcCountdown" HorizontalAlignment="Center" Margin="0,2,0,0" Style="{DynamicResource ValueSmall}" />
+                                                   Foreground="{DynamicResource OcWarnBrush}" Style="{DynamicResource SecHint2}" FontSize="10" />
+                                        <TextBlock x:Name="OcCountdown" HorizontalAlignment="Center" Margin="0,1,0,0" Style="{DynamicResource SecHint2}" FontSize="9.5" />
                                     </StackPanel>
-                                    <Button x:Name="OcApplyButton" Style="{DynamicResource GhostButton}" HorizontalAlignment="Right" MinWidth="76"
-                                            Content="Apply" Foreground="{DynamicResource AccentBrush}" Click="OcApply_Click"
-                                            ToolTip="Try these offsets: keep them within 20 s or they go back to +0" />
+                                    <Button x:Name="OcApplyButton" Style="{DynamicResource ButtonPrimary2}" Height="26" Width="90" HorizontalAlignment="Right"
+                                            Content="Apply" Click="OcApply_Click" ToolTip="Try these offsets: keep them within 20 s or they go back to +0" />
                                 </Grid>
-                            </StackPanel>
+                            </Grid>
                         </Border>
                     </StackPanel>
-                </Border>
 
-                <!-- ===== 04 Refresh rate ===== -->
-                <Border x:Name="RefreshSection" Style="{DynamicResource SectionPanel}">
-                    <StackPanel>
-                        <Grid Style="{DynamicResource SectionHeader}">
+                    <!-- CPU BOOST (AC) -->
+                    <StackPanel Grid.Row="8">
+                        <Grid Style="{DynamicResource Sec2}">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="04" Style="{DynamicResource SectionNum}" />
-                            <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Display}" />
-                            <TextBlock Grid.Column="2" Text="{DynamicResource Str.Refresh}" Style="{DynamicResource SectionTitle}" />
-                            <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
-                            <TextBlock x:Name="RefreshHint" Grid.Column="4" Style="{DynamicResource SectionHint}" />
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Cpu}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.CpuBoost}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock Grid.Column="3" Text="AC" Style="{DynamicResource SecHint2}" />
                         </Grid>
-                        <Border Style="{DynamicResource Track}">
-                            <UniformGrid Columns="2">
-                                <RadioButton x:Name="Hz60" GroupName="Hz" Tag="{x:Null}" Content="60 Hz" Style="{DynamicResource SegButton}" Click="Refresh_Click" />
-                                <RadioButton x:Name="Hz240" GroupName="Hz" Tag="{x:Null}" Content="240 Hz" Style="{DynamicResource SegButton}" Click="Refresh_Click" />
+                        <UniformGrid Columns="4" Height="49" Margin="-2.5">
+                            <RadioButton x:Name="CpuOff" GroupName="Cpu" CommandParameter="0" Content="Off" Style="{DynamicResource Seg2}" Click="Cpu_Click" />
+                            <RadioButton x:Name="CpuOn" GroupName="Cpu" CommandParameter="1" Content="On" Style="{DynamicResource Seg2}" Click="Cpu_Click" />
+                            <RadioButton x:Name="CpuEfficient" GroupName="Cpu" CommandParameter="3" Content="Efficient" Style="{DynamicResource Seg2}" Click="Cpu_Click" ToolTip="Boosts only when worth it, capped at 3.0 GHz (less heat and fan noise)" />
+                            <RadioButton x:Name="CpuAggressive" GroupName="Cpu" CommandParameter="2" Content="Aggressive" Style="{DynamicResource Seg2}" Click="Cpu_Click" />
+                        </UniformGrid>
+                    </StackPanel>
+
+                    <!-- REFRESH and FANS side by side -->
+                    <Grid Grid.Row="10">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="12" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <Grid Style="{DynamicResource Sec2}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Display}" />
+                                <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Refresh}" Style="{DynamicResource SecTitle2}" />
+                                <Border Grid.Column="2" Style="{DynamicResource SecLine2}" Margin="8,0,8,0" />
+                                <TextBlock x:Name="RefreshHint" Grid.Column="3" Style="{DynamicResource SecHint2}" />
+                            </Grid>
+                            <UniformGrid Columns="2" Height="37" Margin="-2.5">
+                                <RadioButton x:Name="Hz60" GroupName="Hz" Content="60" Style="{DynamicResource Seg2}" Click="Refresh_Click" />
+                                <RadioButton x:Name="Hz240" GroupName="Hz" Content="240 Hz" Style="{DynamicResource Seg2}" Click="Refresh_Click" />
                             </UniformGrid>
-                        </Border>
-                    </StackPanel>
-                </Border>
-
-                <!-- ===== 05 CPU boost (AC) ===== -->
-                <Border x:Name="CpuSection" Style="{DynamicResource SectionPanelTop}">
-                    <StackPanel>
-                        <Grid Style="{DynamicResource SectionHeader}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="05" Style="{DynamicResource SectionNum}" />
-                            <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Cpu}" />
-                            <TextBlock Grid.Column="2" Text="{DynamicResource Str.CpuBoost}" Style="{DynamicResource SectionTitle}" />
-                            <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
-                            <TextBlock Grid.Column="4" Text="{DynamicResource Str.CpuBoostHint}" Style="{DynamicResource SectionHint}" />
-                        </Grid>
-                        <Border Style="{DynamicResource Track}">
-                            <UniformGrid Columns="4">
-                                <RadioButton x:Name="CpuOff" GroupName="Cpu" CommandParameter="0" Content="Off" Style="{DynamicResource SegButton}" Click="Cpu_Click" />
-                                <RadioButton x:Name="CpuOn" GroupName="Cpu" CommandParameter="1" Content="On" Style="{DynamicResource SegButton}" Click="Cpu_Click" />
-                                <RadioButton x:Name="CpuEfficient" GroupName="Cpu" CommandParameter="3" Content="Efficient" Style="{DynamicResource SegButton}" Click="Cpu_Click" ToolTip="Boosts only when worth it, capped at 3.0 GHz (less heat and fan noise)" />
-                                <RadioButton x:Name="CpuAggressive" GroupName="Cpu" CommandParameter="2" Content="Aggressive" Style="{DynamicResource SegButton}" Click="Cpu_Click" />
-                            </UniformGrid>
-                        </Border>
-                    </StackPanel>
-                </Border>
-
-                <!-- ===== 06 Fans ===== -->
-                <Border x:Name="FanSection" Style="{DynamicResource SectionPanelBottom}">
-                    <StackPanel>
-                        <Grid Style="{DynamicResource SectionHeader}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="06" Style="{DynamicResource SectionNum}" />
-                            <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Fan}" />
-                            <TextBlock Grid.Column="2" Text="{DynamicResource Str.Fans}" Style="{DynamicResource SectionTitle}" />
-                            <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
-                            <TextBlock x:Name="FanHint" Grid.Column="4" Style="{DynamicResource SectionHint}" />
-                        </Grid>
-                        <Border Style="{DynamicResource Track}">
-                            <UniformGrid Columns="2">
-                                <RadioButton x:Name="FanAuto" GroupName="Fan" Tag="{x:Null}" Content="Auto" IsChecked="True" Style="{DynamicResource SegButton}" Click="Fan_Click" />
-                                <RadioButton x:Name="FanMax" GroupName="Fan" Tag="{x:Null}" Content="Max Boost" Style="{DynamicResource SegButton}" Click="Fan_Click" />
-                            </UniformGrid>
-                        </Border>
-                    </StackPanel>
-                </Border>
-
-                <!-- ===== 07 Lighting ===== -->
-                <Border Style="{DynamicResource SectionPanel}">
-                    <StackPanel>
-                        <Grid Style="{DynamicResource SectionHeader}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="07" Style="{DynamicResource SectionNum}" />
-                            <ContentControl Grid.Column="1" Style="{DynamicResource SectionIcon}" Content="{DynamicResource Icon.Light}" />
-                            <TextBlock Grid.Column="2" Text="{DynamicResource Str.Lighting}" Style="{DynamicResource SectionTitle}" />
-                            <Border Grid.Column="3" Style="{DynamicResource SectionLine}" />
-                            <TextBlock x:Name="BrightnessHint" Grid.Column="4" Style="{DynamicResource SectionHint}" />
-                        </Grid>
-                        <Border Style="{DynamicResource LightPanel}">
-                            <StackPanel>
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch}" Background="#00E5FF" Tag="0,229,255" Click="Color_Click" ToolTip="Cyan" />
-                                        <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch}" Background="#7C4DFF" Tag="124,77,255" Click="Color_Click" ToolTip="Purple" />
-                                        <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch}" Background="#FF4D6A" Tag="255,77,106" Click="Color_Click" ToolTip="Red" />
-                                        <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch}" Background="#3CFF7A" Tag="60,255,122" Click="Color_Click" ToolTip="Green" />
-                                        <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch}" Background="#FFFFFF" Tag="255,255,255" Click="Color_Click" ToolTip="White" />
-                                        <RadioButton x:Name="CustomSwatch" GroupName="Swatch" Style="{DynamicResource Swatch}" Click="CustomSwatch_Click" ToolTip="Custom color">
-                                            <RadioButton.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#FF0000" Offset="0" />
-                                                    <GradientStop Color="#FFFF00" Offset="0.2" />
-                                                    <GradientStop Color="#00FF00" Offset="0.4" />
-                                                    <GradientStop Color="#00FFFF" Offset="0.6" />
-                                                    <GradientStop Color="#0000FF" Offset="0.8" />
-                                                    <GradientStop Color="#FF00FF" Offset="1" />
-                                                </LinearGradientBrush>
-                                            </RadioButton.Background>
-                                        </RadioButton>
-                                        <Popup x:Name="CustomPopup" PlacementTarget="{Binding ElementName=CustomSwatch}" Placement="Top"
-                                               StaysOpen="False" AllowsTransparency="True" VerticalOffset="-6">
-                                            <Border Style="{DynamicResource PopupPanel}" Width="280" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display" RenderOptions.ClearTypeHint="Enabled">
-                                                <StackPanel>
-                                                    <Grid Margin="0,0,0,10">
-                                                        <TextBlock Text="Custom color" Style="{DynamicResource PopupTitle}" />
-                                                        <Border x:Name="CustomPreview" Width="40" Height="22" CornerRadius="4" HorizontalAlignment="Right"
-                                                                BorderBrush="#30FFFFFF" BorderThickness="1" Background="#00E5FF" />
-                                                    </Grid>
-                                                    <TextBlock Text="Hue" Style="{DynamicResource BodyText}" />
-                                                    <Border CornerRadius="5" Height="10" Margin="6,4,6,0">
-                                                        <Border.Background>
-                                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                                <GradientStop Color="#FF0000" Offset="0" />
-                                                                <GradientStop Color="#FFFF00" Offset="0.1667" />
-                                                                <GradientStop Color="#00FF00" Offset="0.3333" />
-                                                                <GradientStop Color="#00FFFF" Offset="0.5" />
-                                                                <GradientStop Color="#0000FF" Offset="0.6667" />
-                                                                <GradientStop Color="#FF00FF" Offset="0.8333" />
-                                                                <GradientStop Color="#FF0000" Offset="1" />
-                                                            </LinearGradientBrush>
-                                                        </Border.Background>
-                                                    </Border>
-                                                    <Slider x:Name="HueSlider" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="360" Value="186" IsMoveToPointEnabled="True" ValueChanged="CustomColor_Changed" />
-                                                    <TextBlock Text="Saturation" Style="{DynamicResource BodyText}" Margin="0,6,0,0" />
-                                                    <Slider x:Name="SatSlider" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="100" IsMoveToPointEnabled="True" ValueChanged="CustomColor_Changed" />
-                                                    <Grid Margin="0,8,0,0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Text="R" Style="{DynamicResource BodyText}" Margin="0,0,6,0" />
-                                                        <TextBox x:Name="RBox" Grid.Column="1" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
-                                                        <TextBlock Grid.Column="2" Text="G" Style="{DynamicResource BodyText}" Margin="0,0,6,0" />
-                                                        <TextBox x:Name="GBox" Grid.Column="3" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
-                                                        <TextBlock Grid.Column="4" Text="B" Style="{DynamicResource BodyText}" Margin="0,0,6,0" />
-                                                        <TextBox x:Name="BBox" Grid.Column="5" MaxLength="3" TextChanged="Rgb_Changed" />
-                                                    </Grid>
-                                                    <Button Content="Apply" HorizontalAlignment="Stretch" Margin="0,10,0,0" Click="CustomApply_Click" Style="{DynamicResource GhostButton}" />
-                                                </StackPanel>
-                                            </Border>
-                                        </Popup>
-                                    </StackPanel>
-                                    <!-- 1.3.1-beta.2: laptop button opens the Lights menu (tiles lit = light on), MainWindow.Lights.cs -->
-                                    <Button x:Name="LightsButton" Style="{DynamicResource GhostButton}" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Click="Lights_Click" ToolTip="Lights">
-                                        <Grid>
-                                            <ContentControl x:Name="LightsIcon" Content="{DynamicResource Icon.Laptop}" Width="16" Height="16" Focusable="False" IsTabStop="False" />
-                                            <Ellipse x:Name="LightsDot" Width="7" Height="7" Fill="#FFB020" HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                     Margin="0,-4,-5,0" Visibility="Collapsed" IsHitTestVisible="False" />
-                                        </Grid>
-                                    </Button>
-                                    <Popup x:Name="LightsPopup" PlacementTarget="{Binding ElementName=LightsButton}" Placement="Top"
-                                           StaysOpen="False" AllowsTransparency="True" VerticalOffset="-6" Closed="LightsPopup_Closed">
-                                        <Border x:Name="LightsPanel" Style="{DynamicResource PopupPanel}" Width="368" UseLayoutRounding="True"
-                                                TextOptions.TextFormattingMode="Display" RenderOptions.ClearTypeHint="Enabled" PreviewKeyDown="LightsPanel_KeyDown">
-                                            <StackPanel>
-                                                <Grid Margin="0,0,0,10">
-                                                    <TextBlock Text="Lights" Style="{DynamicResource PopupTitle}" VerticalAlignment="Center" />
-                                                    <TextBlock Text="Lit = on · tap to switch" Style="{DynamicResource BodyText}" HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                                </Grid>
-                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center"
-                                                            KeyboardNavigation.DirectionalNavigation="Cycle" KeyboardNavigation.TabNavigation="Cycle">
-                                                    <CheckBox x:Name="ZoneKeyboard" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Keys}" Content="Keyboard"
-                                                              Click="Zone_Click" ToolTip="Keyboard backlight. F7 still sets its level" />
-                                                    <CheckBox x:Name="ZoneRing" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Ring}" Content="Rear ring"
-                                                              Click="Zone_Click" ToolTip="The light bar around the back" />
-                                                    <CheckBox x:Name="ZoneHead" Style="{DynamicResource ZoneTile}" Tag="{DynamicResource Icon.Alien}" Content="Alienhead"
-                                                              Click="Zone_Click" ToolTip="The logo on the lid" />
-                                                    <Border Width="1" Margin="0,10,8,10" Background="{DynamicResource TextMuted}" Opacity="0.35" />
-                                                    <Button x:Name="ZoneAll" Style="{DynamicResource ZoneAction}" Tag="{DynamicResource Icon.BulbOff}" Content="Turn off"
-                                                            Click="ZoneAll_Click" ToolTip="Keyboard, rear ring and Alienhead. The power button light is never changed" />
-                                                </StackPanel>
-                                                <TextBlock Text="F7 still sets the keyboard level" Style="{DynamicResource BodyText}" Margin="0,12,0,0" />
-                                            </StackPanel>
-                                        </Border>
-                                    </Popup>
-                                </Grid>
-                                <Grid x:Name="LightFxRow" Margin="0,10,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="12" />
-                                        <ColumnDefinition Width="1.25*" />
-                                    </Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="EffectBox" Style="{DynamicResource FxCombo}" ToolTip="Lighting effect" SelectionChanged="Effect_Changed">
-                                        <ComboBoxItem Content="Static" Tag="0" />
-                                        <ComboBoxItem Content="Breathing" Tag="2" />
-                                        <ComboBoxItem Content="Wave" Tag="3" />
-                                        <ComboBoxItem Content="Dual-color wave" Tag="4" />
-                                        <ComboBoxItem Content="Pulse" Tag="8" />
-                                        <ComboBoxItem Content="Mixed pulse" Tag="9" />
-                                        <ComboBoxItem Content="Night Rider" Tag="10" />
-                                        <ComboBoxItem Content="Laser" Tag="11" />
-                                        <ComboBoxItem Content="Spectrum" Tag="100" />
-                                        <ComboBoxItem Content="Rainbow wave" Tag="101" />
-                                    </ComboBox>
-                                    <Grid Grid.Column="2" VerticalAlignment="Center">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="36" />
-                                        </Grid.ColumnDefinitions>
-                                        <Slider x:Name="BrightnessSlider" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="80"
-                                                IsMoveToPointEnabled="True" PreviewMouseUp="Brightness_Commit" ValueChanged="Brightness_Changed" VerticalAlignment="Center" />
-                                        <TextBlock x:Name="BrightnessValue" Grid.Column="1" Text="80%" Style="{DynamicResource ValueSmall}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                    </Grid>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </Border>
-
-                <!-- v1.1: status on the left, version on the right (the footer center holds the view button) -->
-                <Grid Margin="2,8,2,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="StatusText" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Visibility="Collapsed" VerticalAlignment="Center" Margin="0,0,10,0" />
-                    <TextBlock x:Name="VersionText" Grid.Column="1" Text="v0.8.5" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{DynamicResource VersionText}" />
-                </Grid>
-            </StackPanel>
-
-            <!-- Footer: Run on startup · version · settings + Quit -->
-            <Border x:Name="MainFooter" Grid.Row="3" Style="{DynamicResource FooterBar}">
-                <Grid>
-                    <!-- v1.1 beta.3: three columns so the view button never touches "Run on startup" (Fluent text is wider) -->
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <CheckBox x:Name="StartupToggle" Style="{DynamicResource ToggleBox}" Click="Startup_Click" VerticalAlignment="Center" />
-                        <TextBlock Text="Run on startup" Margin="9,0,0,0" Style="{DynamicResource FooterText}" />
-                    </StackPanel>
-                    <!-- v1.1: compact / full view switch (tray + F3 open compact, F4 opens full) -->
-                    <Button x:Name="ViewButton" Grid.Column="1" Style="{DynamicResource GhostButton}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Margin="8,0" Click="ViewButton_Click" ToolTip="Switch between the compact and the full view">
-                        <StackPanel Orientation="Horizontal">
-                            <Path x:Name="ViewButtonIcon" Width="9" Height="14" Margin="0,0,8,0" VerticalAlignment="Center" Stretch="Uniform"
-                                  StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                  Stroke="{Binding Foreground, ElementName=ViewButtonText}" Data="M0,4 L4,0 L8,4 M0,10 L4,14 L8,10" />
-                            <TextBlock x:Name="ViewButtonText" Text="Full menu" VerticalAlignment="Center" />
                         </StackPanel>
-                    </Button>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <Button x:Name="SettingsButton" Style="{DynamicResource GhostButton}" Padding="7,5" Margin="0,0,6,0" Click="Settings_Click" ToolTip="Settings">
-                            <ContentControl Style="{DynamicResource ButtonIcon}" Margin="0" Content="{DynamicResource Icon.Settings}" />
+                        <StackPanel Grid.Column="2">
+                            <Grid Style="{DynamicResource Sec2}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Fan}" />
+                                <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Fans}" Style="{DynamicResource SecTitle2}" />
+                                <Border Grid.Column="2" Style="{DynamicResource SecLine2}" Margin="8,0,8,0" />
+                                <TextBlock x:Name="FanHint" Grid.Column="3" Style="{DynamicResource SecHint2}" />
+                            </Grid>
+                            <UniformGrid Columns="2" Height="37" Margin="-2.5">
+                                <RadioButton x:Name="FanAuto" GroupName="Fan" Content="Auto" IsChecked="True" Style="{DynamicResource Seg2}" Click="Fan_Click" ToolTip="The BIOS runs the fans" />
+                                <RadioButton x:Name="FanMax" GroupName="Fan" Content="Max" Style="{DynamicResource Seg2}" Click="Fan_Click" ToolTip="Max fan boost" />
+                            </UniformGrid>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <!-- ================= LIGHTS (A) ================= -->
+                <Grid x:Name="LightsPage" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1.25*" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- ZONES (the 1.3.5 Lights popup, inline): lit tile = on, tap to switch. Turn off kills all three -->
+                    <Grid Grid.Row="0">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Light}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Zones}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock Grid.Column="3" Text="LIT = ON · TAP TO SWITCH" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <Grid Grid.Row="1" KeyboardNavigation.DirectionalNavigation="Cycle">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" /><ColumnDefinition Width="18" /><ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox x:Name="ZoneKeyboard" Grid.Column="0" Style="{DynamicResource ZoneTile}" Width="Auto" Height="Auto" Margin="0" FontSize="12"
+                                      Tag="{DynamicResource Icon.Keys}" Content="Keyboard" Click="Zone_Click" ToolTip="Keyboard backlight. F7 still sets its level" />
+                            <CheckBox x:Name="ZoneRing" Grid.Column="2" Style="{DynamicResource ZoneTile}" Width="Auto" Height="Auto" Margin="0" FontSize="12"
+                                      Tag="{DynamicResource Icon.Ring}" Content="Rear ring" Click="Zone_Click" ToolTip="The light bar around the back" />
+                            <CheckBox x:Name="ZoneHead" Grid.Column="4" Style="{DynamicResource ZoneTile}" Width="Auto" Height="Auto" Margin="0" FontSize="12"
+                                      Tag="{DynamicResource Icon.Alien}" Content="Alienhead" Click="Zone_Click" ToolTip="The logo on the lid" />
+                            <Border Grid.Column="5" Width="1" Margin="0,10,0,10" HorizontalAlignment="Center" Background="{DynamicResource Line2}" />
+                            <Button x:Name="ZoneAll" Grid.Column="6" Style="{DynamicResource ZoneAction}" Width="Auto" Height="Auto" FontSize="12"
+                                    Tag="{DynamicResource Icon.BulbOff}" Content="Turn off" Click="ZoneAll_Click"
+                                    ToolTip="Keyboard, rear ring and Alienhead. The power button light is never changed" />
+                        </Grid>
+                    </Grid>
+
+                    <!-- COLOR: the app accent follows -->
+                    <Grid Grid.Row="2">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Palette}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Color}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock x:Name="ColorHint" Grid.Column="3" Text="" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <Border Grid.Row="1" Style="{DynamicResource Card2}" Padding="14,0">
+                            <StackPanel x:Name="LightsSwatches" Orientation="Horizontal" VerticalAlignment="Center">
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#00E5FF" Tag="0,229,255" Click="Color_Click" ToolTip="Cyan" />
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#7C4DFF" Tag="124,77,255" Click="Color_Click" ToolTip="Purple" />
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#FF4D6A" Tag="255,77,106" Click="Color_Click" ToolTip="Red" />
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#40DC78" Tag="60,255,122" Click="Color_Click" ToolTip="Green" />
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#FFFFFF" Tag="255,255,255" Click="Color_Click" ToolTip="White" />
+                                <RadioButton x:Name="CustomSwatch" GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Click="CustomSwatch_Click" ToolTip="Custom color" Background="{DynamicResource CustomSwatchBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- EFFECT AND BRIGHTNESS -->
+                    <StackPanel Grid.Row="4">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Sparkles}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Fx}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock Grid.Column="3" Text="F7 · KEYBOARD LEVEL" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <Border Style="{DynamicResource Card2}" Height="52" Padding="12,0">
+                            <Grid VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="170" /><ColumnDefinition Width="*" /><ColumnDefinition Width="44" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="EffectBox" Style="{DynamicResource FxCombo}" Height="30" ToolTip="Lighting effect" SelectionChanged="Effect_Changed">
+                                    <ComboBoxItem Content="Static" Tag="0" />
+                                    <ComboBoxItem Content="Breathing" Tag="2" />
+                                    <ComboBoxItem Content="Wave" Tag="3" />
+                                    <ComboBoxItem Content="Dual-color wave" Tag="4" />
+                                    <ComboBoxItem Content="Pulse" Tag="8" />
+                                    <ComboBoxItem Content="Mixed pulse" Tag="9" />
+                                    <ComboBoxItem Content="Night Rider" Tag="10" />
+                                    <ComboBoxItem Content="Laser" Tag="11" />
+                                    <ComboBoxItem Content="Spectrum" Tag="100" />
+                                    <ComboBoxItem Content="Rainbow wave" Tag="101" />
+                                </ComboBox>
+                                <Slider x:Name="BrightnessSlider" Grid.Column="1" Margin="18,0,8,0" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="80"
+                                        IsMoveToPointEnabled="True" PreviewMouseUp="Brightness_Commit" ValueChanged="Brightness_Changed" VerticalAlignment="Center" ToolTip="Lighting brightness" />
+                                <TextBlock x:Name="BrightnessValue" Grid.Column="2" Text="80%" Style="{DynamicResource SecHint2}" FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right" />
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- BACKLIGHT TIMEOUT (moved here from Settings) -->
+                    <StackPanel Grid.Row="6">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Clock}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Timeout}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock x:Name="KbdHint" Grid.Column="3" Text="OFF" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <Border Style="{DynamicResource Card2}" Height="128">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="44" /><RowDefinition Height="46" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <Grid Margin="14,0">
+                                    <TextBlock Text="Fade after no input" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                    <Border Style="{DynamicResource PillTrack2}" Width="172" Height="28" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <UniformGrid Columns="5">
+                                            <RadioButton x:Name="Kbd0" GroupName="Kbd" Content="Off" Style="{DynamicResource PillItem2}" Click="KbdTimeout_Click" />
+                                            <RadioButton x:Name="Kbd1" GroupName="Kbd" Content="1" Style="{DynamicResource PillItem2}" Click="KbdTimeout_Click" />
+                                            <RadioButton x:Name="Kbd2" GroupName="Kbd" Content="2" Style="{DynamicResource PillItem2}" Click="KbdTimeout_Click" />
+                                            <RadioButton x:Name="Kbd5" GroupName="Kbd" Content="5" Style="{DynamicResource PillItem2}" Click="KbdTimeout_Click" />
+                                            <RadioButton x:Name="Kbd10" GroupName="Kbd" Content="10m" Style="{DynamicResource PillItem2}" Click="KbdTimeout_Click" />
+                                        </UniformGrid>
+                                    </Border>
+                                </Grid>
+                                <Border x:Name="KbdBatteryRow" Grid.Row="1" Style="{DynamicResource RowLine2}" Margin="14,0" Padding="0">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="On battery only" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Stay lit on AC" Style="{DynamicResource RowSub2}" Margin="0,1,0,0" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="KbdBatteryToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="KbdOption_Click" ToolTip="Off: on AC too" />
+                                    </Grid>
+                                </Border>
+                                <Border x:Name="KbdFullscreenRow" Grid.Row="2" Style="{DynamicResource RowLine2}" Margin="14,0" Padding="0">
+                                    <Grid>
+                                        <TextBlock Text="Not in fullscreen games" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                        <CheckBox x:Name="KbdFullscreenToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="KbdOption_Click" ToolTip="Keeps the keys lit while you play (pauses the timeout in fullscreen)" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- STATUS KEYS -->
+                    <StackPanel Grid.Row="8">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Keys}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.StatusKeys}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock Grid.Column="3" Text="AUTO" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <Border Style="{DynamicResource Card2}" Height="44" Padding="14,0">
+                            <TextBlock Text="G-Mode, mute, mic and touchpad keys light up white" FontSize="11.5" Foreground="#A9B4BF" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" ToolTip="With the Static effect. Effects own the keys" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ================= OVERLAY (beta 2) ================= -->
+                <Grid x:Name="OverlayPage" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.ChartBar}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.OverlayLevel}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <Border Grid.Column="3" Style="{DynamicResource Badge2}" Margin="0,0,8,0"><TextBlock Text="BETA 2" Style="{DynamicResource BadgeText2}" /></Border>
+                            <TextBlock Grid.Column="4" Text="F4 · OFF / LAST LEVEL" Style="{DynamicResource SecHint2}" />
+                        </Grid>
+                        <Grid Height="44" Margin="16,0,16,0" Opacity="0.45" IsEnabled="False">
+                            <Border Height="4" CornerRadius="2" VerticalAlignment="Top" Margin="0,12,0,0" Background="#1C2127" />
+                            <UniformGrid Columns="5" Margin="-47,0,-47,0">
+                                <Grid><Ellipse Width="20" Height="20" VerticalAlignment="Top" Margin="0,4,0,0" Fill="#E9EEF2" /><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{DynamicResource AccentBrush}" /><TextBlock Text="OFF" Style="{DynamicResource SecHint2}" Foreground="#F2F6F9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="1" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="2" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="3" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="4" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                            </UniformGrid>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- preview placeholder (MangoHud level 3 look) with the beta 2 badge -->
+                    <Border Grid.Row="2" Background="#0A1418" BorderBrush="{DynamicResource Line2}" BorderThickness="1" CornerRadius="6" Padding="6" ClipToBounds="True">
+                        <Grid>
+                            <Border CornerRadius="4" Opacity="0.9">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#0C2A33" Offset="0" /><GradientStop Color="#2A1240" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
+                            <Border Width="112" HorizontalAlignment="Left" VerticalAlignment="Top" Background="#8C020202" Padding="5,3,5,6" Opacity="0.55">
+                                <StackPanel TextElement.FontSize="8.5" TextElement.Foreground="#FFFFFF">
+                                    <Grid><TextBlock Text="GPU" Foreground="#2E9762" /><TextBlock Text="--%  --°C" HorizontalAlignment="Right" /></Grid>
+                                    <Grid><TextBlock Text="CPU" Foreground="#2E97CB" /><TextBlock Text="--%  --°C" HorizontalAlignment="Right" /></Grid>
+                                    <Grid><TextBlock Text="VRAM" Foreground="#AD64C1" /><TextBlock Text="--GiB" HorizontalAlignment="Right" /></Grid>
+                                    <Grid><TextBlock Text="RAM" Foreground="#C26693" /><TextBlock Text="--GiB" HorizontalAlignment="Right" /></Grid>
+                                    <Grid><TextBlock Text="BATT" Foreground="#FF9078" /><TextBlock Text="--% AC" HorizontalAlignment="Right" /></Grid>
+                                    <Grid><TextBlock Text="DX12" Foreground="#EB5B5B" /><TextBlock Text="--FPS" HorizontalAlignment="Right" /></Grid>
+                                    <Path Data="M0,6 L10,5 L20,7 L30,4 L40,6 L50,0 L60,6 L70,5 L80,7 L90,4 L100,6" Stroke="#00FF00" StrokeThickness="1" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{DynamicResource Badge2}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="14,6" Background="#E6090A0C">
+                                <StackPanel>
+                                    <TextBlock Text="COMING IN BETA 2" Style="{DynamicResource BadgeText2}" FontSize="12" HorizontalAlignment="Center" />
+                                    <TextBlock Text="The in-game overlay is not in this build" FontSize="11" Foreground="#A9B4BF" HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="PREVIEW" Style="{DynamicResource SecHint2}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,6,4" />
+                        </Grid>
+                    </Border>
+
+                    <!-- ADVANCED (layout only in beta 1, nothing is saved) -->
+                    <StackPanel Grid.Row="4">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.AdjustH}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Advanced}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock Grid.Column="3" Text="RESET TO STEAMOS" Style="{DynamicResource SecHint2}" Opacity="0.5" />
+                        </Grid>
+                        <Border Style="{DynamicResource Card2}" Height="292" Padding="14,10,14,10">
+                            <StackPanel IsEnabled="False" Opacity="0.5">
+                                <Grid Height="50">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="Position" Style="{DynamicResource RowTitle2}" />
+                                        <TextBlock Text="Top left, like SteamOS" Style="{DynamicResource RowSub2}" />
+                                    </StackPanel>
+                                    <Border Width="100" Height="46" HorizontalAlignment="Right" Background="#0B0D10" BorderBrush="{DynamicResource Line2}" BorderThickness="1" CornerRadius="4" Padding="6,5">
+                                        <UniformGrid Columns="3" Rows="2">
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{DynamicResource AccentBrush}" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
+                                        </UniformGrid>
+                                    </Border>
+                                </Grid>
+                                <Grid Height="30" Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Size" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                    <Slider Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="50" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                    <TextBlock Grid.Column="2" Text="100%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
+                                </Grid>
+                                <Grid Height="30">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Background" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                    <Slider Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="50" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                    <TextBlock Grid.Column="2" Text="50%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
+                                </Grid>
+                                <Grid Height="32">
+                                    <TextBlock Text="Update every (ms)" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                    <Border Style="{DynamicResource PillTrack2}" Width="172" Height="26" HorizontalAlignment="Right">
+                                        <UniformGrid Columns="3">
+                                            <RadioButton GroupName="OvUpdate" Content="250" Style="{DynamicResource PillItem2}" />
+                                            <RadioButton GroupName="OvUpdate" Content="500" Style="{DynamicResource PillItem2}" IsChecked="True" />
+                                            <RadioButton GroupName="OvUpdate" Content="1000" Style="{DynamicResource PillItem2}" />
+                                        </UniformGrid>
+                                    </Border>
+                                </Grid>
+                                <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,6,0,6" />
+                                <Grid Height="30">
+                                    <TextBlock Text="Customize level" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                    <Border Style="{DynamicResource PillTrack2}" Width="172" Height="26" HorizontalAlignment="Right">
+                                        <UniformGrid Columns="4">
+                                            <RadioButton GroupName="OvLevel" Content="1" Style="{DynamicResource PillItem2}" />
+                                            <RadioButton GroupName="OvLevel" Content="2" Style="{DynamicResource PillItem2}" />
+                                            <RadioButton GroupName="OvLevel" Content="3" Style="{DynamicResource PillItem2}" IsChecked="True" />
+                                            <RadioButton GroupName="OvLevel" Content="4" Style="{DynamicResource PillItem2}" />
+                                        </UniformGrid>
+                                    </Border>
+                                </Grid>
+                                <UniformGrid Columns="2" Margin="0,8,0,0" TextElement.FontSize="11.5" TextElement.Foreground="#A9B4BF">
+                                    <TextBlock Text="☑  GPU load, temp" Margin="0,1" />
+                                    <TextBlock Text="☑  CPU load, temp" Margin="0,1" />
+                                    <TextBlock Text="☑  Clocks" Margin="0,1" />
+                                    <TextBlock Text="☑  Power" Margin="0,1" />
+                                    <TextBlock Text="☑  VRAM and RAM" Margin="0,1" />
+                                    <TextBlock Text="☑  Battery" Margin="0,1" />
+                                    <TextBlock Text="☑  Frametime graph" Margin="0,1" />
+                                    <TextBlock Text="☐  Per thread CPU" Margin="0,1" />
+                                    <TextBlock Text="☐  Fans" Margin="0,1" />
+                                    <TextBlock Text="☐  Refresh rate" Margin="0,1" />
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- ===== settings page (GENERAL · KEYS, ALERTS · ADVANCED): same window, back arrow or Esc returns ===== -->
+            <Grid x:Name="SettingsPage" Grid.Row="0" Grid.RowSpan="3" Visibility="Collapsed"
+                  TextOptions.TextFormattingMode="Display" KeyboardNavigation.TabNavigation="Cycle">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="52" />
+                    <RowDefinition Height="40" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Border Style="{DynamicResource Header2}" Padding="12,0,10,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="SettingsBack" Style="{DynamicResource HeaderButton2}" Foreground="#F2F6F9" Content="{DynamicResource Icon.Back}" Click="SettingsBack_Click" ToolTip="Back (Esc)" />
+                        <TextBlock Grid.Column="1" Text="{DynamicResource Str.Settings}" Style="{DynamicResource Brand2}" Margin="8,0,0,0" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Minimize}" Click="Minimize_Click" ToolTip="Minimize" />
+                            <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Close}" Click="Close_Click" ToolTip="Hide to tray" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                <Grid Grid.Row="1">
+                    <Border VerticalAlignment="Bottom" Height="1" Background="{DynamicResource Line2}" />
+                    <UniformGrid Columns="2" KeyboardNavigation.DirectionalNavigation="Cycle">
+                        <RadioButton x:Name="SetTab1" GroupName="SetTab" Style="{DynamicResource Tab2}" Content="{DynamicResource Str2.TabGeneralKeys}" IsChecked="True" Click="SetTab_Click" />
+                        <RadioButton x:Name="SetTab2" GroupName="SetTab" Style="{DynamicResource Tab2}" Content="{DynamicResource Str2.TabAlertsAdvanced}" Click="SetTab_Click" />
+                    </UniformGrid>
+                </Grid>
+
+                <Grid Grid.Row="2" Margin="16,14,16,0">
+                    <!-- tab 1: GENERAL · KEYS -->
+                    <Grid x:Name="SetPage1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" /><RowDefinition Height="3*" /><RowDefinition Height="18" /><RowDefinition Height="Auto" /><RowDefinition Height="4*" />
+                        </Grid.RowDefinitions>
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Settings}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.General}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" Margin="12,0,0,0" />
+                        </Grid>
+                        <Border Grid.Row="1" Style="{DynamicResource Card2}">
+                            <UniformGrid Columns="1">
+                                <Border Style="{DynamicResource RowFirst2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="Show in taskbar" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Off: the app only lives in the tray" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="TaskbarToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="Taskbar_Click" ToolTip="Show the window's button on the taskbar" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="Reduce motion" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Turns off all animations" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="ReduceMotionToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="ReduceMotion_Click" ToolTip="On: no animations" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="Auto preset" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Battery when unplugged, last preset back on AC" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="AutoPresetToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="AutoPreset_Click" ToolTip="Unplug: Battery. Plug in: back to Quiet / Balanced / Performance (never G-Mode)" />
+                                    </Grid>
+                                </Border>
+                            </UniformGrid>
+                        </Border>
+                        <Grid Grid.Row="3" Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Keys}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Keys}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" Margin="12,0,0,0" />
+                        </Grid>
+                        <Border Grid.Row="4" Style="{DynamicResource Card2}">
+                            <UniformGrid Columns="1">
+                                <Border Style="{DynamicResource RowFirst2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="G-key (F1) toggles G-Mode" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock x:Name="GKeyText" Text="Key 0x80" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <Button Style="{DynamicResource Button2}" HorizontalAlignment="Right" Click="GKeyDetect_Click" Content="Detect key"
+                                                ToolTip="Press Detect, then the G-key, if F1 doesn't toggle G-Mode" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="F2 cycles presets" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Quiet, Balanced, Performance" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="F2PresetsToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F2Presets_Click" ToolTip="F2 (media mode, no Fn) cycles Quiet / Balanced / Performance" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="F3 opens the app" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Press again to hide it" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="F3OpensToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F3Opens_Click" ToolTip="F3 (media mode, no Fn) opens / hides Alien Controls. Works over borderless games" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="F4 toggles the overlay" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Off, or back to your last level. Overlay comes in beta 2" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="F4OverlayToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F4Overlay_Click" ToolTip="F4 (media mode, no Fn) is reserved for the overlay" />
+                                    </Grid>
+                                </Border>
+                            </UniformGrid>
+                        </Border>
+                    </Grid>
+
+                    <!-- tab 2: ALERTS · ADVANCED -->
+                    <Grid x:Name="SetPage2" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" /><RowDefinition Height="4*" /><RowDefinition Height="18" /><RowDefinition Height="Auto" /><RowDefinition Height="2*" />
+                            <RowDefinition Height="18" /><RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Alerts}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Alerts}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" Margin="12,0,0,0" />
+                        </Grid>
+                        <Border Grid.Row="1" Style="{DynamicResource Card2}">
+                            <UniformGrid Columns="1">
+                                <Border Style="{DynamicResource RowFirst2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="Notifications" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock x:Name="ToastsSub" Text="Pill toast for F1, F2 and plug / unplug" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="ToastsToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="Toasts_Click" ToolTip="Window and tray clicks never show one" />
+                                    </Grid>
+                                </Border>
+                                <Border x:Name="ToastStyleRow" Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
+                                            <TextBlock Text="Toast style" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock x:Name="ToastStyleSub" Text="Top-center pill" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Style="{DynamicResource PillTrack2}" Width="124" Height="28">
+                                                <UniformGrid Columns="2">
+                                                    <RadioButton x:Name="ToastPill" GroupName="ToastStyle" Content="Pill" Style="{DynamicResource PillItemText2}" Click="ToastStyle_Click" />
+                                                    <RadioButton x:Name="ToastClassic" GroupName="ToastStyle" Content="Classic" Style="{DynamicResource PillItemText2}" Click="ToastStyle_Click" />
+                                                </UniformGrid>
+                                            </Border>
+                                            <Button Style="{DynamicResource Button2}" Margin="8,0,0,0" Width="52" Padding="0" Content="Test" Click="ToastTest_Click" ToolTip="Shows a sample (Balanced) in this style" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="Notification sound" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Plays even with toasts off" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="ToastSoundToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="ToastSound_Click" ToolTip="Chime with F1, F2 and plug / unplug" />
+                                    </Grid>
+                                </Border>
+                                <Border x:Name="ChimeRow" Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
+                                            <TextBlock Text="Chime pack" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Soft or the 1.2 sounds" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Style="{DynamicResource PillTrack2}" Width="124" Height="28">
+                                                <UniformGrid Columns="2">
+                                                    <RadioButton x:Name="ChimeSoft" GroupName="Chime" Content="Soft" Style="{DynamicResource PillItemText2}" Click="ChimePack_Click" />
+                                                    <RadioButton x:Name="ChimeClassic" GroupName="Chime" Content="Classic" Style="{DynamicResource PillItemText2}" Click="ChimePack_Click" />
+                                                </UniformGrid>
+                                            </Border>
+                                            <Button Style="{DynamicResource Button2}" Margin="8,0,0,0" Width="52" Padding="0" Click="ChimePreview_Click" ToolTip="Preview: Balanced, then G-Mode on">
+                                                <ContentControl Width="13" Height="13" Focusable="False" IsTabStop="False" Content="{DynamicResource Icon.Play}" />
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </UniformGrid>
+                        </Border>
+                        <Grid Grid.Row="3" Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Code}" />
+                            <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Advanced}" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" Margin="12,0,0,0" />
+                        </Grid>
+                        <Border Grid.Row="4" Style="{DynamicResource Card2}">
+                            <UniformGrid Columns="1">
+                                <Border Style="{DynamicResource RowFirst2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="Log frame gaps" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Each slide's steps to crash.log" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <CheckBox x:Name="FrameLogToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="FrameLog_Click" ToolTip="Debug: logs steps per second and the biggest gap of every window slide" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="Reset settings" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="Back to defaults, then the app restarts" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <Button Style="{DynamicResource Button2}" HorizontalAlignment="Right" Content="Reset" Click="ResetSettings_Click" />
+                                    </Grid>
+                                </Border>
+                            </UniformGrid>
+                        </Border>
+                        <Border Grid.Row="6" Style="{DynamicResource Card2}" Padding="14,9,14,10">
+                            <StackPanel>
+                                <TextBlock x:Name="AboutTitle" Text="Alien Controls" Style="{DynamicResource RowTitle2}" />
+                                <TextBlock x:Name="AboutText" Style="{DynamicResource RowSub2}" TextWrapping="Wrap" TextTrimming="None" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Grid>
+
+            <!-- ===== status line (last action) + version ===== -->
+            <Grid Grid.Row="3" Margin="18,0,18,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusText" Style="{DynamicResource Status2}" Margin="0,0,10,0" />
+                <TextBlock x:Name="SettingsHintText" Text="Esc or the back arrow returns" Style="{DynamicResource Status2}" Margin="0,0,10,0" Visibility="Collapsed" />
+                <TextBlock x:Name="VersionText" Grid.Column="1" Text="v2.0.0" Style="{DynamicResource Version2}" />
+            </Grid>
+
+            <!-- ===== footer: Run on startup, gear (Settings), Quit ===== -->
+            <Border x:Name="MainFooter" Grid.Row="4" BorderBrush="{DynamicResource Line2}" BorderThickness="0,1,0,0" Background="#07080A" CornerRadius="0,0,10,10" Padding="18,0,18,0">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <CheckBox x:Name="StartupToggle" Style="{DynamicResource Toggle2}" Click="Startup_Click" ToolTip="Starts Alien Controls when you sign in" />
+                        <TextBlock Text="Run on startup" Margin="10,0,0,0" FontSize="12.5" Foreground="#F2F6F9" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button x:Name="SettingsButton" Style="{DynamicResource Button2}" Width="34" Padding="0" Margin="0,0,8,0" Click="Settings_Click" ToolTip="Settings">
+                            <ContentControl Width="15" Height="15" Focusable="False" IsTabStop="False" Content="{DynamicResource Icon.Settings}" />
                         </Button>
-                        <Button Style="{DynamicResource GhostButton}" Click="Quit_Click" ToolTip="Quit Alien Controls">
+                        <Button Style="{DynamicResource Button2}" Width="68" Padding="0" Click="Quit_Click" ToolTip="Quit Alien Controls">
                             <StackPanel Orientation="Horizontal">
-                                <ContentControl Style="{DynamicResource ButtonIcon}" Content="{DynamicResource Icon.Power}" />
+                                <ContentControl Width="14" Height="14" Margin="0,0,7,0" Focusable="False" IsTabStop="False" Content="{DynamicResource Icon.Power}" />
                                 <TextBlock Text="Quit" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
-
                 </Grid>
             </Border>
 
-            <!-- 1.3.0-beta.2: settings page (replaces the gear popup). Same card swap as F3/F4; back arrow or Esc.
-                 Every tab panel stays in the layout (Hidden, not Collapsed), so the page is as tall as the tallest tab
-                 and switching tabs never changes the window height. -->
-            <Grid x:Name="SettingsPage" Grid.Row="1" Grid.RowSpan="3" Visibility="Collapsed"
-                  TextOptions.TextFormattingMode="Display" KeyboardNavigation.TabNavigation="Cycle">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid>
-                    <Border Style="{DynamicResource HeaderPattern}" />
-                    <Border Style="{DynamicResource HeaderBar}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Button x:Name="SettingsBack" Style="{DynamicResource HeaderButton}" Content="{DynamicResource Icon.Back}" Click="SettingsBack_Click" ToolTip="Back (Esc)" />
-                            <TextBlock Grid.Column="1" Text="{DynamicResource Str.Settings}" Style="{DynamicResource BrandText}" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="2" Text="Esc = back" Style="{DynamicResource SectionHint}" Margin="0,0,6,0" />
+            <!-- custom colour popup (opens above whichever rainbow swatch was clicked) -->
+            <Popup x:Name="CustomPopup" Placement="Top" StaysOpen="False" AllowsTransparency="True" VerticalOffset="-6">
+                <Border Style="{DynamicResource PopupPanel}" Width="280" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display" RenderOptions.ClearTypeHint="Enabled">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <TextBlock Text="Custom color" Style="{DynamicResource PopupTitle}" />
+                            <Border x:Name="CustomPreview" Width="40" Height="22" CornerRadius="4" HorizontalAlignment="Right"
+                                    BorderBrush="#30FFFFFF" BorderThickness="1" Background="#00E5FF" />
                         </Grid>
-                    </Border>
-                </Grid>
-                <StackPanel Grid.Row="1" Margin="{DynamicResource BodyMargin}">
-                    <Border Style="{DynamicResource Track}">
-                        <UniformGrid Columns="5" KeyboardNavigation.DirectionalNavigation="Cycle">
-                            <RadioButton x:Name="SetTabGeneral" GroupName="SetTab" Style="{DynamicResource ModeButton}" Click="SetTab_Click" Tag="{DynamicResource Icon.Settings}" Content="General" IsChecked="True" />
-                            <RadioButton x:Name="SetTabKeys" GroupName="SetTab" Style="{DynamicResource ModeButton}" Click="SetTab_Click" Tag="{DynamicResource Icon.Keys}" Content="Keys" />
-                            <RadioButton x:Name="SetTabAlerts" GroupName="SetTab" Style="{DynamicResource ModeButton}" Click="SetTab_Click" Tag="{DynamicResource Icon.Alerts}" Content="Alerts" />
-                            <RadioButton x:Name="SetTabBacklight" GroupName="SetTab" Style="{DynamicResource ModeButton}" Click="SetTab_Click" Tag="{DynamicResource Icon.Light}" Content="Backlight" />
-                            <RadioButton x:Name="SetTabAdvanced" GroupName="SetTab" Style="{DynamicResource ModeButton}" Click="SetTab_Click" Tag="{DynamicResource Icon.Code}" Content="Advanced" />
-                        </UniformGrid>
-                    </Border>
-                    <Grid Margin="0,14,0,4">
-                    <Border x:Name="SetGeneral" Style="{DynamicResource SetCard}" VerticalAlignment="Top" Visibility="Visible">
-                        <StackPanel>
-                            <Border Style="{DynamicResource SetRowFirst}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Theme" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Legend or Fluent" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Border Style="{DynamicResource Track}" Margin="0" Width="170">
-                                            <UniformGrid Columns="2">
-                                                <RadioButton x:Name="ThemeLegend" GroupName="Theme" Tag="{x:Null}" Content="Legend" Style="{DynamicResource SegButton}" Click="Theme_Click" />
-                                                <RadioButton x:Name="ThemeFluent" GroupName="Theme" Tag="{x:Null}" Content="Fluent" Style="{DynamicResource SegButton}" Click="Theme_Click" />
-                                            </UniformGrid>
-                                        </Border>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Run on startup" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Also in the footer (same setting)" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="StartupToggle2" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="Startup_Click" ToolTip="Starts Alien Controls when you sign in" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Show in taskbar" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Off: the app only lives in the tray" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="TaskbarToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="Taskbar_Click" ToolTip="Show the window's button on the taskbar" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Reduce motion" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Turns off all animations" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="ReduceMotionToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="ReduceMotion_Click" ToolTip="On: no animations (instant, like v0.8.1)" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Auto preset" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Battery when unplugged, last preset back on AC" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="AutoPresetToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="AutoPreset_Click" ToolTip="Unplug: Battery. Plug in: back to Quiet / Balanced / Performance (never G-Mode)" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="SetKeys" Style="{DynamicResource SetCard}" VerticalAlignment="Top" Visibility="Hidden">
-                        <StackPanel>
-                            <Border Style="{DynamicResource SetRowFirst}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="G-key (F1) toggles G-Mode" Style="{DynamicResource FooterText}" />
-                                        <TextBlock x:Name="GKeyText" Text="Key 0x80" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Button Style="{DynamicResource GhostButton}" Margin="8,0,0,0" VerticalAlignment="Center" Click="GKeyDetect_Click" ToolTip="Press Detect, then the G-key, if F1 doesn't toggle G-Mode">Detect key</Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="F2 cycles presets" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Quiet, Balanced, Performance" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="F2PresetsToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="F2Presets_Click" ToolTip="F2 (media mode, no Fn) cycles Quiet / Balanced / Performance" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="F3 / F4 open the app" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="F3 compact, F4 full menu. Again to hide" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="F3OpensToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="F3Opens_Click" ToolTip="F3 (media mode, no Fn) opens / hides Alien Controls. Works over borderless games" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="SetAlerts" Style="{DynamicResource SetCard}" VerticalAlignment="Top" Visibility="Hidden">
-                        <StackPanel>
-                            <Border Style="{DynamicResource SetRowFirst}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Notifications" Style="{DynamicResource FooterText}" />
-                                        <TextBlock x:Name="ToastsSub" Text="Pill toast for F1, F2 and plug / unplug" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="ToastsToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="Toasts_Click" ToolTip="Window and tray clicks never show one" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}" x:Name="ToastStyleRow">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Toast style" Style="{DynamicResource FooterText}" />
-                                        <TextBlock x:Name="ToastStyleSub" Text="Top-center pill" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Border Style="{DynamicResource Track}" Margin="0" Width="132">
-                                            <UniformGrid Columns="2">
-                                                <RadioButton x:Name="ToastPill" GroupName="ToastStyle" Tag="{x:Null}" Content="Pill" Style="{DynamicResource SegButton}" Click="ToastStyle_Click" />
-                                                <RadioButton x:Name="ToastClassic" GroupName="ToastStyle" Tag="{x:Null}" Content="Classic" Style="{DynamicResource SegButton}" Click="ToastStyle_Click" />
-                                            </UniformGrid>
-                                        </Border>
-                                        <Button Style="{DynamicResource GhostButton}" Margin="8,0,0,0" VerticalAlignment="Center" MinWidth="56" Click="ToastTest_Click" ToolTip="Shows a sample (Balanced) in this style">Test</Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Notification sound" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Plays even with toasts off" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="ToastSoundToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="ToastSound_Click" ToolTip="Chime with F1, F2 and plug / unplug" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}" x:Name="ChimeRow">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Chime pack" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Soft, or the 1.2 sounds" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Border Style="{DynamicResource Track}" Margin="0" Width="132">
-                                            <UniformGrid Columns="2">
-                                                <RadioButton x:Name="ChimeSoft" GroupName="Chime" Tag="{x:Null}" Content="Soft" Style="{DynamicResource SegButton}" Click="ChimePack_Click" />
-                                                <RadioButton x:Name="ChimeClassic" GroupName="Chime" Tag="{x:Null}" Content="Classic" Style="{DynamicResource SegButton}" Click="ChimePack_Click" />
-                                            </UniformGrid>
-                                        </Border>
-                                        <Button Style="{DynamicResource GhostButton}" Margin="8,0,0,0" VerticalAlignment="Center" MinWidth="56" Click="ChimePreview_Click" ToolTip="Preview: Balanced, then G-Mode on"><ContentControl Style="{DynamicResource ButtonIcon}" Margin="0" Width="12" Height="12" Content="{DynamicResource Icon.Play}" /></Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="SetBacklight" Style="{DynamicResource SetCard}" VerticalAlignment="Top" Visibility="Hidden">
-                        <StackPanel>
-                            <Border Style="{DynamicResource SetRowFirst}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Backlight timeout" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Keys fade with no input" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Border Style="{DynamicResource Track}" Margin="0" Width="206">
-                                            <UniformGrid Columns="5">
-                                                <RadioButton x:Name="Kbd0" GroupName="Kbd" Tag="{x:Null}" Content="Off" Style="{DynamicResource SegButton}" Click="KbdTimeout_Click" />
-                                                <RadioButton x:Name="Kbd1" GroupName="Kbd" Tag="{x:Null}" Content="1" Style="{DynamicResource SegButton}" Click="KbdTimeout_Click" />
-                                                <RadioButton x:Name="Kbd2" GroupName="Kbd" Tag="{x:Null}" Content="2" Style="{DynamicResource SegButton}" Click="KbdTimeout_Click" />
-                                                <RadioButton x:Name="Kbd5" GroupName="Kbd" Tag="{x:Null}" Content="5" Style="{DynamicResource SegButton}" Click="KbdTimeout_Click" />
-                                                <RadioButton x:Name="Kbd10" GroupName="Kbd" Tag="{x:Null}" Content="10m" Style="{DynamicResource SegButton}" Click="KbdTimeout_Click" />
-                                            </UniformGrid>
-                                        </Border>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}" x:Name="KbdBatteryRow">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="On battery only" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Stay lit on AC" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="KbdBatteryToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="KbdOption_Click" ToolTip="Off: on AC too" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}" x:Name="KbdFullscreenRow">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Not in fullscreen games" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Keeps the keys lit while you play" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <CheckBox x:Name="KbdFullscreenToggle" Style="{DynamicResource ToggleBox}" VerticalAlignment="Center" Click="KbdOption_Click" ToolTip="Pauses the timeout in fullscreen" />
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="SetAdvanced" Style="{DynamicResource SetCard}" VerticalAlignment="Top" Visibility="Hidden">
-                        <StackPanel>
-                            <Border Style="{DynamicResource SetRowFirst}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-                                        <TextBlock Text="Reset settings" Style="{DynamicResource FooterText}" />
-                                        <TextBlock Text="Back to defaults, then the app restarts" Style="{DynamicResource BodyText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Button Style="{DynamicResource GhostButton}" Margin="8,0,0,0" VerticalAlignment="Center" Click="ResetSettings_Click">Reset</Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{DynamicResource SetRow}">
-                                <TextBlock x:Name="AboutText" Style="{DynamicResource BodyText}" TextWrapping="Wrap" Opacity="0.75" VerticalAlignment="Center" />
-                            </Border>
-                        </StackPanel>
-                    </Border>
-                    </Grid>
-                </StackPanel>
-            </Grid>
-            <!-- v0.9.0: in-window GPU dialog ("RTX in use", restart), styled per theme through PopupPanel. -->
-            <Grid x:Name="GpuDialogLayer" Grid.RowSpan="4" Visibility="Collapsed" Background="#B8000000">
+                        <TextBlock Text="Hue" Style="{DynamicResource BodyText}" />
+                        <Border CornerRadius="5" Height="10" Margin="6,4,6,0">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Color="#FF0000" Offset="0" />
+                                    <GradientStop Color="#FFFF00" Offset="0.1667" />
+                                    <GradientStop Color="#00FF00" Offset="0.3333" />
+                                    <GradientStop Color="#00FFFF" Offset="0.5" />
+                                    <GradientStop Color="#0000FF" Offset="0.6667" />
+                                    <GradientStop Color="#FF00FF" Offset="0.8333" />
+                                    <GradientStop Color="#FF0000" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                        </Border>
+                        <Slider x:Name="HueSlider" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="360" Value="186" IsMoveToPointEnabled="True" ValueChanged="CustomColor_Changed" />
+                        <TextBlock Text="Saturation" Style="{DynamicResource BodyText}" Margin="0,6,0,0" />
+                        <Slider x:Name="SatSlider" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="100" IsMoveToPointEnabled="True" ValueChanged="CustomColor_Changed" />
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="R" Style="{DynamicResource BodyText}" Margin="0,0,6,0" />
+                            <TextBox x:Name="RBox" Grid.Column="1" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
+                            <TextBlock Grid.Column="2" Text="G" Style="{DynamicResource BodyText}" Margin="0,0,6,0" />
+                            <TextBox x:Name="GBox" Grid.Column="3" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
+                            <TextBlock Grid.Column="4" Text="B" Style="{DynamicResource BodyText}" Margin="0,0,6,0" />
+                            <TextBox x:Name="BBox" Grid.Column="5" MaxLength="3" TextChanged="Rgb_Changed" />
+                        </Grid>
+                        <Button Content="Apply" HorizontalAlignment="Stretch" Margin="0,10,0,0" Click="CustomApply_Click" Style="{DynamicResource ButtonPrimary2}" />
+                    </StackPanel>
+                </Border>
+            </Popup>
+
+            <!-- in-window GPU dialog ("RTX in use", restart, reset settings) -->
+            <Grid x:Name="GpuDialogLayer" Grid.RowSpan="5" Visibility="Collapsed" Background="#B8000000">
                 <Border Style="{DynamicResource PopupPanel}" Margin="22,0" VerticalAlignment="Center" UseLayoutRounding="True"
                         TextOptions.TextFormattingMode="Display" RenderOptions.ClearTypeHint="Enabled">
                     <StackPanel>

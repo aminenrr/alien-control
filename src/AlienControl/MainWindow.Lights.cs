@@ -10,7 +10,7 @@ using AlienControl.Services;
 namespace AlienControl;
 
 /// <summary>
-/// 1.3.1-beta.2 Lights menu (replaces the beta.1 Off menu). The laptop button opens a popup above it with four tiles:
+/// 1.3.1-beta.2 Lights menu (replaces the beta.1 Off menu). 2.0: inline on the Lights tab (ZONES), no popup. Four tiles:
 /// Keyboard, Rear ring, Alienhead (lit tile = that light is ON, a tap switches it) and an action tile that reads
 /// "Turn off" (lamp with a line, accent) while any light is on and "Turn on" (lamp, plain) once all three are off.
 /// The keyboard goes off through its hardware brightness (colors kept, frames held, see KeyboardHid.SetOff), so the
@@ -19,10 +19,8 @@ namespace AlienControl;
 /// </summary>
 public partial class MainWindow
 {
-    private const double LightsPopupWidth = 368;
     private readonly SemaphoreSlim _zoneGate = new(1, 1);
     private bool _zoneUiBusy;
-    private long _lightsClosedAt;
     private long _zoneLastClick;
 
     /// <summary>Brightness the lights are painted at: the app's setting, or half of it in the Ctrl+Alt+F 50% step.</summary>
@@ -30,29 +28,7 @@ public partial class MainWindow
 
     private int LightsOffCount => (_settings.OffKeyboard ? 1 : 0) + (_settings.OffRing ? 1 : 0) + (_settings.OffAlienhead ? 1 : 0);
 
-    private void Lights_Click(object sender, RoutedEventArgs e)
-    {
-        if (LightsPopup.IsOpen) { LightsPopup.IsOpen = false; return; }
-        // StaysOpen=False closes the popup on the mouse-down that lands on this button, before Click runs: without
-        // this check the same click would open it straight back up.
-        if (Environment.TickCount64 - _lightsClosedAt < 250 && LightsButton.IsMouseOver) return;
-        SyncZoneTiles();
-        LightsPopup.HorizontalOffset = LightsButton.ActualWidth - LightsPopupWidth;   // right edges line up
-        LightsPopup.IsOpen = true;
-        Dispatcher.BeginInvoke(new Action(() => ZoneKeyboard.Focus()), System.Windows.Threading.DispatcherPriority.Input);
-    }
-
-    private void LightsPopup_Closed(object? sender, EventArgs e) => _lightsClosedAt = Environment.TickCount64;
-
-    private void LightsPanel_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Escape) return;
-        LightsPopup.IsOpen = false;
-        LightsButton.Focus();
-        e.Handled = true;
-    }
-
-    /// <summary>Tiles, the All tile and the laptop button follow the saved switches.</summary>
+    /// <summary>Tiles and the Turn off / Turn on tile follow the saved switches.</summary>
     private void SyncZoneTiles()
     {
         _zoneUiBusy = true;
@@ -74,23 +50,6 @@ public partial class MainWindow
             ZoneAll.SetResourceReference(BorderBrushProperty, "AccentBrush");
         }
         _zoneUiBusy = false;
-        UpdateLightsButton();
-    }
-
-    /// <summary>Accent laptop when lights are on, an amber dot when some are off, muted when all three are off.</summary>
-    private void UpdateLightsButton()
-    {
-        int n = LightsOffCount;
-        if (n == 3) LightsIcon.SetResourceReference(ForegroundProperty, "TextMuted");
-        else LightsIcon.SetResourceReference(ForegroundProperty, "AccentBrush");
-        // 1.3.5 (Amine): the icon showed the previous state (lit with all lights off, muted with all on): the path's
-        // stroke binding to the inherited foreground didn't refresh while the popup was open. A fresh icon instance
-        // (Icon.Laptop is x:Shared=False) binds to the new foreground every time.
-        LightsIcon.Content = TryFindResource("Icon.Laptop");
-        LightsDot.Visibility = n is > 0 and < 3 ? Visibility.Visible : Visibility.Collapsed;
-        LightsButton.ToolTip = n == 0 ? "Lights: all on" : n == 3 ? "Lights: all off" : "Lights off: " + string.Join(", ",
-            new[] { _settings.OffKeyboard ? "keyboard" : null, _settings.OffRing ? "rear ring" : null, _settings.OffAlienhead ? "Alienhead" : null }
-            .Where(s => s is not null));
     }
 
     /// <summary>One action per click: a second click within 350 ms (a double-click) is ignored, so a tile can't
@@ -222,7 +181,7 @@ public partial class MainWindow
         Log.Info("Lights", $"Ctrl+Alt+F: {title}");
         await SetZonesAsync(off, off, off, wasHalf != _settings.LightsHalf);
         if (_settings.Toasts)
-            Toast.Show(IsLegend, new Toast.Info(CurrentProfile, icon, title, "Keyboard · rear ring · Alienhead", Toast.Right.None, !off,
+            Toast.Show(true, new Toast.Info(CurrentProfile, icon, title, "Keyboard · rear ring · Alienhead", Toast.Right.None, !off,
                 Accent: (Application.Current.Resources["AccentBrush"] as System.Windows.Media.SolidColorBrush)?.Color), Motion.Enabled);   // 1.3.5: laptop light colour
     }
 }

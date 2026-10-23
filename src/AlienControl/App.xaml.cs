@@ -23,15 +23,14 @@ public partial class App : Application
     private readonly TrayMenuStyle _menuStyle = new();
     private readonly List<(WinForms.ToolStripItem Item, string Text)> _menuTexts = new();
 
-    /// <summary>Loads only the chosen theme dictionary into App.Resources, replacing the previous one.</summary>
-    public static void ApplyTheme(string name)
+    /// <summary>2.0: Legend is the only theme. Loads the generated Legend dictionary plus the 2.0 styles (Legend2.xaml)
+    /// into App.Resources once. The old "Theme" setting is ignored (Fluent was removed in 2.0).</summary>
+    public static void ApplyTheme()
     {
         var md = Current.Resources.MergedDictionaries;
-        var file = name == "Fluent" ? "Fluent" : "Legend";
-        var dict = new ResourceDictionary { Source = new Uri($"pack://application:,,,/Themes/{file}.xaml", UriKind.Absolute) };
-        var old = md.FirstOrDefault(d => d.Source?.OriginalString.Contains("/Themes/", StringComparison.OrdinalIgnoreCase) == true);
-        if (old is null) md.Add(dict);
-        else md[md.IndexOf(old)] = dict;
+        if (md.Any(d => d.Source?.OriginalString.Contains("/Themes/", StringComparison.OrdinalIgnoreCase) == true)) return;
+        md.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Themes/Legend.xaml", UriKind.Absolute) });
+        md.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/Themes/Legend2.xaml", UriKind.Absolute) });
     }
 
     protected override void OnStartup(StartupEventArgs e)
@@ -107,7 +106,7 @@ public partial class App : Application
             if (_window is not null && _profileItems.TryGetValue(TrayProfile.Battery, out var bat)) bat.Enabled = !_window.BatteryLocked;
         };
         _menu = menu;
-        if (_window is not null) UpdateTrayMenu(_window.IsLegendTheme, _window.AccentColor);
+        if (_window is not null) UpdateTrayMenu(true, _window.AccentColor);
 
         _baseIcon = LoadTrayIcon();
         _tray = new WinForms.NotifyIcon
@@ -122,30 +121,18 @@ public partial class App : Application
         {
             if (a.Button != WinForms.MouseButtons.Left || _window is null) return;
             if (_window.IsShownOpen) _window.HideToTray();
-            else ShowMain(full: false);   // v1.1: the tray always opens the compact view
+            else ShowMain();
         };
     }
 
     /// <summary>v0.9.16 F3: open the window; open and focused = slide back to the tray; open behind a game = bring it up.
-    /// v1.1: F3 = compact, F4 = full. Pressing the key of the view already shown (and focused) hides it; the other key
-    /// switches the open window to its view.</summary>
-    public void ToggleMain(bool full)
+    /// 2.0: one view (compact mode is gone), so F3 is a plain open / hide toggle, on the settings page too.</summary>
+    public void ToggleMain()
     {
         if (_window is null) return;
-        bool sameView = _window.IsCompact == !full;
-        if (_window.SettingsShown && _window.IsShownOpen)   // 1.3.0-beta.2: on the settings page F3 / F4 just hide (or focus)
-        {
-            if (_window.IsActive) _window.HideToTray();
-            else { _window.Activate(); ForceForeground(); }
-            return;
-        }
-        if (_window.IsShownOpen && _window.IsActive && sameView) _window.HideToTray();
-        else if (_window.IsShownOpen)
-        {
-            _window.SwitchView(!full);   // 1.2.0-beta.3: dip-and-rise switch
-            if (!_window.IsActive) { _window.Activate(); ForceForeground(); }   // already focused: skip the foreground calls
-        }
-        else ShowMain(full);
+        if (_window.IsShownOpen && _window.IsActive) _window.HideToTray();
+        else if (_window.IsShownOpen) { _window.Activate(); ForceForeground(); }
+        else ShowMain();
     }
 
     /// <summary>v0.8.7: restyles the tray menu for the theme and accent (called by MainWindow on every change).</summary>
@@ -257,10 +244,9 @@ public partial class App : Application
         return Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? "") ?? SystemIcons.Application;
     }
 
-    public void ShowMain(bool full = false)
+    public void ShowMain()
     {
         if (_window is null) return;
-        if (!_window.IsVisible) _window.SetCompact(!full);   // v1.1: every open starts compact unless F4
         _window.PrepareShow();   // v0.8.2: cancels a hide animation that is still running
         _window.Show();
         if (_window.WindowState == WindowState.Minimized) _window.WindowState = WindowState.Normal;

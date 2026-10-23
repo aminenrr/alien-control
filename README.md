@@ -51,23 +51,20 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 
 ## Screenshots
 
-### Compact view (tray, F3)
+### 2.0 (beta): Home, Tuning, Lights
 
-| Legend | Fluent |
-|---|---|
-| ![Compact view, Legend](docs/screenshots/compact-legend.png) | ![Compact view, Fluent](docs/screenshots/compact-fluent.png) |
+| Home | Tuning | Lights |
+|---|---|---|
+| ![Home](docs/mockups/2.0/01-home.png) | ![Tuning](docs/mockups/2.0/02-tuning.png) | ![Lights](docs/mockups/2.0/03-lights.png) |
 
-### Full menu (F4 or the Full menu button)
+### Overlay (beta 2) and settings
 
-| Legend | Fluent |
-|---|---|
-| ![Full menu, Legend](docs/screenshots/legend.png) | ![Full menu, Fluent](docs/screenshots/fluent.png) |
+| Overlay tab | Settings: General · Keys | Settings: Alerts · Advanced |
+|---|---|---|
+| ![Overlay](docs/mockups/2.0/04-overlay.png) | ![Settings 1](docs/mockups/2.0/05-settings-general-keys.png) | ![Settings 2](docs/mockups/2.0/06-settings-alerts-advanced.png) |
 
-### Preset button and settings
-
-| Preset list (header button) | Gear menu |
-|---|---|
-| ![Preset list](docs/screenshots/preset-menu.png) | ![Settings](docs/screenshots/settings.png) |
+*2.0 images are the approved design mockups (values are samples); real screenshots replace them once the beta is tested
+on the laptop. In 2.0.0-beta1 the Overlay tab is shown but disabled ("Coming in beta 2").*
 
 ### Notifications (F1, F2, plug / unplug)
 
@@ -77,21 +74,24 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 | ![F2 Balanced](docs/screenshots/toasts/balanced.png) | ![G-Mode off](docs/screenshots/toasts/gmode-off.png) | ![Plugged in](docs/screenshots/toasts/plug.png) |
 | ![F2 Performance](docs/screenshots/toasts/performance.png) | | |
 
-*Real screenshots from the m15 R7 (Legend theme). The plug / unplug toasts are recreated from a real toast with the same layout.*
+*Real screenshots from the m15 R7. The plug / unplug toasts are recreated from a real toast with the same layout.*
 
 ## Features
 
-- **Compact view** (v1.1): the tray and **F3** open a short window (sensors, power, modes, light colors); **F4** or the footer button opens the full menu. F3 / F4 hide it again, games included (borderless).
+- **2.0 layout**: one 440 x 820 window with four tabs, **Home** (sensors, power, presets, G-Mode, lighting), **Tuning**
+  (performance mode, GPU mode, GPU overclock, CPU boost, refresh rate, fans), **Lights** (zones, color, effect,
+  brightness, backlight timeout, status keys) and **Overlay** (beta 2). **F3** opens / hides it, games included
+  (borderless). The compact view of 1.1 to 1.3 is gone.
 - Presets from the tray, the header preset button, the window or **F2**: Battery, Quiet, Balanced, Performance (power mode, CPU boost, refresh rate), plus Custom.
 - **F1 G-Mode**: fans max, Aggressive CPU boost, optional GPU overclock (core / memory offsets, AC only, keep-or-revert test).
-- **GPU OC in Performance** (v1.3.4): a toggle with the Performance icon in the GPU Overclock header. Lit (Performance
-  red) = your kept offsets also run in the Performance preset on AC, and the header reads **G-MODE + PERF** in your
-  lighting colour. Dark (default) = G-Mode only. The Performance and G-Mode on toasts show **OC +core / +mem** in red when
+- **GPU OC in Performance** (v1.3.4): the **G-MODE / + PERF** pill in the GPU Overclock header (2.0; a toggle with the
+  Performance icon before). **+ PERF** = your kept offsets also run in the Performance preset on AC. **G-MODE** (default)
+  = G-Mode only. The Performance and G-Mode on toasts show **OC +core / +mem** in red when
   it runs, or a grey **OC off**.
 - **Auto preset**: Battery when unplugged, your last preset when plugged back in.
 - Fans, temps, **CPU % / GPU %** (v1.3) and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
 - Per-key keyboard color and effects, chassis lights, status keys (G-Mode, mutes, touchpad) lit by the app.
-- **Lights menu** (v1.3.1): a laptop button opens tiles for the keyboard, the rear ring and the Alienhead (lit = on,
+- **Zones** (v1.3.1, inline on the Lights tab since 2.0): tiles for the keyboard, the rear ring and the Alienhead (lit = on,
   tap to switch) plus Turn off / Turn on. F7 still sets the keyboard level after it's off. The power button light is never touched.
 - **Keyboard light timeout** (v1.3): fades the keys out after 1 / 2 / 5 / 10 min without input (optionally on battery
   only, paused in fullscreen games); any key, mouse or touchpad input brings them straight back.
@@ -99,7 +99,7 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 - Toasts for F1, F2 and plug / unplug (v1.3): a **Pill** at the top center (default) or the 1.2 **Classic** card in the
   top right, with a chime per preset from the **Soft** (default) or **Classic** pack. Since v1.3.4 they also show the GPU OC state.
 - Locked buttons (Battery under Auto preset, iGPU only outside Optimus) show a small lock; click a locked iGPU only to see why.
-- Two themes (Legend, Fluent), Reduce motion, Show in taskbar (off = tray only), Reset settings. One exe, ~0% CPU and a few MB of RAM in the tray.
+- Legend look (the Fluent theme was removed in 2.0), Reduce motion, Show in taskbar (off = tray only), Reset settings. One exe, ~0% CPU and a few MB of RAM in the tray.
 
 ## Idle cost
 
@@ -112,11 +112,11 @@ Measured on my m15 R7 (v1.0.0, Task Manager):
 | In the tray | 0% | a few MB |
 
 How it stays that small:
-- Sensors (temps, fans, watts) are polled only while the window is open; closed, nothing polls.
+- Sensors (temps, fans, watts) are polled only while the window is open on a tab that shows them (Home, Tuning); closed, nothing polls.
 - Status keys (mute, mic, touchpad) update from Windows events (audio endpoint and registry callbacks), with a 30 s safety check.
 - Memory is trimmed a minute after the window hides or a toast closes (a quick reopen stays snappy), and 10 s after starting to the tray.
 - One framework-dependent ReadyToRun exe (faster start, no self-contained runtime). The release zip is ~3.3 MB.
-- No blur or Mica, and only the active theme is loaded.
+- No blur or Mica.
 
 ## Documentation
 
@@ -202,13 +202,13 @@ You can undo this anytime by setting the services back to Automatic.
 
 1. Double-click `AlienControl.exe` and accept the admin prompt (fan and power control need admin).
    Windows SmartScreen may warn because the exe isn't signed: click **More info → Run anyway**.
-2. The compact window opens and the app lives in the tray (the Alienhead icon). Click **Full menu** for every setting.
+2. The window opens and the app lives in the tray (the Alienhead icon). The tabs at the top hold every setting.
 3. Turn on **Run on startup** at the bottom of the window. It starts with Windows, in the tray, without an admin prompt.
 
 ### 6. Check the hotkeys
 
-- **F1** toggles G-Mode, **F2** cycles the presets, **F3** opens / hides the compact view, **F4** the full menu.
-- If F1 does nothing, open the gear (next to Quit) > **Keys**, click **Detect key**, and press F1 once.
+- **F1** toggles G-Mode, **F2** cycles the presets, **F3** opens / hides the window. **F4** is reserved for the overlay (beta 2).
+- If F1 does nothing, open the gear (next to Quit) > **General · Keys**, click **Detect key**, and press F1 once.
 
 ### Updating
 
@@ -245,25 +245,23 @@ leaves keys dark until a reboot.
 
 ## Themes and settings
 
-Two themes, switched on the settings page (gear > General) (saved in settings, default **Legend**):
+Since 2.0 there is one look, **Legend**: Alienware-style terminal look, mono numbers, icon section headers, tick bars,
+cyan accent. The accent follows the lighting color. The Fluent theme was removed (an old "Theme" setting is ignored).
+`Themes/Legend.xaml` is generated by `dev/gen_themes.py`; the 2.0 styles live in `Themes/Legend2.xaml`. No blur or Mica
+(a native Acrylic backdrop was tried in 1.1.0-beta.2 and dropped: it cost CPU and RAM for little gain), and the app
+idles at ~0% CPU.
 
-- **Legend**: Alienware-style terminal look, mono numbers and icon section headers, tick bars, cyan accent.
-- **Fluent**: Windows 11 cards, segmented controls and rounded bars.
+There are a few subtle, one-shot animations: the window slides up out of the bottom edge when shown and back down before
+hiding to the tray, like the Windows 11 Quick Settings flyout; buttons fade their hover and shrink slightly when
+pressed, a newly selected mode grows its underline and pulses once, the preset button fades to its new color. They
+animate only opacity and scale/position, never loop and never run while the window is hidden. **Reduce motion**
+(gear > General · Keys) turns all of them off.
 
-Each theme is its own ResourceDictionary (`Themes/Legend.xaml`, `Themes/Fluent.xaml`); only the active one is loaded. No blur or Mica (a native Acrylic backdrop was tried in 1.1.0-beta.2 and dropped: it cost CPU and RAM for little gain), and the app idles at ~0% CPU.
-The accent follows the lighting color.
-
-Since v0.8.2 there are a few subtle, one-shot animations: since v0.8.6 the window slides up out of the bottom edge when shown
-and back down before hiding to the tray, like the Windows 11 Quick Settings flyout; buttons fade their hover and shrink slightly when pressed, a newly selected mode grows its
-underline and pulses once, the preset button fades to its new color, and the settings page swaps in like the compact / full switch. They animate
-only opacity and scale/position, are capped at 60 fps, never loop and never run while the window is hidden.
-**Reduce motion** (gear > General) turns all of them off (saved in settings, off by default).
-
-Since v1.3 the gear opens a **settings page** inside the window (back arrow or Esc), with five tabs:
-**General** (theme, run on startup, show in taskbar, reduce motion, auto preset), **Keys** (Detect key for the G-key,
-F2 presets, F3 / F4), **Alerts** (notifications, toast style + Test, sound, chime pack + preview), **Backlight**
-(keyboard light timeout) and **Advanced** (frame-gap log, **Reset settings**: back to defaults and restart; startup,
-BIOS and GPU mode untouched, and the version / credits line).
+The gear opens a **settings page** inside the window (back arrow or Esc), with two tabs: **General · Keys** (show in
+taskbar, reduce motion, auto preset, Detect key for the G-key, F2 presets, F3 opens the app, F4 for the overlay) and
+**Alerts · Advanced** (notifications, toast style + Test, sound, chime pack + preview, frame-gap log, **Reset
+settings**: back to defaults and restart; startup, BIOS and GPU mode untouched, and the credits). Run on startup is in
+the footer; the keyboard light timeout is on the Lights tab.
 
 ### Tray profiles
 
@@ -271,8 +269,8 @@ Left-click the tray icon to open the window, or to slide it back to the tray whe
 Right-click it for the menu, drawn in the active theme with accent-colored text (v0.8.7): Battery (amber), Quiet (green), Balanced (cyan), Performance (red), Custom (violet); G-Mode shows white.
 A profile sets the power mode, CPU boost and refresh rate: Battery (boost Off, 60 Hz), Quiet (Efficient, 240 Hz),
 Balanced (On, 240 Hz), Performance (Aggressive, 240 Hz). Custom changes nothing. Profiles never touch the GPU mode and never use Ultimate.
-The header has a preset button next to minimize (v1.1): the active preset's icon in its color. Click it for the list of
-presets, each with its icon and color. It follows tray picks, mode buttons, F2 and refresh rate changes.
+The header has a preset button next to minimize (v1.1): the active preset's icon in its color. Since 2.0 it is hidden on
+Home (the presets are on the page); a click cycles like F2 and a right click opens the list of presets. It follows tray picks, mode buttons, F2 and refresh rate changes.
 
 ### GPU mode
 
@@ -284,9 +282,9 @@ Optimus, lists the apps using the RTX first, and locks Ultimate while it's off. 
 **survives restarts and uninstalling** until you click Advanced Optimus again (Quit offers to turn it back on).
 Locked buttons show a small lock. Presets never change the GPU mode.
 
-| Legend | Fluent |
-|---|---|
-| ![GPU mode, Legend](docs/screenshots/gpu-legend.png) | ![GPU mode, Fluent](docs/screenshots/gpu-fluent.png) |
+| GPU mode (1.3) |
+|---|
+| ![GPU mode](docs/screenshots/gpu-legend.png) |
 
 ## Build
 
@@ -299,7 +297,7 @@ Publishing gives one ReadyToRun `AlienControl.exe` (needs the .NET 8 Desktop Run
 Every push to `main` also builds on GitHub Actions, runs the unit tests (`tests/AlienControl.Tests`) and uploads the
 app as an artifact. Actions are pinned to commit SHAs, and each release has a `SHA256SUMS` file next to the zip.
 
-Stack: C# · .NET 8 · WPF · [WPF-UI](https://github.com/lepoco/wpfui) (Fluent look).
+Stack: C# · .NET 8 · WPF · [WPF-UI](https://github.com/lepoco/wpfui) (base dark theme dictionaries).
 
 ## Security & Privacy
 
@@ -329,8 +327,8 @@ The only network traffic is yours: downloading the release from GitHub and the a
 
 All hardware control is done by [alienfx-tools](https://github.com/T-Troll/alienfx-tools)
 by T-Troll and contributors (MIT license).
-Legend theme icons: [Tabler Icons](https://tabler.io/icons) (MIT license). Fluent theme icons: Fluent System Icons via
-[WPF-UI](https://github.com/lepoco/wpfui) (MIT), fan icon from [Phosphor](https://phosphoricons.com) (MIT).
+Icons: [Tabler Icons](https://tabler.io/icons) (MIT license). Base dark theme: [WPF-UI](https://github.com/lepoco/wpfui) (MIT).
+The 2.0 overlay (beta 2) will use [PresentMon](https://github.com/GameTechDev/PresentMon) (Intel, MIT) for frametimes.
 RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemoryCleaner) and GPU modes from [G-Helper](https://github.com/seerge/g-helper). Both ideas are reimplemented here, and no code was copied.
 
 ## Disclaimer
@@ -376,7 +374,8 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**v1.3.5** (Lights menu and Ctrl + Alt + F from 1.3.1 to 1.3.3, plus GPU OC in the Performance preset and OC state on
+**2.0.0-beta1** (pre-release): the new 2.0 look (tabs, Legend only, no compact view). The in-game overlay comes in
+2.0.0-beta2. The latest stable is **v1.3.5** (Lights menu and Ctrl + Alt + F from 1.3.1 to 1.3.3, plus GPU OC in the Performance preset and OC state on
 toasts from 1.3.4), on top of **v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout,
 CPU / GPU %, smoother slides, security hardening). Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the

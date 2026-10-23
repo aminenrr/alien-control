@@ -22,19 +22,20 @@ Needs the .NET 8 SDK on Windows (or `EnableWindowsTargeting` to compile-check on
 ## Code layout
 | File | Role |
 |---|---|
-| `App.xaml(.cs)` | tray icon, theme loading (`ApplyTheme`), accent (`ApplyAccent`), single window |
-| `MainWindow.xaml(.cs)` | the card UI, sensor loop (only while visible), hints, preset button, settings page markup |
-| `MainWindow.Compact.cs` | v1.1 compact / full view (`SetCompact`), v1.2 card-swap `SwitchView`, footer view button, keeps the corner anchored on resize |
+| `App.xaml(.cs)` | tray icon, theme loading (`ApplyTheme`: Legend.xaml + Legend2.xaml), F3 toggle (`ToggleMain`), single window |
+| `MainWindow.xaml(.cs)` | 2.0: the fixed 440 x 820 card (header 52, tabs 40, page, status 38, footer 52), the four tab pages and the settings page markup, sensor loop, hints, accent |
+| `MainWindow.Tabs.cs` | 2.0: tab switching, polling only for the tab on screen (`SensorsShown` / `UpdatePolling`), Home preset tiles and G-Mode switch, F4 hint (overlay in beta 2) |
 | `Services/SysExe.cs` | v1.2 full System32 paths for the Windows tools the app runs |
-| `MainWindow.Settings.cs` | 1.3.0-beta.2 settings page (gear): five tabs, back / Esc, dimmed dependent rows, chime pack + toast style rows |
+| `MainWindow.Settings.cs` | settings page (gear): 2.0 two tabs (General · Keys, Alerts · Advanced), back / Esc, dimmed dependent rows, chime pack, toast style, frame-gap log |
 | `Services/Sounds.cs` | 1.3.0-beta.2 chime packs (`Assets/Sounds/{Soft,Classic}`), only the active pack cached |
 | `Services/Toast.cs` | toasts: 1.3.0-beta.2 Pill (top center) or Classic (1.2 card, top right); 1.3.4 optional OC tag (`Info.Oc` / `OcLit`) |
-| `MainWindow.Oc.cs` | GPU overclock: NVML offsets, keep-or-revert test, G-Mode / Performance scope (1.3.4 `OcInPerformance` header toggle), OC toast tag |
-| `MainWindow.Presets.cs` | v1.1 header preset button and its preset list popup |
+| `MainWindow.Oc.cs` | GPU overclock: NVML offsets, keep-or-revert test, G-Mode / Performance scope (`OcInPerformance`, 2.0 G-MODE / + PERF pill), OC toast tag |
+| `MainWindow.Presets.cs` | header preset button (2.0: hidden on Home, click cycles like F2, right click = list popup) |
 | `Services/AwccSensors.cs` | v1.1 direct WMI temps and fan RPM (`AWCCWmiMethodFunction.Thermal_Information`), CLI fallback in `AlienFan` |
 | `Motion.cs` | all animations (v0.8.2, values and spline curves updated in v0.8.6), disabled by Reduce motion. The window slide is native since v0.8.8: `MainWindow.xaml.cs` (`PrepareShow` / `PlayOpen` / `HideToTray`) drives `Services/WindowSlide.cs` |
 | `Services/WindowSlide.cs` | native window slide: since 1.3 a short-lived thread steps it once per composition (DwmFlush) with async `SetWindowPos`, cubic-bezier curves |
-| `Themes/Legend.xaml`, `Themes/Fluent.xaml` | **generated** by `dev/gen_themes.py`; same keys in both. Edit the generator (keep any hand edit to the XAML mirrored there) |
+| `Themes/Legend.xaml` | **generated** by `dev/gen_themes.py`. Edit the generator (keep any hand edit to the XAML mirrored there). Fluent was removed in 2.0 |
+| `Themes/Legend2.xaml` | 2.0 styles and icons (tabs, tiles, pills, toggles, cards), hand written, merged after Legend.xaml |
 | `Services/CliRunner.cs` | runs the T-Troll CLIs hidden and captures output |
 | `Services/AlienFan.cs` | power modes, G-Mode, CPU boost, fans, temps (parses raw `getpower` hex) |
 | `Services/AlienFx.cs` | chassis lighting through the CLI; filters the power button (ID 2) |
@@ -48,15 +49,19 @@ Needs the .NET 8 SDK on Windows (or `EnableWindowsTargeting` to compile-check on
 | `Services/DellBios.cs` | Dell BIOS WMI attributes (ExpressCharge, MUX lookup) |
 | `Services/GpuMode.cs` | GPU mode detection, adapter disable/enable, apps using the RTX, support report. Buttons not wired yet |
 | `Services/Profiles.cs` | tray profiles and their tint colors |
-| `Services/TrayMenu.cs` | v0.8.7 themed tray menu: Legend / Fluent palettes in C# (WinForms can't read the XAML), accent text, tint dots |
-| `Services/Settings.cs` | `settings.json` with versioned migrations (currently v6) |
+| `Services/TrayMenu.cs` | v0.8.7 themed tray menu: palettes in C# (WinForms can't read the XAML), accent text, tint dots. 2.0 always passes Legend |
+| `Services/Settings.cs` | `settings.json` with versioned migrations (currently v7: the old Theme key is dropped) |
 | `Services/Startup.cs` | run-at-logon scheduled task (admin, no UAC prompt) |
 
 ## Themes
-`dev/gen_themes.py` writes both theme dictionaries. Icons come from SVG files (Tabler for Legend, Phosphor fan) that it
-turns into XAML `Path` geometry; Fluent uses WPF-UI `SymbolIcon` names. Set `ROOT` / icon paths at the top before running.
+`dev/gen_themes.py` writes `Themes/Legend.xaml`. Icons come from Tabler SVG files that it turns into XAML `Path`
+geometry. Set `ROOT` / icon paths at the top before running. 2.0 styles are hand written in `Themes/Legend2.xaml`
+(same Tabler path data); `App.ApplyTheme` merges both. Fluent was removed in 2.0.
 
 ## Mockups
+2.0 design: `docs/mockups/2.0/` (PNGs + `HANDOFF.md`, the spec the 2.0 UI follows; sizes and layout math came from
+the Python mockup scripts kept in the project workspace).
+
 `dev/mockups/` holds the Python scripts that render the design mocks as HTML and screenshot them with headless Chromium
 (Playwright) at 1.25x to match the laptop's 125% scaling. `designs.py` holds the three original directions, `themes_final.py`
 the approved themes, `profile_chip.py` the v0.8.1 chip and `gpu_warning.py` the planned RTX-in-use warning.
@@ -66,7 +71,7 @@ They need the icon SVGs and fonts (Selawik, Cascadia Mono / JetBrains Mono) loca
 - Never send light ID 2 on the chassis (power button).
 - Never write the keyboard with per-key `setone`; use `KeyboardHid` frames.
 - Never let a profile change GPU mode or trigger a restart.
-- Keep idle cost at zero: no timers while hidden, no looping animations.
+- Keep idle cost at zero: no timers while hidden, no looping animations. 2.0: only read what is on screen (sensor timers run for Home / Tuning only).
 - Credit every third-party asset in the README; never copy GPL code.
 
 ## Releases

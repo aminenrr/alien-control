@@ -48,17 +48,13 @@ public partial class MainWindow : Window
     /// <summary>v0.9.8: what the chip shows: G-Mode while it's on, else the saved preset.</summary>
     private TrayProfile ShownProfile => _gmodeOn ? TrayProfile.GMode : CurrentProfile;
 
-    private bool IsLegend => _settings.Theme != "Fluent";
-
     public MainWindow()
     {
-        // Only the active theme dictionary is loaded; it must be there before the XAML resolves its keys.
-        App.ApplyTheme(_settings.Theme);
+        // 2.0: Legend only (Legend.xaml + Legend2.xaml); it must be loaded before the XAML resolves its keys.
+        App.ApplyTheme();
         Motion.Enabled = !_settings.ReduceMotion && Motion.WindowsAnimations;   // v0.8.2 Reduce motion; 1.3: + Windows Animation effects
         InitializeComponent();
         ReduceMotionToggle.IsChecked = _settings.ReduceMotion;
-        ThemeLegend.IsChecked = IsLegend;
-        ThemeFluent.IsChecked = !IsLegend;
         _fx = new AlienFx(_settings);
         _lastPowerIndex = _settings.BalancedPowerIndex;
 
@@ -69,27 +65,29 @@ public partial class MainWindow : Window
         UpdateGKeyText();
         F2PresetsToggle.IsChecked = _settings.F2Presets;
         F3OpensToggle.IsChecked = _settings.F3Opens;
+        F4OverlayToggle.IsChecked = _settings.F4Overlay;
         TaskbarToggle.IsChecked = _settings.ShowInTaskbar;
         ShowInTaskbar = _settings.ShowInTaskbar;
         _macro.LightsHotkey += () => Dispatcher.BeginInvoke(new Action(async () => await CycleLightsAsync()));   // 1.3.1 Ctrl+Alt+F
         _macro.Pressed += k =>
         {
             if (k == 0) Dispatcher.BeginInvoke(new Action(async () => await CyclePresetAsync()));
-            else if (k is 1 or 2 && _settings.F3Opens)   // v0.9.16 F3; v1.1: F3 compact, F4 full
-                Dispatcher.BeginInvoke(new Action(() => ((App)Application.Current).ToggleMain(full: k == 2)));
+            else if (k == 1 && _settings.F3Opens)   // v0.9.16 F3 opens / hides the app (2.0: one view, no compact mode)
+                Dispatcher.BeginInvoke(new Action(() => ((App)Application.Current).ToggleMain()));
+            else if (k == 2)   // 2.0: F4 is reserved for the overlay (beta 2)
+                Dispatcher.BeginInvoke(new Action(OnF4Pressed));
         };
-        SetCompact(true);
-        SizeChanged += OnSizeChangedKeepCorner;
         InputThread.Invoke(() => _macro.Install());
         SetHint(FanHint, "BIOS controlled", "BIOS");
         SetHint(GpuHint, "Optimus · RTX 3070 Ti", "OPTIMUS · 3070 Ti");
+        InitTabs();   // 2.0: tab pages, Home preset tiles, Home G-Mode card
 
         foreach (var id in new[] { _settings.GModeKey, _settings.TouchpadKey, _settings.SpeakerMuteKey, _settings.MicMuteKey, _settings.WinLockKey })
             _indicators[id] = false;
         if (_settings.LastColor is { Length: 3 } saved) _lastColor = saved;
         ApplyAccent(_lastColor);
         SelectSwatch(_lastColor);
-        BrightnessSlider.Value = Math.Round(_settings.Brightness * 100 / 255.0);
+        BrightnessSlider.Value = HomeBrightnessSlider.Value = Math.Round(_settings.Brightness * 100 / 255.0);
         UpdateBrightnessText((int)BrightnessSlider.Value);
         SelectEffectInBox();
         // Status-key watcher: in-process reads only (no CLI) unless a state changes.
@@ -133,11 +131,11 @@ public partial class MainWindow : Window
                 if (stale) _ = RefreshGpuHintAsync(); else _ = RefreshGpuAsync(withBios: false);
                 await RefreshStateAsync(sensorsOnly: !stale);
                 if (!IsVisible || gen != _showGen) return;
-                _poll.Start();
-                _powerTimer.Start();
+                UpdatePolling();   // 2.0: the timers run only for a page that shows sensors (Home, Tuning)
             }
             else
             {
+                // window hidden: no sensor or power polling at all (the tray idles at zero)
                 _poll.Stop(); _powerTimer.Stop(); CloseSettings(instant: true);
                 // Keep the learned rest-of-laptop power for the AC estimate (saved only when it moved).
                 if (Math.Abs(_settings.RestOfSystemW - _power.RestW) >= 1) { _settings.RestOfSystemW = Math.Round(_power.RestW, 1); _settings.Save(); }
@@ -167,12 +165,13 @@ public partial class MainWindow : Window
         var ver = (System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(MainWindow).Assembly)?.InformationalVersion
                    ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "0.1").Split('+')[0];
         VersionText.Text = "v" + ver;
-        AboutText.Text = $"Alien Controls {ver}. Fans, power and lighting by alienfx-tools (T-Troll, MIT). Not made by Dell or Alienware. Personal project built with AI help, use at your own risk.";
-        _ = Dispatcher.InvokeAsync(async () => StartupToggle.IsChecked = StartupToggle2.IsChecked = await Startup.IsEnabledAsync());   // 1.3.0-beta.1: off the UI thread (review #4)
+        AboutTitle.Text = $"Alien Controls {ver}";
+        AboutText.Text = "Fans, power and lighting by alienfx-tools (T-Troll, MIT). The overlay (beta 2) will use PresentMon (Intel, MIT). Not made by Dell or Alienware. Built with AI help, use at your own risk.";
+        _ = Dispatcher.InvokeAsync(async () => StartupToggle.IsChecked = await Startup.IsEnabledAsync());   // 1.3.0-beta.1: off the UI thread (review #4)
         InitOc();   // v0.9.7 GPU overclock (G-Mode on AC only)
         InitAuto(); // v0.9.11 auto preset + toasts
         InitKbdTimeout();   // 1.3.0-beta.1
-        UpdateLightsButton();   // 1.3.1
+        SyncZoneTiles();   // 2.0: the 1.3.5 Lights menu is inline on the Lights tab
         InitSettingsPage();   // 1.3.0-beta.2
         _ = Task.Run(() => FolderSafety.UserWritable(AppContext.BaseDirectory)).ContinueWith(t =>
         {
@@ -199,7 +198,7 @@ public partial class MainWindow : Window
     /// </summary>
     public void SnapToCorner()
     {
-        if (_slide?.Active == true || _openParked || _minSlid || _viewSwitching) return;   // v0.8.8: the slide owns the position until it lands
+        if (_slide?.Active == true || _openParked || _minSlid) return;   // v0.8.8: the slide owns the position until it lands
         var (l, t) = CornerPosition();
         Left = l;
         Top = t;
@@ -489,7 +488,7 @@ public partial class MainWindow : Window
 
     private async Task RefreshSensorsAsync()
     {
-        if (_polling || !_fan.IsAvailable) return;
+        if (_polling || !_fan.IsAvailable || !SensorsShown) return;   // 2.0: only read what is on screen
         _polling = true;
         try
         {
@@ -500,12 +499,16 @@ public partial class MainWindow : Window
             var gpu = s.Temps.FirstOrDefault(t => t.Name.Contains("GPU", StringComparison.OrdinalIgnoreCase));
             SetTemp(CpuTempText, CpuTempBar, cpu);
             SetTemp(GpuTempText, GpuTempBar, gpu);
+            TuneCpuTemp.Text = cpu is null ? "--" : $"{cpu.Celsius}°C";   // 2.0 Tuning live strip (same read)
+            TuneGpuTemp.Text = gpu is null ? "--" : $"{gpu.Celsius}°C";
 
             if (s.Fans.Count > 0) _fanCount = s.Fans.Count;
             var cpuFan = s.Fans.FirstOrDefault(f => f.Type == "CPU") ?? s.Fans.ElementAtOrDefault(0);
             var gpuFan = s.Fans.FirstOrDefault(f => f.Type == "GPU") ?? s.Fans.ElementAtOrDefault(1);
             SetFanPercent(CpuFanText, CpuFanBar, cpuFan);
             SetFanPercent(GpuFanText, GpuFanBar, gpuFan);
+            TuneFans.Text = $"{CpuFanText.Text} / {GpuFanText.Text} %";
+            if (!HomePage.IsVisible) return;   // 2.0: RAM, VRAM, CPU % and GPU % are only on Home
 
             if (SystemStats.Ram() is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
             if (_stats.Vram() is { } vram) SetMem(VramText, VramTextUnit, VramBar, vram.Used, vram.Total);
@@ -522,7 +525,7 @@ public partial class MainWindow : Window
     private bool _powerBusy;
     private async Task RefreshPowerAsync()
     {
-        if (_powerBusy) return;
+        if (_powerBusy || !SensorsShown) return;
         _powerBusy = true;
         try { ShowPower(await Task.Run(_power.Sample)); }
         catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:530", __e); }
@@ -538,12 +541,13 @@ public partial class MainWindow : Window
         PwrCpuValue.Text = $"{r.CpuW} W";
         PwrGpuValue.Text = $"{r.GpuW} W";
         PwrTotalValue.Text = r.TotalEstimated ? $"~{r.TotalW} W" : $"{r.TotalW} W";
+        TunePwr.Text = r.TotalW is not null ? PwrTotalValue.Text : r.CpuW is not null || r.GpuW is not null ? $"{(r.CpuW ?? 0) + (r.GpuW ?? 0)} W" : "--";
         PwrTotal.ToolTip = r.TotalEstimated
             ? "Estimate on AC: CPU + GPU + rest of the laptop (learned on battery)"
             : "Measured: battery discharge rate";
         PwrDot1.Visibility = r.CpuW is not null && (r.GpuW is not null || r.TotalW is not null) ? Visibility.Visible : Visibility.Collapsed;
         PwrDot2.Visibility = r.GpuW is not null && r.TotalW is not null ? Visibility.Visible : Visibility.Collapsed;
-        PwrRow.Visibility = r.CpuW is null && r.GpuW is null && r.TotalW is null ? Visibility.Collapsed : Visibility.Visible;
+        PwrRow.Visibility = r.CpuW is null && r.GpuW is null && r.TotalW is null ? Visibility.Hidden : Visibility.Visible;   // 2.0: Hidden keeps Home's height
     }
 
     private static void SetTemp(Run text, ProgressBar bar, TempReading? t)
@@ -604,6 +608,7 @@ public partial class MainWindow : Window
         // v1.0.0-rc1: toast + sound right on the key press (they used to wait for the CLI calls, ~1 s).
         // _gmodeOn is kept in sync by every read, so no extra getgmode call before acting.
         var current = _gmodeOn;
+        if (_gmodeUiBusy) return;   // 2.0: the Home G-Mode switch is mid-change
         if (!current)
         {
             var (oc, ocLit) = OcToastTag(true);
@@ -667,6 +672,7 @@ public partial class MainWindow : Window
     private async void Color_Click(object sender, RoutedEventArgs e)
     {
         _lastColor = ((string)((FrameworkElement)sender).Tag).Split(',').Select(byte.Parse).ToArray();
+        SelectSwatch(_lastColor);   // 2.0: Home and Lights swatches stay in step
         await ApplyLightingAsync(_lastColor);
     }
 
@@ -765,6 +771,7 @@ public partial class MainWindow : Window
         SelectSwatch(_lastColor);
         if (!_lastColor.All(v => v == 0)) _custom = (byte[])_lastColor.Clone();
         UpdateCustomPreview();
+        CustomPopup.PlacementTarget = sender as UIElement ?? CustomSwatch;   // 2.0: Home or Lights rainbow swatch
         CustomPopup.IsOpen = true;
     }
 
@@ -820,21 +827,29 @@ public partial class MainWindow : Window
         return new[] { (byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255) };
     }
 
+    private bool _brightSync;
+
     private void Brightness_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
+        // 2.0: the Home and Lights sliders are one setting; moving one moves the other
+        if (!_brightSync && BrightnessSlider is not null && HomeBrightnessSlider is not null)
+        {
+            _brightSync = true;
+            if (sender == BrightnessSlider) HomeBrightnessSlider.Value = e.NewValue; else BrightnessSlider.Value = e.NewValue;
+            _brightSync = false;
+        }
         UpdateBrightnessText((int)e.NewValue);
     }
 
     private void UpdateBrightnessText(int v)
     {
-        if (BrightnessHint is null || BrightnessValue is null) return;
-        SetHint(BrightnessHint, "", $"{v}%");   // Fluent shows the % only beside the slider (v0.8.4)
-        BrightnessValue.Text = $"{v}%";
+        if (BrightnessValue is null || HomeBrightnessValue is null || HomeBrightnessHint is null) return;
+        BrightnessValue.Text = HomeBrightnessValue.Text = HomeBrightnessHint.Text = $"{v}%";
     }
 
     private async void Brightness_Commit(object sender, MouseButtonEventArgs e)
     {
-        int level = (int)Math.Round(BrightnessSlider.Value * 255 / 100);
+        int level = (int)Math.Round(((sender as Slider) ?? BrightnessSlider).Value * 255 / 100);
         _settings.Brightness = level;
         _settings.Save();
         // Software brightness: repaint with scaled colors (only once the app manages the lights).
@@ -843,15 +858,14 @@ public partial class MainWindow : Window
 
     private async void Startup_Click(object sender, RoutedEventArgs e)
     {
-        // 1.3.0-beta.2: the footer switch and the settings page row are the same setting
-        bool want = (sender as CheckBox ?? StartupToggle).IsChecked == true;
-        StartupToggle.IsChecked = StartupToggle2.IsChecked = want;
-        StartupToggle.IsEnabled = StartupToggle2.IsEnabled = false;
+        // 2.0: Run on startup lives in the footer only
+        bool want = StartupToggle.IsChecked == true;
+        StartupToggle.IsEnabled = false;
         bool ok = await Startup.SetEnabledAsync(want);
-        StartupToggle.IsEnabled = StartupToggle2.IsEnabled = true;
+        StartupToggle.IsEnabled = true;
         if (!ok)
         {
-            StartupToggle.IsChecked = StartupToggle2.IsChecked = !want;
+            StartupToggle.IsChecked = !want;
             Status("Couldn't change the startup task.");
         }
     }
@@ -861,25 +875,20 @@ public partial class MainWindow : Window
     // ---------- helpers ----------
 
     /// <summary>
-    /// App accent follows the keyboard / ring color. Black (lights off) keeps the theme default
-    /// (Legend cyan #00E5FF, Fluent #4CC2FF; the default cyan lighting also maps to #4CC2FF in Fluent).
-    /// Set at App.Resources level, so it is re-applied after every theme swap.
+    /// App accent follows the keyboard / ring color. Black (lights off) keeps the Legend cyan #00E5FF.
+    /// Set at App.Resources level.
     /// </summary>
     private void ApplyAccent(byte[] c)
     {
         var cyan = Color.FromRgb(0, 229, 255);
         var col = (c[0] + c[1] + c[2]) < 60 ? cyan : Color.FromRgb(c[0], c[1], c[2]);
-        bool legend = IsLegend;
-        if (!legend && col == cyan) col = Color.FromRgb(0x4C, 0xC2, 0xFF);
         var res = Application.Current.Resources;
         Color A(byte a) => Color.FromArgb(a, col.R, col.G, col.B);
         res["AccentBrush"] = Freeze(new SolidColorBrush(col));
         res["AccentBorder"] = Freeze(new SolidColorBrush(A(0x80)));
         res["AccentFaint"] = Freeze(new SolidColorBrush(A(0x2E)));
         res["AccentGlow"] = Freeze(new SolidColorBrush(A(0x55)));
-        res["AccentCheckedBg"] = legend
-            ? Freeze(new LinearGradientBrush(A(0x17), A(0x05), 90))
-            : Freeze(new SolidColorBrush(Color.FromArgb(0x16, 255, 255, 255)));
+        res["AccentCheckedBg"] = Freeze(new LinearGradientBrush(A(0x17), A(0x05), 90));
         var top = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
         top.GradientStops.Add(new GradientStop(A(0), 0));
         top.GradientStops.Add(new GradientStop(col, 0.18));
@@ -889,7 +898,7 @@ public partial class MainWindow : Window
         res["TopLineBrush"] = Freeze(top);
         try { Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(col, Wpf.Ui.Appearance.ApplicationTheme.Dark); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:895", __e); }
         AccentColor = col;
-        (Application.Current as App)?.UpdateTrayMenu(legend, col);   // v0.8.7: tray menu follows theme + accent
+        (Application.Current as App)?.UpdateTrayMenu(true, col);   // v0.8.7: tray menu follows the accent (2.0: Legend only)
         // v0.8.10: line icons bind Stroke to their inherited TextElement.Foreground; WPF updated them one click late
         // (the old accent stayed until the next change). Re-read the bindings and repaint once, after the resource swap.
         Dispatcher.BeginInvoke(new Action(() => RefreshIcons(this)), DispatcherPriority.Loaded);
@@ -914,37 +923,16 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>v0.8.7: current accent and theme, read by the tray menu.</summary>
+    /// <summary>v0.8.7: current accent, read by the tray menu.</summary>
     public Color AccentColor { get; private set; } = Color.FromRgb(0, 229, 255);
-    public bool IsLegendTheme => IsLegend;
 
     /// <summary>v0.8.7: visible, not minimized and not already sliding away (tray left click then hides it).</summary>
     public bool IsShownOpen => IsVisible && WindowState != WindowState.Minimized && !_hiding;
 
-    // ---------- theme ----------
+    // ---------- hints ----------
 
-    private readonly System.Collections.Generic.Dictionary<TextBlock, (string Fluent, string Legend)> _hints = new();
-
-    /// <summary>Header hints: Legend shows them in caps (or its own short form), Fluent as written.</summary>
-    private void SetHint(TextBlock tb, string text, string? legend = null)
-    {
-        _hints[tb] = (text, legend ?? text.ToUpperInvariant());
-        tb.Text = IsLegend ? _hints[tb].Legend : text;
-    }
-
-    private void Theme_Click(object sender, RoutedEventArgs e)
-    {
-        string name = sender == ThemeFluent ? "Fluent" : "Legend";
-        if (name == _settings.Theme) return;
-        _settings.Theme = name;
-        _settings.Save();
-        App.ApplyTheme(name);   // swaps the one theme dictionary in App.Resources
-        ApplyAccent(_lastColor);
-        foreach (var (tb, t) in _hints) tb.Text = IsLegend ? t.Legend : t.Fluent;
-        UpdateProfileChip(ShownProfile);   // Legend caps vs Fluent title case
-        UpdateOcUi();
-        Dispatcher.BeginInvoke(new Action(SnapToCorner), DispatcherPriority.Loaded);
-    }
+    /// <summary>Section header hints, in Legend caps (or the given short form). 2.0: Legend only.</summary>
+    private static void SetHint(TextBlock tb, string text, string? legend = null) => tb.Text = legend ?? text.ToUpperInvariant();
 
     private static bool IsWithin(DependencyObject? d, DependencyObject ancestor)
     {
@@ -961,18 +949,26 @@ public partial class MainWindow : Window
         if (_settings.ReduceMotion) Motion.Set(PresetButton, OpacityProperty, 1);
     }
 
+    /// <summary>Checks the matching swatch in both rows (Home and Lights); custom colors check the rainbow swatch.</summary>
     private void SelectSwatch(byte[] c)
     {
         string tag = string.Join(",", c);
-        RadioButton? match = null;
-        foreach (var rb in FindSwatches()) if ((rb.Tag as string) == tag) match = rb;
-        if (match is not null) match.IsChecked = true;
-        else if (c.All(v => v == 0)) foreach (var rb in FindSwatches()) rb.IsChecked = false;
-        else CustomSwatch.IsChecked = true;
+        foreach (var (panel, custom) in new[] { (LightsSwatches, CustomSwatch), (HomeSwatches, HomeCustomSwatch) })
+        {
+            var all = panel.Children.OfType<RadioButton>().ToList();
+            var match = all.FirstOrDefault(rb => (rb.Tag as string) == tag);
+            if (match is not null) match.IsChecked = true;
+            else if (c.All(v => v == 0)) foreach (var rb in all) rb.IsChecked = false;
+            else custom.IsChecked = true;
+        }
+        ColorHint.Text = SwatchName(tag);
     }
 
-    private System.Collections.Generic.IEnumerable<RadioButton> FindSwatches() =>
-        ((Panel)CustomSwatch.Parent).Children.OfType<RadioButton>();
+    private static string SwatchName(string tag) => tag switch
+    {
+        "0,229,255" => "CYAN", "124,77,255" => "PURPLE", "255,77,106" => "RED", "60,255,122" => "GREEN", "255,255,255" => "WHITE",
+        "0,0,0" => "", _ => "CUSTOM",
+    };
 
     private static T Freeze<T>(T f) where T : Freezable { f.Freeze(); return f; }
 
@@ -1003,17 +999,20 @@ public partial class MainWindow : Window
     private async void ResetSettings_Click(object sender, RoutedEventArgs e)
     {
         var pick = await ShowGpuDialog("Reset settings?",
-            "Theme, toggles, colors, effect, G-key, OC values and presets go back to defaults, then the app restarts. "
+            "Toggles, colors, effect, G-key, OC values and presets go back to defaults, then the app restarts. "
             + "Run on startup, the BIOS and the GPU mode stay as they are. GPU OC goes back to +0.",
             null, null, ("cancel", "Cancel", false), ("reset", "Reset", true));
         if (pick != "reset") return;
         ((App)Application.Current).RestartFresh();
     }
 
+    /// <summary>Status line above the footer (last action). 2.0: one line, cut with an ellipsis; the full text is the
+    /// tooltip. Hidden behind the settings page hint while Settings is open.</summary>
     private void Status(string text)
     {
         StatusText.Text = text;
-        StatusText.Visibility = string.IsNullOrWhiteSpace(text) ? Visibility.Collapsed : Visibility.Visible;
+        StatusText.ToolTip = string.IsNullOrWhiteSpace(text) ? null : text;
+        StatusText.Visibility = SettingsShown ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // ---------- RAM clean (click = quick, right-click = deep) ----------
@@ -1022,7 +1021,7 @@ public partial class MainWindow : Window
     private void RamCard_LeftClick(object sender, MouseButtonEventArgs e) => _ = CleanRamAsync(deep: false);
     private void RamCard_RightClick(object sender, MouseButtonEventArgs e) { e.Handled = true; _ = CleanRamAsync(deep: true); }
 
-    private string Cased(string s) => IsLegend ? s.ToUpperInvariant() : s;
+    private static string Cased(string s) => s.ToUpperInvariant();
 
     private async Task CleanRamAsync(bool deep)
     {
@@ -1155,7 +1154,7 @@ public partial class MainWindow : Window
         int gen = ++_gpuNoteGen;
         _gpuNoteSticky = ms == 0;
         // 1.3.0-beta.1: no resize mid-slide; the note waits until the slide lands (at most ~0.6 s)
-        for (int i = 0; i < 40 && (_slide?.Active == true || _viewSwitching || _openParked); i++) await Task.Delay(16);
+        for (int i = 0; i < 40 && (_slide?.Active == true || _openParked); i++) await Task.Delay(16);
         if (gen != _gpuNoteGen) return;
         GpuNote.Text = text;
         GpuNote.Foreground = new System.Windows.Media.SolidColorBrush(color);
@@ -1228,7 +1227,7 @@ public partial class MainWindow : Window
             if (apps.Count > 0)
                 pick = await ShowGpuDialog("Turn off the RTX?",
                     "Save your work first. These apps lose the RTX and may close or crash.\n\nHDMI / Mini DP go dark until you turn it back on.",
-                    apps.Select(a => $"{a.Name}  ·  {a.Mb} MB").ToList(), IsLegend ? "USING THE RTX" : "Using the RTX",
+                    apps.Select(a => $"{a.Name}  ·  {a.Mb} MB").ToList(), "USING THE RTX",
                     ("cancel", "Cancel", false), ("refresh", "Refresh", false), ("go", "Turn off anyway", true));
             else
                 pick = await ShowGpuDialog("Turn off the RTX?",
@@ -1323,7 +1322,7 @@ public partial class MainWindow : Window
         _gpuDlg?.TrySetResult(null);
         var tcs = new TaskCompletionSource<string?>();
         _gpuDlg = tcs;
-        GpuDlgTitle.Text = IsLegend ? title.ToUpperInvariant() : title;
+        GpuDlgTitle.Text = title.ToUpperInvariant();
         GpuDlgBody.Text = body;
         GpuDlgListTitle.Text = listTitle ?? "";
         GpuDlgListTitle.Visibility = string.IsNullOrEmpty(listTitle) ? Visibility.Collapsed : Visibility.Visible;
@@ -1333,8 +1332,7 @@ public partial class MainWindow : Window
         foreach (var b in buttons)
         {
             var btn = new Button { Content = b.Text, Margin = new Thickness(8, 4, 0, 0) };
-            btn.SetResourceReference(StyleProperty, "GhostButton");
-            if (b.Primary) btn.SetResourceReference(ForegroundProperty, "AccentBrush");
+            btn.SetResourceReference(StyleProperty, b.Primary ? "ButtonPrimary2" : "Button2");
             var id = b.Id;
             btn.Click += (_, _) => CloseGpuDialog(id);
             GpuDlgButtons.Children.Add(btn);
@@ -1370,7 +1368,7 @@ public partial class MainWindow : Window
         Hz240.IsEnabled = DisplayRefresh.Match(s, 240) is not null;
         Hz60.IsChecked = DisplayRefresh.IsActive(s, 60);
         Hz240.IsChecked = DisplayRefresh.IsActive(s, 240);
-        SetHint(RefreshHint, $"{s.CurrentHz} Hz", $"{s.CurrentHz} Hz");
+        SetHint(RefreshHint, $"{s.CurrentHz} Hz", $"{s.CurrentHz} Hz");   // 2.0 mock: "240 Hz"
         Motion.Fps = Math.Clamp(s.CurrentHz, 30, 240);   // 1.3.0-beta.1: storyboards follow the panel
         Hz60.ToolTip = Hz60.IsEnabled ? null : $"60 Hz isn't offered at {s.Width}x{s.Height}";
         Hz240.ToolTip = Hz240.IsEnabled ? null : $"240 Hz isn't offered at {s.Width}x{s.Height}";
@@ -1501,6 +1499,12 @@ public partial class MainWindow : Window
         _settings.Save();
     }
 
+    private void F4Overlay_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.F4Overlay = F4OverlayToggle.IsChecked == true;
+        _settings.Save();
+    }
+
     private async void F2Presets_Click(object sender, RoutedEventArgs e)
     {
         _settings.F2Presets = F2PresetsToggle.IsChecked == true;
@@ -1525,8 +1529,11 @@ public partial class MainWindow : Window
             Motion.Play(null, (PresetButton, OpacityProperty, Motion.Tween(0.2, 1, 250, Motion.Quad)));
         PresetButton.Content = TryFindResource(Profiles.IconKey(p));
         PresetButton.Foreground = B(255);
-        PresetButton.ToolTip = $"Preset: {label} ({Profiles.Describe(p)}). Click to change";
+        PresetButton.ToolTip = p == TrayProfile.GMode
+            ? "G-Mode is on (F1). Click for the preset list"
+            : $"Preset: {label} ({Profiles.Describe(p)}). Click: next preset, like F2. Right click: the list";
         if (PresetPopup.IsOpen) BuildPresetList();
+        UpdateHomeState();   // 2.0: Home preset tiles, G-Mode switch and F2 hint follow every change
     }
 
     /// <summary>After a manual change: the profile that matches mode + refresh rate, otherwise Custom.</summary>

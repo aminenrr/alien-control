@@ -38,6 +38,7 @@ public partial class MainWindow
         ModeBattery.IsEnabled = !BatteryLocked;
         BatteryLock.Visibility = BatteryLocked ? Visibility.Visible : Visibility.Collapsed;
         ModeBattery.ToolTip = BatteryLocked ? "Battery comes on by itself when you unplug (Auto preset)" : null;
+        UpdateHomeState();   // 2.0: the Home Battery tile locks the same way
     }
 
     private bool _autoBusy;
@@ -85,7 +86,7 @@ public partial class MainWindow
         var since = (DateTime.UtcNow - _rateChangedUtc).TotalMilliseconds;
         bool modeSwitch = since < 1500;
         if (modeSwitch) await Task.Delay((int)(1500 - since));
-        if (_settings.Toasts) Toast.Show(IsLegend, info, Motion.Enabled, modeSwitch ? 2200 : 1600);
+        if (_settings.Toasts) Toast.Show(true, info, Motion.Enabled, modeSwitch ? 2200 : 1600);
         if (_settings.ToastSound) Sounds.Play(sound);
         if (!IsVisible) _ = TrimSoonAsync(_showGen);   // v0.9.13: the toast window's memory goes back once it's gone
     }

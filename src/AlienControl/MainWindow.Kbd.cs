@@ -10,7 +10,7 @@ using AlienControl.Services;
 namespace AlienControl;
 
 /// <summary>
-/// 1.3.0-beta.1 keyboard backlight timeout. A slow timer (5 s, only while the keys are lit and a timeout is set)
+/// 1.3.0-beta.1 keyboard backlight timeout (2.0: its rows moved from Settings to the Lights tab). A slow timer (5 s, only while the keys are lit and a timeout is set)
 /// compares GetLastInputInfo with the timeout. Then the keyboard's hardware brightness fades to 0 (~600 ms) and
 /// frames are held. While dark, the existing G-key hook (keys) and mouse raw input on the macro window (mouse,
 /// touchpad) wake it at once: full brightness, the held frame, status keys re-sent. No new hook; nothing when off.
@@ -42,7 +42,11 @@ public partial class MainWindow
         _kbdTimer.Tick += (_, _) => KbdTick();
         _kbdUiReady = true;
         UpdateKbdTimer();
+        UpdateKbdHint();
     }
+
+    /// <summary>2.0: the BACKLIGHT TIMEOUT header on the Lights tab reads the setting ("2 MIN", "OFF").</summary>
+    private void UpdateKbdHint() => KbdHint.Text = _settings.KbdTimeoutMin > 0 ? $"{_settings.KbdTimeoutMin} MIN" : "OFF";
 
     /// <summary>The timer runs only while it can matter: a timeout is set, the keys are lit (and plugged-in rules allow).</summary>
     private void UpdateKbdTimer()
@@ -107,6 +111,7 @@ public partial class MainWindow
         _settings.Save();
         UpdateKbdTimer();
         UpdateSettingsDims();
+        UpdateKbdHint();
     }
 
     private void KbdOption_Click(object sender, RoutedEventArgs e)

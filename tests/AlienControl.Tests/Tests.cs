@@ -49,8 +49,19 @@ public class SettingsTests
     {
         var s = Settings.Parse("{\"SettingsVersion\":3,\"PerformancePowerIndex\":5,\"ChassisLights\":[0,2,3],\"Theme\":\"x\"}")!;
         Assert.Equal(2, s.PerformancePowerIndex);
-        Assert.Equal("Legend", s.Theme);
-        Assert.Equal(6, s.SettingsVersion);
+        Assert.Equal(7, s.SettingsVersion);
+    }
+
+    [Fact]
+    public void Fluent_theme_setting_from_1_3_is_ignored()
+    {
+        // 2.0: Legend only. A 1.3.x file with "Theme":"Fluent" still loads, keeps its other values and is bumped to v7.
+        var s = Settings.Parse("{\"SettingsVersion\":6,\"Theme\":\"Fluent\",\"OcInPerformance\":true,\"F3Opens\":false}")!;
+        Assert.Equal(7, s.SettingsVersion);
+        Assert.True(s.OcInPerformance);
+        Assert.False(s.F3Opens);
+        Assert.True(s.F4Overlay);
+        Assert.DoesNotContain("Theme", System.Text.Json.JsonSerializer.Serialize(s));
     }
 
     [Fact] public void Too_old_is_rejected() => Assert.Null(Settings.Parse("{\"SettingsVersion\":1}"));
@@ -58,7 +69,7 @@ public class SettingsTests
     [Fact]
     public void Clamp_keeps_hardware_values_safe()
     {
-        var s = Settings.Parse("{\"SettingsVersion\":6,\"QuietPowerIndex\":99,\"PerformancePowerIndex\":5,\"ChassisLights\":[0,2,3,40],\"Brightness\":999,\"OcCore\":5000,\"KbdTimeoutMin\":7,\"LastEffect\":5}")!;
+        var s = Settings.Parse("{\"SettingsVersion\":7,\"QuietPowerIndex\":99,\"PerformancePowerIndex\":5,\"ChassisLights\":[0,2,3,40],\"Brightness\":999,\"OcCore\":5000,\"KbdTimeoutMin\":7,\"LastEffect\":5}")!;
         s.Clamp();
         Assert.Equal(4, s.QuietPowerIndex);
         Assert.Equal(2, s.PerformancePowerIndex);

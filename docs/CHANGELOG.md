@@ -3,6 +3,34 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta1 (2026-10-23, prerelease)
+The new 2.0 look, built from the approved mockups (docs/mockups/2.0). All 1.3.5 features, new layout. The in-game
+overlay comes in 2.0.0-beta2. Branch `v2.0`. Untested on the laptop.
+- **Window**: one fixed 440 x 820 card with four tabs, **Home**, **Tuning**, **Lights**, **Overlay**. Every tab has the
+  same height. Status line and version above the footer; footer = Run on startup, gear (Settings), Quit.
+- **Home**: sensor grid (CPU / GPU temp and fans, CPU % / GPU %, RAM click to clean, VRAM) and the PWR strip, PRESET
+  tiles in the preset colours (Battery locked on AC with Auto preset), G-MODE card with a switch (shows the kept GPU
+  overclock), OVERLAY slider (disabled, beta 2), LIGHTING swatches + brightness.
+- **Tuning**: live strip (CPU, GPU, fans, power), PERFORMANCE MODE (Battery, Quiet, Balanced, Performance, G-Mode),
+  GPU MODE (iGPU only, Advanced Optimus, Ultimate), GPU OVERCLOCK with the **G-MODE / + PERF** scope pill (the 1.3.4
+  "OC in Performance" setting), CPU BOOST, REFRESH and FANS side by side. Fans are **Auto / Max**.
+- **Lights**: ZONES inline (Keyboard, Rear ring, Alienhead, Turn off / Turn on; was the laptop button popup), COLOR,
+  EFFECT AND BRIGHTNESS, BACKLIGHT TIMEOUT (moved from Settings), STATUS KEYS.
+- **Overlay**: level slider, preview and Advanced controls drawn but disabled, "Coming in beta 2". Nothing is saved.
+- **Settings**: one page in the same window with two tabs, General · Keys and Alerts · Advanced. Back arrow or Esc
+  returns. New rows: F4 toggles the overlay (reserved), Log frame gaps (back from 1.3.0). Run on startup is in the
+  footer only.
+- **Header preset button** hidden on Home; click cycles presets like F2, right click opens the preset list.
+- **F3** opens / hides the app (one view now). **F4** is reserved for the overlay: a short "Overlay comes in beta 2"
+  toast when notifications are on.
+- **Removed**: the Fluent theme and its switch (the old setting is ignored, settings v7), the compact view and its
+  footer button / F3 compact / F4 full behaviour.
+- **Efficiency**: sensors and power are read only while Home or Tuning is on screen; RAM / VRAM / CPU % / GPU % only on
+  Home. Hidden window = no polling (as before).
+- Custom preset icon is now the sparkles icon (header button, tray menu, toasts), as in the mockups.
+- Ctrl + Tab / Ctrl + Shift + Tab move between the tabs.
+- App version 2.0.0-beta1.
+
 ## v1.3.5 (2026-10-22)
 Fix release. 1.3.4 was built from `main`, which never got the 1.3.1 to 1.3.3 work (it lived on the `v1.3` branch), so
 1.3.4 dropped the Lights menu and the other 1.3.1 to 1.3.3 changes. 1.3.5 = 1.3.3 + the 1.3.4 GPU OC features.

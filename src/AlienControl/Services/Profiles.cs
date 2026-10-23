@@ -38,11 +38,11 @@ public static class Profiles
 
     public static string Label(TrayProfile p) => p == TrayProfile.GMode ? "G-Mode" : p.ToString();
 
-    /// <summary>Theme icon resource for a preset (Custom has no icon of its own: the gear).</summary>
+    /// <summary>Icon resource for a preset. 2.0: Custom uses the sparkles icon (was the gear), as in the 2.0 mockups.</summary>
     public static string IconKey(TrayProfile p) => p switch
     {
         TrayProfile.Battery => "Icon.Battery", TrayProfile.Quiet => "Icon.Quiet", TrayProfile.Balanced => "Icon.Balanced",
-        TrayProfile.Performance => "Icon.Performance", TrayProfile.GMode => "Icon.GMode", _ => "Icon.Settings",
+        TrayProfile.Performance => "Icon.Performance", TrayProfile.GMode => "Icon.GMode", _ => "Icon.Sparkles",
     };
 
     public static string Describe(TrayProfile p) => p switch

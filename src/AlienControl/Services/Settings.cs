@@ -88,9 +88,6 @@ public sealed class Settings
     /// Performance preset (on AC), not just G-Mode. Off (default) = G-Mode only, as before.</summary>
     public bool OcInPerformance { get; set; } = false;
 
-    /// <summary>UI theme: "Legend" (default) or "Fluent".</summary>
-    public string Theme { get; set; } = "Legend";
-
     /// <summary>Tray profile: Battery, Quiet, Balanced, Performance or Custom.</summary>
     public string Profile { get; set; } = "Custom";
 
@@ -108,6 +105,8 @@ public sealed class Settings
 
     /// <summary>v0.9.16: F3 (Macro B, media mode) opens / hides the window, like a handheld's quick menu. Default on.</summary>
     public bool F3Opens { get; set; } = true;
+    /// <summary>2.0: F4 (Macro C, media mode) is reserved for the overlay (beta 2). Default on. In beta 1 it only shows a hint.</summary>
+    public bool F4Overlay { get; set; } = true;
     /// <summary>v1.1: off = no taskbar button, the app only lives in the tray (minimize hides to the tray).</summary>
     public bool ShowInTaskbar { get; set; } = true;
 
@@ -176,9 +175,10 @@ public sealed class Settings
         if (s.PerformancePowerIndex == 5) s.PerformancePowerIndex = 2;
         // v5 (app v0.8): the G-key is always on, Battery mode = index 3, theme defaults to Legend.
         if (s.BatteryPowerIndex <= 0) s.BatteryPowerIndex = 3;
-        if (s.Theme is not ("Legend" or "Fluent")) s.Theme = "Legend";
         // v6 (app v0.8.2): adds ReduceMotion; older files have no key, so it reads as false (animations on).
         if (s.SettingsVersion < 6) s.ReduceMotion = false;
+        // v7 (app 2.0): the "Theme" key is gone (Legend only, Fluent removed). Old files still carry it; System.Text.Json
+        // skips unknown keys, and the save after this migration drops it. Nothing else changes.
         s.SettingsVersion = CurrentVersion;
         return s;
     }
@@ -225,7 +225,6 @@ public sealed class Settings
         PollSeconds = C(PollSeconds, 1, 10, d.PollSeconds);
         OcCore = C(OcCore, 0, GpuOc.MaxUi, 0);
         OcMem = C(OcMem, 0, GpuOc.MaxUi, 0);
-        if (Theme is not ("Legend" or "Fluent")) Theme = "Legend";
         if (Profile is not ("Battery" or "Quiet" or "Balanced" or "Performance" or "Custom")) Profile = "Custom";
         if (AcPreset is not ("Quiet" or "Balanced" or "Performance")) AcPreset = "Balanced";
         if (ChimePack is not ("Soft" or "Classic")) ChimePack = "Soft";
@@ -241,7 +240,7 @@ public sealed class Settings
             try { if (File.Exists(f)) File.Delete(f); } catch (Exception ex) { Log.Warn("Settings.Delete", ex); }
     }
 
-    private const int CurrentVersion = 6;
+    private const int CurrentVersion = 7;
     public int SettingsVersion { get; set; } = CurrentVersion;
 
     private static readonly object SaveGate = new();

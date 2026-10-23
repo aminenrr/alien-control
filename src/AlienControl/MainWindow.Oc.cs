@@ -123,7 +123,7 @@ public partial class MainWindow
     {
         if (_gpu.Kind == GpuModeKind.IGpuOnly)
         {
-            ((App)Application.Current).ShowMain(full: true);
+            ((App)Application.Current).ShowMain();
             var pick = await ShowGpuDialog("The RTX is still off",
                 "iGPU only stays on after Alien Controls quits (it survives restarts and uninstalling). Turn the RTX back on now?",
                 null, null, ("keep", "Keep it off", false), ("on", "Turn it on", true));
@@ -275,10 +275,13 @@ public partial class MainWindow
         await SyncOcAsync();   // Revert / timeout / left G-Mode: writes +0
     }
 
-    /// <summary>1.3.4: Performance toggle in the section header. Saves, re-syncs (applies or drops the offsets now).</summary>
-    private async void OcPerfToggle_Click(object sender, RoutedEventArgs e)
+    /// <summary>2.0: scope pill in the section header, G-MODE / + PERF. Same setting as the 1.3.4 Performance toggle
+    /// (OcInPerformance): + PERF = the kept offsets also run in the Performance preset on AC. Saves, re-syncs.</summary>
+    private async void OcScope_Click(object sender, RoutedEventArgs e)
     {
-        _settings.OcInPerformance = !_settings.OcInPerformance;
+        bool perf = sender == OcScopePerf;
+        if (perf == _settings.OcInPerformance) return;
+        _settings.OcInPerformance = perf;
         _settings.Save();
         Status(_settings.OcInPerformance ? "GPU OC: on in G-Mode and Performance." : "GPU OC: G-Mode only.");
         await SyncOcAsync();
@@ -295,17 +298,15 @@ public partial class MainWindow
     private void ShowOcPerfToggle()
     {
         bool on = _settings.OcInPerformance;
-        var t = Profiles.Tint(TrayProfile.Performance);
-        var b = on ? new SolidColorBrush(Color.FromRgb(t.R, t.G, t.B)) : new SolidColorBrush(Color.FromArgb(150, 0x7F, 0x8B, 0x97));
-        b.Freeze();
-        OcPerfToggle.Foreground = b;
-        OcPerfToggle.ToolTip = on
-            ? "GPU OC runs in G-Mode and the Performance preset. Click for G-Mode only"
-            : "GPU OC runs in G-Mode only. Click to also run it in the Performance preset";
+        OcScopePerf.IsChecked = on;
+        OcScopeG.IsChecked = !on;
+        OcScopeTrack.ToolTip = on
+            ? "GPU OC runs in G-Mode and the Performance preset (on AC). G-MODE: G-Mode only"
+            : "GPU OC runs in G-Mode only (on AC). + PERF: also in the Performance preset";
     }
 
     private void ShowOcCountdown() =>
-        OcCountdown.Text = IsLegend ? $"back to +0 in {_ocLeft} s" : $"Back to +0 in {_ocLeft} s";
+        OcCountdown.Text = $"BACK TO +0 IN {_ocLeft} S";
 
     private void UpdateOcUi()
     {
@@ -323,11 +324,12 @@ public partial class MainWindow
         OcApplyButton.Content = _ocTesting ? "Keep" : "Apply";
         OcResetButton.Content = _ocTesting ? "Revert" : "Reset";
         OcConfirm.Visibility = _ocTesting ? Visibility.Visible : Visibility.Collapsed;
-        OcActive.Visibility = _ocTesting ? Visibility.Collapsed : Visibility.Visible;
+        OcActivePanel.Visibility = _ocTesting ? Visibility.Collapsed : Visibility.Visible;
         if (_ocTesting) ShowOcCountdown();
 
         string active = _ocApplied is { } a && a != (0, 0) ? $"+{a.Core} / +{a.Mem}" : "+0 / +0";
-        OcActive.Text = IsLegend ? $"ACTIVE {active}" : $"Active: {active}";
+        OcActive.Text = $"ACTIVE {active}";
+        UpdateHomeGModeSub();   // 2.0: the Home G-Mode card names the kept overclock
 
         ShowOcPerfToggle();
         bool perf = _settings.OcInPerformance;

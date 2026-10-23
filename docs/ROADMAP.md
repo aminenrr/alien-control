@@ -46,6 +46,14 @@
 - [x] 1.3.5 (2026-10-22): 1.3.3 + 1.3.4 merged (Lights menu back), OC tag on its own pill line, Lights toast in the
   accent colour. Tested (beta.1), main brought up to v1.3.
 
+## 2.0
+- [x] 2.0.0-beta1 (pre-release, branch v2.0): the new look only (docs/mockups/2.0). Tabs Home / Tuning / Lights /
+  Overlay in a fixed 440 x 820 window, Settings with two tabs, Legend only (Fluent removed), compact view removed,
+  F3 opens / hides, F4 reserved, Fans Auto / Max, sensors read only for the tab on screen. Untested on the laptop.
+- [ ] 2.0.0-beta2: the overlay (PresentMon ETW, click-through window, levels 1 to 4 like MangoHud, Advanced settings,
+  F4 off / last level). App and overlay share the same pollers.
+- [ ] Real 2.0 screenshots in the README once beta1 is tested.
+
 ## Later
 - Effect speed; map keyboard columns for the rainbow wave.
 - Maybe: remove the last faint chime crackle during hardware switches (longer gap before the ACPI calls, or a
@@ -56,6 +64,6 @@
 
 ## Not planned
 - Fluent Acrylic / see-through blur: tried in 1.1.0-beta.2 (native Windows 11 backdrop). It didn't look good enough and cost extra CPU and RAM, so it was removed.
-- Overlay / FPS counter, driver updater, XMP toggle (stock RAM has no XMP profile).
+- Driver updater, XMP toggle (stock RAM has no XMP profile). (The overlay / FPS counter moved to 2.0.0-beta2.)
 - NVIDIA private-call reverse engineering (GPU OC stays on public NVML offsets), forking or editing alienfx-tools.
 - Profiles that change the GPU mode or use Ultimate.

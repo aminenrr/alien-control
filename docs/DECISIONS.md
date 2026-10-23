@@ -2,6 +2,34 @@
 
 Why things are the way they are. Newest decisions win.
 
+## 2.0.0-beta1 (2026-10-23)
+- Amine picked the 2.0 design on 2026-10-23 (docs/mockups/2.0/HANDOFF.md): Home A, Tuning A, Lights A, the fitted
+  Overlay tab and a two-tab Settings page. Built by Hark straight from the handoff (the mockups were the approved plan).
+- Two pre-releases: **beta1 = the new look only** (all 1.3.5 features in the new layout), **beta2 = the overlay**
+  (PresentMon). In beta1 the Overlay tab and the Home overlay slider are drawn but disabled with a "beta 2" badge, F4 only
+  shows an "Overlay comes in beta 2" toast (when notifications are on), and nothing overlay-related is saved except the
+  F4 on / off switch (`F4Overlay`, default on), so beta2 can define its own settings freely.
+- **Legend only**: Fluent removed (Themes/Fluent.xaml, the theme switch, its setting). Settings v7 drops the old
+  `Theme` key (System.Text.Json skips it on load, the migration save removes it). Toast and tray menu code keep their
+  Fluent branches but are always called with Legend.
+- **Compact view removed** (MainWindow.Compact.cs, the footer view button, F3 compact / F4 full). The window is one
+  fixed 440 x 820 card (460 x 840 with the shadow margin), so the settings page swaps in place without the card swap.
+- Fixed height, no dead space: each tab is a Grid whose flex blocks are star rows (gaps 18). Home has no flex block
+  in the mockup math, so its spare height is spread over the gaps (star spacer rows), as app2.py does.
+- **F3** keeps its 1.1 raw-input path (MacroKeys, Macro B): open, focus, or hide. **F4** (Macro C) is reserved.
+- Header preset button: hidden on Home; click = next preset in the F2 order, silent (window clicks never toast); in
+  G-Mode or on right click it opens the 1.1 preset list, so Battery / Custom stay one click away from any tab.
+- GPU OC scope pill **G-MODE / + PERF** = the 1.3.4 `OcInPerformance` setting, unchanged.
+- Fans: Auto / Max (labels only; Max is the same max boost as before).
+- Backlight timeout moved from Settings to the Lights tab; Run on startup is in the footer only.
+- Efficiency: the sensor and power timers run only while the window is visible AND Home or Tuning is shown (not behind
+  Settings, Lights or Overlay); RAM / VRAM / CPU % / GPU % are read only on Home. Hidden = nothing polls (as before).
+- Home G-Mode switch = the window version of F1 (silent). Home preset tiles = the tray path (`ApplyProfileAsync`).
+- Brightness and colour exist on Home and Lights: one setting, both controls stay in step.
+- Kept the 1.3.5 effect list (the mockup shows a shorter sample list) so no saved effect disappears.
+- Fonts: the mockups use Barlow / Inter; the app keeps Segoe UI Variable + Cascadia Mono (no bundled fonts yet).
+- Credits mention PresentMon as "will use" until beta2 ships it.
+
 ## Scope and stack (2026-10-14)
 - **GUI only.** Every hardware action goes through T-Troll's alienfan-cli / alienfx-cli. The AlienFX core is never modified.
 - **No fork** of alienfx-tools. Its MIT binaries are shipped in `src/AlienControl/tools/` (gitignored) with credit.

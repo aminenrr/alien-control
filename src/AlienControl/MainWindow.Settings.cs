@@ -8,15 +8,14 @@ using AlienControl.Services;
 namespace AlienControl;
 
 /// <summary>
-/// 1.3.0-beta.2 (Amine's directive, Feature 3): the gear opens a settings PAGE inside the main window instead of the
-/// 290 px popup. Same card swap as F3/F4 (slide down, swap off screen, rise). Five tabs, at most 5 rows each; every
-/// tab panel stays in the layout (Hidden), so the page is as tall as the tallest tab and switching tabs never moves
-/// the window. Back arrow or Esc returns. The last tab is remembered for this session only. Dependent rows dim when
-/// their parent is off. Also Features 1 + 2: chime pack and toast style rows.
+/// Settings page inside the main window (gear in the footer). 2.0: two tabs, GENERAL · KEYS and ALERTS · ADVANCED,
+/// in the same 440 x 820 card, so opening it swaps the page in place (no card swap, the height never changes).
+/// Back arrow or Esc returns. Run on startup lives in the footer only; the backlight timeout moved to the Lights tab.
+/// Dependent rows dim when their parent is off. The last tab is remembered for this session only.
 /// </summary>
 public partial class MainWindow
 {
-    private Border? _setTab;   // last opened tab panel (session only)
+    private Grid? _setTab;   // last opened tab page (session only)
 
     public bool SettingsShown => SettingsPage.Visibility == Visibility.Visible;
 
@@ -28,6 +27,8 @@ public partial class MainWindow
         ChimeClassic.IsChecked = !ChimeSoft.IsChecked;
         ToastPill.IsChecked = Toast.Style == Toast.ToastStyle.Pill;
         ToastClassic.IsChecked = !ToastPill.IsChecked;
+        FrameLogToggle.IsChecked = _settings.FrameLog;
+        WindowSlide.LogFrames = _settings.FrameLog;
         UpdateSettingsDims();
         PreviewKeyDown += SettingsKeyDown;
     }
@@ -36,41 +37,43 @@ public partial class MainWindow
     {
         var main = on ? Visibility.Collapsed : Visibility.Visible;
         MainHeader.Visibility = main;
+        MainTabs.Visibility = main;
         MainBody.Visibility = main;
-        MainFooter.Visibility = main;
+        StatusText.Visibility = main;
+        SettingsHintText.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
-        if (!on) return;
+        // the gear stays lit while the page is open (mockup)
+        if (on) { SettingsButton.SetResourceReference(BorderBrushProperty, "AccentBrush"); SettingsButton.SetResourceReference(ForegroundProperty, "AccentBrush"); SettingsButton.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x06, 0x30, 0x3A)); }
+        else { SettingsButton.ClearValue(BorderBrushProperty); SettingsButton.ClearValue(ForegroundProperty); SettingsButton.ClearValue(BackgroundProperty); }
+        UpdatePolling();   // no sensor reads behind the settings page
+        if (!on) { if (IsVisible) _ = RefreshSensorsAsync(); return; }
         PresetPopup.IsOpen = false;
         CustomPopup.IsOpen = false;
-        ShowTab(_setTab ?? SetGeneral);
-        Dispatcher.BeginInvoke(new Action(() => TabButton(_setTab ?? SetGeneral).Focus()), System.Windows.Threading.DispatcherPriority.Input);
+        ShowTab(_setTab ?? SetPage1);
+        Dispatcher.BeginInvoke(new Action(() => TabButton(_setTab ?? SetPage1).Focus()), System.Windows.Threading.DispatcherPriority.Input);
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e)
-    {
-        if (!SettingsShown) SwapCard(() => SetSettingsShown(true));
-    }
+    private void Settings_Click(object sender, RoutedEventArgs e) => SetSettingsShown(!SettingsShown);
 
     private void SettingsBack_Click(object sender, RoutedEventArgs e) => CloseSettings();
 
-    /// <summary>Back to the main view. Instant when the window is going away anyway (hidden, minimized).</summary>
+    /// <summary>Back to the main view.</summary>
     private void CloseSettings(bool instant = false)
     {
         if (!SettingsShown) return;
-        if (instant) SetSettingsShown(false);
-        else SwapCard(() => SetSettingsShown(false));
+        SetSettingsShown(false);
     }
 
     // ---------- tabs ----------
 
-    private Border[] Panels => new[] { SetGeneral, SetKeys, SetAlerts, SetBacklight, SetAdvanced };
-    private RadioButton[] Tabs => new[] { SetTabGeneral, SetTabKeys, SetTabAlerts, SetTabBacklight, SetTabAdvanced };
-    private RadioButton TabButton(Border panel) => Tabs[Array.IndexOf(Panels, panel)];
+    private Grid[] Panels => new[] { SetPage1, SetPage2 };
+    private RadioButton[] Tabs => new[] { SetTab1, SetTab2 };
+    private RadioButton TabButton(Grid panel) => Tabs[Array.IndexOf(Panels, panel)];
 
-    private void ShowTab(Border panel)
+    private void ShowTab(Grid panel)
     {
         _setTab = panel;
-        foreach (var p in Panels) p.Visibility = p == panel ? Visibility.Visible : Visibility.Hidden;   // Hidden keeps the height
+        foreach (var p in Panels) p.Visibility = p == panel ? Visibility.Visible : Visibility.Collapsed;
         TabButton(panel).IsChecked = true;
     }
 
@@ -80,10 +83,20 @@ public partial class MainWindow
         if (i >= 0) ShowTab(Panels[i]);
     }
 
-    /// <summary>Esc = back; Left / Right on a tab = previous / next tab.</summary>
+    /// <summary>Esc = back; Left / Right on a settings tab = the other tab. On the main view, Ctrl + Tab /
+    /// Ctrl + Shift + Tab move between HOME, TUNING, LIGHTS and OVERLAY.</summary>
     private void SettingsKeyDown(object sender, KeyEventArgs e)
     {
-        if (!SettingsShown || GpuDialogLayer.Visibility == Visibility.Visible) return;
+        if (GpuDialogLayer.Visibility == Visibility.Visible) return;
+        if (!SettingsShown)
+        {
+            if (e.Key == Key.Tab && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            {
+                CycleTab(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? -1 : 1);
+                e.Handled = true;
+            }
+            return;
+        }
         if (e.Key == Key.Escape) { CloseSettings(); e.Handled = true; return; }
         if (e.Key is not (Key.Left or Key.Right) || Keyboard.FocusedElement is not RadioButton rb) return;
         int i = Array.IndexOf(Tabs, rb);
@@ -113,7 +126,7 @@ public partial class MainWindow
         row.IsEnabled = on;
     }
 
-    // ---------- Feature 1: chime pack ----------
+    // ---------- chime pack ----------
 
     private void ChimePack_Click(object sender, RoutedEventArgs e)
     {
@@ -134,7 +147,7 @@ public partial class MainWindow
         if (gen == _previewGen) Sounds.Play(Sounds.Kind.GModeOn);
     }
 
-    // ---------- Feature 2: toast style ----------
+    // ---------- toast style ----------
 
     private void ToastStyle_Click(object sender, RoutedEventArgs e)
     {
@@ -147,7 +160,16 @@ public partial class MainWindow
 
     private void ToastTest_Click(object sender, RoutedEventArgs e)
     {
-        Toast.Show(IsLegend, new Toast.Info(TrayProfile.Balanced, Profiles.IconKey(TrayProfile.Balanced),
+        Toast.Show(true, new Toast.Info(TrayProfile.Balanced, Profiles.IconKey(TrayProfile.Balanced),
             Profiles.Label(TrayProfile.Balanced), PresetSub(TrayProfile.Balanced), Toast.Right.Pills), Motion.Enabled);
+    }
+
+    // ---------- 2.0: log frame gaps (the 1.3 debug switch, back in Advanced) ----------
+
+    private void FrameLog_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.FrameLog = FrameLogToggle.IsChecked == true;
+        _settings.Save();
+        WindowSlide.LogFrames = _settings.FrameLog;
     }
 }

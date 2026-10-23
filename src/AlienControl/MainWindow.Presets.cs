@@ -9,9 +9,10 @@ using AlienControl.Services;
 namespace AlienControl;
 
 /// <summary>
-/// v1.1 beta.5 (Amine 2026-10-16): the header chip is gone. A header button shows the active preset's icon in its
-/// color; clicking it opens a small list of the presets (Battery, Quiet, Balanced, Performance, Custom), each with its
-/// icon and color, the active one marked. Both themes. Picking one runs the same path as the tray menu.
+/// v1.1 beta.5 (Amine 2026-10-16): a header button shows the active preset's icon in its color. 2.0: it is hidden on
+/// Home (the presets are on the page); a click cycles like F2 (silent, like every window click), a right click (or a
+/// click while G-Mode is on) opens the list of presets (Battery, Quiet, Balanced, Performance, Custom), each with its
+/// icon and color, the active one marked. Picking one runs the same path as the tray menu.
 /// </summary>
 public partial class MainWindow
 {
@@ -19,7 +20,32 @@ public partial class MainWindow
         { TrayProfile.Battery, TrayProfile.Quiet, TrayProfile.Balanced, TrayProfile.Performance, TrayProfile.Custom };
     private DateTime _presetClosedUtc;
 
-    private void PresetButton_Click(object sender, RoutedEventArgs e)
+    private bool _presetCycleBusy;
+
+    /// <summary>2.0: click = next preset, the F2 order (Quiet, Balanced, Performance; Battery on battery). In G-Mode
+    /// (F1 owns it) or with the list open, the list opens instead.</summary>
+    private async void PresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        if ((DateTime.UtcNow - _presetClosedUtc).TotalMilliseconds < 250) return;   // this click just closed the list
+        if (_gmodeOn) { OpenPresetList(); return; }
+        if (_presetCycleBusy) return;
+        _presetCycleBusy = true;
+        try
+        {
+            var next = NextPreset(CurrentProfile);
+            if (next == TrayProfile.Battery && BatteryLocked) next = TrayProfile.Quiet;
+            await ApplyProfileAsync(next);
+        }
+        finally { _presetCycleBusy = false; }
+    }
+
+    private void PresetButton_RightClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        OpenPresetList();
+    }
+
+    private void OpenPresetList()
     {
         // StaysOpen=False closes the popup on the mouse-down of this very click; don't reopen it right away.
         if ((DateTime.UtcNow - _presetClosedUtc).TotalMilliseconds < 250) return;
@@ -61,7 +87,7 @@ public partial class MainWindow
             var label = Profiles.Label(p);
             var text = new TextBlock
             {
-                Text = IsLegend ? label.ToUpperInvariant() : label, Style = textStyle, VerticalAlignment = VerticalAlignment.Center,
+                Text = label.ToUpperInvariant(), Style = textStyle, VerticalAlignment = VerticalAlignment.Center,
             };
             if (active) { text.Foreground = tint; text.FontWeight = FontWeights.SemiBold; }
             Grid.SetColumn(text, 1);
@@ -71,7 +97,7 @@ public partial class MainWindow
             {
                 var dot = new Border
                 {
-                    Width = 6, Height = 6, CornerRadius = new CornerRadius(IsLegend ? 1 : 3), Background = tint,
+                    Width = 6, Height = 6, CornerRadius = new CornerRadius(1), Background = tint,
                     VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 2, 0),
                 };
                 Grid.SetColumn(dot, 2);
@@ -80,7 +106,7 @@ public partial class MainWindow
 
             var item = new Border
             {
-                Child = row, Padding = new Thickness(10, 8, 10, 8), CornerRadius = new CornerRadius(IsLegend ? 3 : 5),
+                Child = row, Padding = new Thickness(10, 8, 10, 8), CornerRadius = new CornerRadius(3),
                 Background = active ? new SolidColorBrush(Color.FromArgb(0x1C, t.R, t.G, t.B)) : Brushes.Transparent,
                 Cursor = locked ? Cursors.Arrow : Cursors.Hand, Opacity = locked ? 0.4 : 1,
                 ToolTip = locked ? "Battery comes on by itself when you unplug (Auto preset)" : Profiles.Describe(p),
