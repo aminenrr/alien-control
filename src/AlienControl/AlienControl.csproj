@@ -11,8 +11,8 @@
     <RootNamespace>AlienControl</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>2.0.0</Version>
-    <!-- 2.0.0-beta1.1: the footer and Settings show the informational version (v2.0.0-beta1.1) -->
-    <InformationalVersion>2.0.0-beta1.1</InformationalVersion>
+    <!-- 2.0.0-beta1.2: the footer and Settings show the informational version (v2.0.0-beta1.2) -->
+    <InformationalVersion>2.0.0-beta1.2</InformationalVersion>
     <Product>Alien Controls</Product>
     <AssemblyTitle>Alien Controls</AssemblyTitle>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
