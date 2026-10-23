@@ -21,6 +21,8 @@ public partial class MainWindow
     private readonly DispatcherTimer _ocTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private int _ocLeft;
     private bool _ocTesting, _ocBusy, _ocInit;
+    private bool _ocDirty;        // 2.0.0-beta1.3 (ui review #4): a sync came in during a write; it runs once the write ends
+    private bool _ocUnverified;   // 2.0.0-beta1.3 (services review #2): _ocApplied (0,0) is assumed; read the driver on AC
     /// <summary>What the app last wrote to the driver; null = unknown (startup, after resume).</summary>
     private (int Core, int Mem)? _ocApplied;
     private string? _ocError;
@@ -72,9 +74,16 @@ public partial class MainWindow
             _settings.Save();
             var err = await Task.Run(() => GpuOc.Set(0, 0));
             _ocApplied = err is null ? (0, 0) : null;
-            Status(err ?? "GPU OC: the last test wasn't kept, clocks are back to stock.");
+            // 2.0.0-beta1.3: settings fell back to defaults (first start, reset, both files torn): the same +0, silent
+            if (err is not null || !_settings.LoadedDefaults) Status(err ?? "GPU OC: the last test wasn't kept, clocks are back to stock.");
         }
-        else if (!_settings.OcOn) _ocApplied = (0, 0);   // nothing was ever kept: the driver is at stock after boot
+        else if (!_settings.OcOn)
+        {
+            // nothing was ever kept: the driver is at stock after boot. 2.0.0-beta1.3 (services review #2): unless the
+            // app died between saving OcOn=false and the +0 write, so SyncOcAsync reads the driver once on AC
+            _ocApplied = (0, 0);
+            _ocUnverified = true;
+        }
         _gmodeOn = await _fan.GetGModeAsync() == true;
         await SyncOcAsync();
     }
@@ -122,15 +131,23 @@ public partial class MainWindow
 
     /// <summary>1.3.0-beta.1: everything Quit undoes before the process exits, async so the UI thread never blocks.
     /// Review #9: the Quiet 3.0 GHz cap is cleared from the power plan. Review #10: iGPU only offers to turn the RTX back on.</summary>
-    public async Task PrepareExitAsync()
+    public async Task PrepareExitAsync(bool promptIgpu = true)
     {
-        if (_gpu.Kind == GpuModeKind.IGpuOnly)
+        // 2.0.0-beta1.3 (ui review #3): Reset settings runs this too, without the iGPU prompt (the GPU mode stays as is)
+        if (promptIgpu && _gpu.Kind == GpuModeKind.IGpuOnly)
         {
             ((App)Application.Current).ShowMain();
             var pick = await ShowGpuDialog("The RTX is still off",
                 "iGPU only stays on after Alien Controls quits (it survives restarts and uninstalling). Turn the RTX back on now?",
                 null, null, ("keep", "Keep it off", false), ("on", "Turn it on", true));
-            if (pick == "on") { _power.GpuOff = true; await GpuMode.SetDgpuEnabledAsync(true); }
+            if (pick == "on")
+            {
+                _power.GpuOff = true;
+                // 2.0.0-beta1.3 (services review #1): no NVML call while pnputil re-adds the RTX
+                await Task.Run(NvmlSession.BeginDeviceRemoval);
+                try { await GpuMode.SetDgpuEnabledAsync(true); }
+                finally { _ = EndDeviceRemovalWhenIdleAsync(); }
+            }
         }
         if (_boostForced && RestoreLevels() is { } lv)
         {
@@ -166,15 +183,15 @@ public partial class MainWindow
         catch (Exception ex) { Services.Log.Warn("Resume", ex); }
     }
 
-    /// <summary>Synchronous boost restore for Quit when G-Mode forced Aggressive.</summary>
-    private void RestoreBoostOnExit()
+    // 2.0.0-beta1.3 (ui review #3): RestoreBoostOnExit (a blocking .Wait(4000) on the UI thread) is gone: Quit and
+    // Reset settings both await PrepareExitAsync, which restores the boost and clears the CPU cap.
+
+    /// <summary>2.0.0-beta1.3 (services review #1): ends the NVML block once pnputil has really exited (one that timed
+    /// out is left running, so NVML stays closed until it's done).</summary>
+    private static async Task EndDeviceRemovalWhenIdleAsync()
     {
-        if (!_boostForced) return;
-        _boostForced = false;
-        if (RestoreLevels() is not { } lv) return;
-        var (ac, dc) = lv;
-        try { Task.Run(async () => { await _fan.SetCpuBoostAsync(ac, dc); await CpuFreq.ApplyAsync(ac, dc); }).Wait(4000); }
-        catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Oc.cs:169", __e); /* exiting anyway */ }
+        try { await GpuMode.PnpIdle; } catch (Exception ex) { Services.Log.Warn("PnpIdle", ex); }
+        NvmlSession.EndDeviceRemoval();
     }
 
     /// <summary>Brings the driver in line with G-Mode + AC + the kept offsets. Cheap when nothing changes.</summary>
@@ -190,8 +207,23 @@ public partial class MainWindow
             UpdateOcUi();
             return;
         }
+        if (_ocBusy) { _ocDirty = true; UpdateOcUi(); return; }   // 2.0.0-beta1.3: re-runs once the write in flight ends
+        if (_ocUnverified && OnAc)
+        {
+            // 2.0.0-beta1.3 (services review #2): startup assumed stock; read what the driver really runs (AC only, so
+            // a sleeping RTX isn't woken on battery). Can't read = keep the assumption, as before.
+            _ocUnverified = false;
+            _ocBusy = true;
+            try
+            {
+                var cur = await Task.Run(GpuOc.Read);
+                if (cur is { } c && c != (0, 0)) Services.Log.Info("GPU OC", $"driver runs +{c.Core} / +{c.Mem} at startup, settings say +0");
+                if (cur is not null) _ocApplied = cur;
+            }
+            finally { _ocBusy = false; }
+        }
         var want = _settings.OcOn && OcAllowed ? (Math.Clamp(_settings.OcCore, 0, GpuOc.MaxUi), Math.Clamp(_settings.OcMem, 0, GpuOc.MaxUi)) : (0, 0);
-        if (_ocApplied != want && !_ocBusy)
+        if (_ocApplied != want)
         {
             _ocBusy = true;
             try
@@ -203,6 +235,7 @@ public partial class MainWindow
             }
             finally { _ocBusy = false; }
         }
+        if (_ocDirty) { _ocDirty = false; await SyncOcAsync(); return; }   // e.g. unplugged during the write: +0 now
         UpdateOcUi();
     }
 
@@ -212,7 +245,37 @@ public partial class MainWindow
         _ocTimer.Stop();
         if (_ocTesting) { _settings.OcPending = false; _settings.Save(); }
         if (_ocApplied is (0, 0)) return;
-        try { GpuOc.Set(0, 0); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Oc.cs:207", __e); /* exiting anyway */ }
+        // 2.0.0-beta1.3: bounded wait for the shared NVML lock, so a stuck driver call can't hang the exit
+        try { GpuOc.Set(0, 0, lockTimeoutMs: 2000); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Oc.cs:207", __e); /* exiting anyway */ }
+    }
+
+    private int _emergencyDone;
+
+    /// <summary>2.0.0-beta1.3 (services review #2): best-effort cleanup when the app is about to die (unhandled crash)
+    /// or Windows ends the session: OC +0 when the app wrote anything else, and the Efficient CPU cap cleared from the
+    /// power plan. Synchronous and bounded (one worker thread, joined for at most joinMs), callable from any thread.
+    /// Runs once. Only ever writes +0 / no cap.</summary>
+    public void EmergencyExitCleanup(int joinMs)
+    {
+        if (System.Threading.Interlocked.Exchange(ref _emergencyDone, 1) == 1) return;
+        var applied = _ocApplied;
+        bool rtxOff = _gpu.Kind == GpuModeKind.IGpuOnly || _rtxSwitching;   // never touch NVML then (NvmlSession refuses during a switch too)
+        var t = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                if (applied is not (0, 0) && !rtxOff)
+                {
+                    var err = GpuOc.Set(0, 0, lockTimeoutMs: 1500);
+                    Services.Log.Info("Exit cleanup", err ?? "GPU OC +0");
+                }
+            }
+            catch (Exception ex) { Services.Log.Warn("Exit cleanup OC", ex); }
+            try { if (CpuFreq.Clear() is { } e) Services.Log.Info("Exit cleanup", e); }
+            catch (Exception ex) { Services.Log.Warn("Exit cleanup CPU cap", ex); }
+        }) { IsBackground = true, Name = "AlienControls exit cleanup" };
+        t.Start();
+        if (!t.Join(joinMs)) Services.Log.Info("Exit cleanup", $"not done after {joinMs} ms, exiting anyway");
     }
 
     private void Oc_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -250,7 +313,12 @@ public partial class MainWindow
             _ocTimer.Start();
             UpdateOcUi();
         }
-        finally { _ocBusy = false; }
+        finally
+        {
+            _ocBusy = false;
+            // 2.0.0-beta1.3 (ui review #4): a sync that came in during the write (unplug, G-Mode off) runs now
+            if (_ocDirty) { _ocDirty = false; _ = Dispatcher.BeginInvoke(new Action(async () => await SyncOcAsync())); }
+        }
     }
 
     private async void OcReset_Click(object sender, RoutedEventArgs e)
