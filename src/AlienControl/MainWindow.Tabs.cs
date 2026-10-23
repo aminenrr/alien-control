@@ -17,8 +17,10 @@ public partial class MainWindow
 {
     private bool _gmodeUiBusy;
 
-    /// <summary>True when the visible page shows sensors (Home or Tuning) and the settings page is closed.</summary>
-    private bool SensorsShown => IsVisible && !SettingsShown && (HomePage.Visibility == Visibility.Visible || TuningPage.Visibility == Visibility.Visible);
+    /// <summary>True when the visible page shows sensors (Home or Tuning) and the settings page is closed.
+    /// 2.0.0-beta1.3 (ui review #2): and the window isn't minimized (a minimized window still reports IsVisible).</summary>
+    private bool SensorsShown => IsVisible && WindowState != WindowState.Minimized && !SettingsShown
+        && (HomePage.Visibility == Visibility.Visible || TuningPage.Visibility == Visibility.Visible);
 
     private void InitTabs()
     {
@@ -92,37 +94,12 @@ public partial class MainWindow
     }
 
     /// <summary>Home G-Mode switch: the window version of F1 (no toast or sound, like every window click).
-    /// Off goes back to the last power mode, as F1 does.</summary>
+    /// Off goes back to the last power mode, as F1 does. 2.0.0-beta1.3: the same path as F1 (SetGModeAsync).</summary>
     private async void HomeGMode_Click(object sender, RoutedEventArgs e)
     {
         bool want = HomeGModeToggle.IsChecked == true;
-        if (_gmodeUiBusy || want == _gmodeOn) { UpdateHomeState(); return; }
-        _gmodeUiBusy = true;
-        HomeGModeToggle.IsEnabled = false;
-        try
-        {
-            if (want)
-            {
-                Report(await _fan.SetGModeAsync(true));
-                _gmodeOn = true;
-            }
-            else
-            {
-                await _fan.SetGModeAsync(false);
-                Report(await _fan.SetPowerAsync(_lastPowerIndex));
-                _gmodeOn = false;
-            }
-            UpdateProfileFromState();
-            await SyncOcAsync();
-            await SyncIndicatorsAsync();
-            if (IsVisible) await RefreshStateAsync();
-        }
-        finally
-        {
-            _gmodeUiBusy = false;
-            HomeGModeToggle.IsEnabled = true;
-            UpdateHomeState();
-        }
+        if (want == (_gmodeTarget ?? _gmodeOn)) { UpdateHomeState(); return; }
+        await SetGModeAsync(want, fromKey: false);
     }
 
     /// <summary>Home follows the state: preset tile (none in G-Mode), G-Mode switch, F2 hint, Battery lock.</summary>
