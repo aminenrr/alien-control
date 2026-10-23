@@ -58,19 +58,18 @@ public sealed class KeyboardHid
     /// unless the timeout has it dark). Off is re-sent every call, since sleep / resume can reset the firmware level.</summary>
     public bool SetOff(bool off)
     {
-        IReadOnlyList<(byte id, byte r, byte g, byte b)>? held = null;
-        bool dark;
+        // 2.0.0-beta1.3 (services review #20): brightness and the held frame go out inside the lock (WithDevice and
+        // SetKeys re-enter it), so a newer frame from another thread can't be overwritten by the stale held one
         lock (Gate)
         {
             _off = off;
-            dark = _dark;
-            if (!off && !dark) { held = _held; _held = null; }
+            if (off) return WithDevice((dev, len) => SetBrightness(dev, len, 0));
+            if (_dark) return true;                              // the timeout wake restores it
+            var held = _held; _held = null;
+            bool ok = WithDevice((dev, len) => SetBrightness(dev, len, 255));
+            if (held is not null) ok &= SetKeys(held);
+            return ok;
         }
-        if (off) return WithDevice((dev, len) => SetBrightness(dev, len, 0));
-        if (dark) return true;                                   // the timeout wake restores it
-        bool ok = WithDevice((dev, len) => SetBrightness(dev, len, 255));
-        if (held is not null) ok &= SetKeys(held);
-        return ok;
     }
 
     /// <summary>1.3.1-beta.3: brightness 0 again while the keyboard is off or dark. beta.2 test: Keyboard off only blanked the
@@ -83,35 +82,53 @@ public sealed class KeyboardHid
         return WithDevice((dev, len) => SetBrightness(dev, len, 0));
     }
 
+    // 2.0.0-beta1.3 (services review #3): bumped by Wake. A fade checks it (and its token) under the lock before
+    // each step and before it sets _dark, so a key press during the last step can't leave the keys lit but "dark"
+    // (every later frame held). Replaces the 30 ms wait in MainWindow.KbdWake.
+    private static int _fadeGen;
+
     /// <summary>Fades the keyboard's hardware brightness to 0 over ms (one-shot, ~10 steps). False = cancelled/failed.</summary>
     public bool FadeOut(int ms, System.Threading.CancellationToken token)
     {
         const int steps = 10;
-        lock (Gate) if (_off) { _dark = true; return true; }     // 1.3.1: already off, nothing to fade
+        int gen;
+        lock (Gate)
+        {
+            if (_off) { _dark = true; return true; }             // 1.3.1: already off, nothing to fade
+            gen = _fadeGen;
+        }
         for (int i = steps - 1; i >= 0; i--)
         {
-            if (token.IsCancellationRequested) return false;
             int level = 255 * i / steps;
-            if (!WithDevice((dev, len) => SetBrightness(dev, len, level))) return false;
+            lock (Gate)
+            {
+                if (token.IsCancellationRequested || gen != _fadeGen) return false;
+                if (!WithDevice((dev, len) => SetBrightness(dev, len, level))) return false;
+            }
             System.Threading.Thread.Sleep(ms / steps);
         }
-        lock (Gate) _dark = true;
+        lock (Gate)
+        {
+            if (token.IsCancellationRequested || gen != _fadeGen) return false;
+            _dark = true;
+        }
         return true;
     }
 
     /// <summary>Full brightness again, then the newest frame that came in while dark.</summary>
     public bool Wake()
     {
-        IReadOnlyList<(byte id, byte r, byte g, byte b)>? held;
         lock (Gate)
         {
+            _fadeGen++;                                          // a fade still running stops at its next check
             _dark = false;
             if (_off) return true;                               // 1.3.1: user turned the keyboard off, stay off
-            held = _held; _held = null;
+            var held = _held; _held = null;
+            // 2.0.0-beta1.3 (services review #20): sent inside the lock, see SetOff
+            bool ok = WithDevice((dev, len) => SetBrightness(dev, len, 255));
+            if (held is not null) ok &= SetKeys(held);
+            return ok;
         }
-        bool ok = WithDevice((dev, len) => SetBrightness(dev, len, 255));
-        if (held is not null) ok &= SetKeys(held);
-        return ok;
     }
 
     /// <summary>Sends every key's color in one frame.</summary>
