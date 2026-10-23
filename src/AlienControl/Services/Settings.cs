@@ -160,10 +160,18 @@ public sealed class Settings
             }
             catch (Exception ex) { Log.Warn($"Settings.Load {Path.GetFileName(path)}", ex); }
         }
-        var d = new Settings();
+        var d = Defaults();
         d.Save();
         return d;
     }
+
+    /// <summary>2.0.0-beta1.3 (services review #2): what Load falls back to when there is no readable settings.json or
+    /// .bak (first start, Reset settings, or both files torn). Nothing says the driver is at stock then, so it is treated
+    /// like a test that wasn't kept: OcPending makes the next start write +0 once.</summary>
+    internal static Settings Defaults() => new() { OcPending = true, LoadedDefaults = true };
+
+    /// <summary>2.0.0-beta1.3: true when this instance came from Defaults() (not saved), so the startup +0 is silent.</summary>
+    [System.Text.Json.Serialization.JsonIgnore] public bool LoadedDefaults { get; private set; }
 
     /// <summary>Reads + migrates one file. Null when it's unreadable or too old (guessed power indexes).</summary>
     internal static Settings? Parse(string json)
