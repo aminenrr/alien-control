@@ -64,6 +64,18 @@ public class SettingsTests
         Assert.DoesNotContain("Theme", System.Text.Json.JsonSerializer.Serialize(s));
     }
 
+    [Fact]
+    public void OC_GMode_scope_defaults_on_for_older_files()
+    {
+        // 2.0.0-beta1.2: G-MODE and + PERF are separate. A file without OcInGMode keeps the old behaviour (G-Mode on).
+        var s = Settings.Parse("{\"SettingsVersion\":7,\"OcInPerformance\":true}")!;
+        Assert.True(s.OcInGMode);
+        Assert.True(s.OcInPerformance);
+        var off = Settings.Parse("{\"SettingsVersion\":7,\"OcInGMode\":false,\"OcInPerformance\":false}")!;
+        Assert.False(off.OcInGMode);
+        Assert.False(off.OcInPerformance);
+    }
+
     [Fact] public void Too_old_is_rejected() => Assert.Null(Settings.Parse("{\"SettingsVersion\":1}"));
 
     [Fact]

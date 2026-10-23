@@ -3,6 +3,15 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta1.2 (2026-10-23, prerelease)
+Three beta1 fixes. Untested on the laptop.
+- **Live strips**: Tuning strip is now CPU | GPU | PWR | FANS (fans far right, the fans value no longer runs into
+  PWR), even gaps with a thin divider between each. The Home PWR strip uses the same dividers instead of dots.
+- **GPU OC scope**: G-MODE and + PERF are two separate switches (new setting `OcInGMode`, default on). Either, both or
+  neither; both off = no overclock at all. G-Mode toast and the Home G-Mode card follow them.
+- **Open on Home**: hiding the window (F3, tray, minimize) resets it to the Home tab and closes Settings, so every
+  open starts on Home.
+
 ## v2.0.0-beta1.1 (2026-10-23, prerelease)
 Hotfix for beta1, which closed on launch without showing anything.
 - **Fix**: the 2.0 styles file had two resources named `Card2` (a brush and the card style), so WPF threw while

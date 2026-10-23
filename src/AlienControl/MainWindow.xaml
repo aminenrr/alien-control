@@ -179,16 +179,18 @@
                         <Border x:Name="PwrRow" Style="{DynamicResource Strip2}" Margin="0,8,0,0" Visibility="Hidden"
                                 ToolTip="CPU: Intel DTT RAPL counter. GPU: NVIDIA NVML (plugged in only). Total: battery discharge (on battery only)">
                             <Grid>
+                                <!-- 2.0.0-beta1.2: PWR | CPU | GPU | Total, even gaps with a divider in each (was dots) -->
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="66" /><ColumnDefinition Width="92" /><ColumnDefinition Width="26" />
+                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="PWR" Style="{DynamicResource StripLabel2}" />
-                                <TextBlock x:Name="PwrCpu" Grid.Column="1" Style="{DynamicResource StripLabel2}">CPU  <Run x:Name="PwrCpuValue" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
-                                <TextBlock x:Name="PwrDot1" Grid.Column="2" Text="·" Style="{DynamicResource StripLabel2}" />
-                                <TextBlock x:Name="PwrGpu" Grid.Column="3" Style="{DynamicResource StripLabel2}">GPU  <Run x:Name="PwrGpuValue" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
-                                <TextBlock x:Name="PwrDot2" Grid.Column="4" Text="" Style="{DynamicResource StripLabel2}" />
-                                <TextBlock x:Name="PwrTotal" Grid.Column="5" Style="{DynamicResource StripLabel2}">Total  <Run x:Name="PwrTotalValue" Text="--" Style="{DynamicResource StripAccent2}" /></TextBlock>
+                                <Border Grid.Column="1" Style="{DynamicResource StripDivider2}" />
+                                <TextBlock x:Name="PwrCpu" Grid.Column="2" Style="{DynamicResource StripLabel2}">CPU  <Run x:Name="PwrCpuValue" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                                <Border x:Name="PwrDot1" Grid.Column="3" Style="{DynamicResource StripDivider2}" />
+                                <TextBlock x:Name="PwrGpu" Grid.Column="4" Style="{DynamicResource StripLabel2}">GPU  <Run x:Name="PwrGpuValue" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                                <Border x:Name="PwrDot2" Grid.Column="5" Style="{DynamicResource StripDivider2}" />
+                                <TextBlock x:Name="PwrTotal" Grid.Column="6" Style="{DynamicResource StripLabel2}">Total  <Run x:Name="PwrTotalValue" Text="--" Style="{DynamicResource StripAccent2}" /></TextBlock>
                             </Grid>
                         </Border>
                     </StackPanel>
@@ -311,12 +313,20 @@
 
                     <!-- live strip -->
                     <Border Grid.Row="0" Style="{DynamicResource Strip2}">
-                        <UniformGrid Columns="4">
-                            <TextBlock Style="{DynamicResource StripLabel2}">CPU  <Run x:Name="TuneCpuTemp" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
-                            <TextBlock Style="{DynamicResource StripLabel2}">GPU  <Run x:Name="TuneGpuTemp" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
-                            <TextBlock Style="{DynamicResource StripLabel2}">FANS  <Run x:Name="TuneFans" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
-                            <TextBlock Style="{DynamicResource StripLabel2}">PWR  <Run x:Name="TunePwr" Text="--" Style="{DynamicResource StripAccent2}" /></TextBlock>
-                        </UniformGrid>
+                        <!-- 2.0.0-beta1.2 (Amine): CPU | GPU | PWR | FANS, fans on the far right, even gaps with a divider in each -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Style="{DynamicResource StripLabel2}">CPU  <Run x:Name="TuneCpuTemp" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                            <Border Grid.Column="1" Style="{DynamicResource StripDivider2}" />
+                            <TextBlock Grid.Column="2" Style="{DynamicResource StripLabel2}">GPU  <Run x:Name="TuneGpuTemp" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                            <Border Grid.Column="3" Style="{DynamicResource StripDivider2}" />
+                            <TextBlock Grid.Column="4" Style="{DynamicResource StripLabel2}">PWR  <Run x:Name="TunePwr" Text="--" Style="{DynamicResource StripAccent2}" /></TextBlock>
+                            <Border Grid.Column="5" Style="{DynamicResource StripDivider2}" />
+                            <TextBlock Grid.Column="6" Style="{DynamicResource StripLabel2}">FANS  <Run x:Name="TuneFans" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                        </Grid>
                     </Border>
 
                     <!-- PERFORMANCE MODE -->
@@ -384,8 +394,9 @@
                             <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
                             <Border x:Name="OcScopeTrack" Grid.Column="3" Style="{DynamicResource PillTrack2}" Width="150" Height="21" Padding="2,1" Margin="0,-3,0,-3">
                                 <UniformGrid Columns="2">
-                                    <RadioButton x:Name="OcScopeG" GroupName="OcScope" Style="{DynamicResource PillItem2}" Content="G-MODE" FontSize="10" Click="OcScope_Click" />
-                                    <RadioButton x:Name="OcScopePerf" GroupName="OcScope" Style="{DynamicResource PillItem2}" Content="+ PERF" FontSize="10" Click="OcScope_Click" />
+                                    <!-- 2.0.0-beta1.2 (Amine): two separate switches, either, both or neither (= no overclock) -->
+                                    <ToggleButton x:Name="OcScopeG" Style="{DynamicResource PillToggle2}" Content="G-MODE" FontSize="10" Click="OcScope_Click" />
+                                    <ToggleButton x:Name="OcScopePerf" Style="{DynamicResource PillToggle2}" Content="+ PERF" FontSize="10" Click="OcScope_Click" />
                                 </UniformGrid>
                             </Border>
                         </Grid>

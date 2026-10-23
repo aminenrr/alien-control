@@ -143,7 +143,11 @@ public partial class MainWindow
     {
         if (HomeGModeSub is null) return;
         bool oc = _settings.OcOn && (_settings.OcCore | _settings.OcMem) != 0;
-        HomeGModeSub.Text = oc ? $"GPU overclock +{_settings.OcCore} / +{_settings.OcMem} on AC" : "No GPU overclock kept (Tuning)";
+        // 2.0.0-beta1.2: the G-MODE / + PERF switches decide where the kept overclock runs
+        HomeGModeSub.Text = !oc ? "No GPU overclock kept (Tuning)"
+            : !_settings.OcInGMode && !_settings.OcInPerformance ? "GPU overclock off (Tuning)"
+            : !_settings.OcInGMode ? "GPU overclock in Performance only (Tuning)"
+            : $"GPU overclock +{_settings.OcCore} / +{_settings.OcMem} on AC";
     }
 
     // ---------- 2.0: F4 is reserved for the overlay (beta 2) ----------

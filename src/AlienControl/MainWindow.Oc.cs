@@ -31,7 +31,10 @@ public partial class MainWindow
     /// <summary>1.3.4: true when the Performance toggle is on and the Performance preset is running (not G-Mode).</summary>
     private bool OcPerfActive => _settings.OcInPerformance && !_gmodeOn && CurrentProfile == TrayProfile.Performance;
 
-    private bool OcAllowed => OnAc && (_gmodeOn || OcPerfActive);
+    /// <summary>2.0.0-beta1.2: true when G-Mode is on and its scope switch (G-MODE) is lit.</summary>
+    private bool OcGActive => _settings.OcInGMode && _gmodeOn;
+
+    private bool OcAllowed => OnAc && (OcGActive || OcPerfActive);
 
     /// <summary>Called once from the constructor.</summary>
     private void InitOc()
@@ -275,17 +278,26 @@ public partial class MainWindow
         await SyncOcAsync();   // Revert / timeout / left G-Mode: writes +0
     }
 
-    /// <summary>2.0: scope pill in the section header, G-MODE / + PERF. Same setting as the 1.3.4 Performance toggle
-    /// (OcInPerformance): + PERF = the kept offsets also run in the Performance preset on AC. Saves, re-syncs.</summary>
+    /// <summary>2.0.0-beta1.2 (Amine): scope pill in the section header with two separate switches. G-MODE (OcInGMode)
+    /// = the kept offsets run in G-Mode on AC, + PERF (OcInPerformance, the 1.3.4 toggle) = they run in the Performance
+    /// preset on AC. Either one, both, or neither (no overclock at all). Each click flips its own switch, saves, re-syncs.</summary>
     private async void OcScope_Click(object sender, RoutedEventArgs e)
     {
-        bool perf = sender == OcScopePerf;
-        if (perf == _settings.OcInPerformance) return;
-        _settings.OcInPerformance = perf;
+        if (sender == OcScopePerf) _settings.OcInPerformance = !_settings.OcInPerformance;
+        else _settings.OcInGMode = !_settings.OcInGMode;
         _settings.Save();
-        Status(_settings.OcInPerformance ? "GPU OC: on in G-Mode and Performance." : "GPU OC: G-Mode only.");
+        Status(OcScopeText() + ".");
         await SyncOcAsync();
+        UpdateOcUi();
     }
+
+    private string OcScopeText() => (_settings.OcInGMode, _settings.OcInPerformance) switch
+    {
+        (true, true) => "GPU OC: on in G-Mode and Performance",
+        (true, false) => "GPU OC: G-Mode only",
+        (false, true) => "GPU OC: Performance only",
+        _ => "GPU OC: off (G-MODE and + PERF are both off)",
+    };
 
     /// <summary>1.3.4: OC tag for a toast. scopeOk = the mode being entered runs the OC (G-Mode, or Performance with the
     /// toggle lit). On = kept offsets, on AC, not +0.</summary>
@@ -297,12 +309,9 @@ public partial class MainWindow
 
     private void ShowOcPerfToggle()
     {
-        bool on = _settings.OcInPerformance;
-        OcScopePerf.IsChecked = on;
-        OcScopeG.IsChecked = !on;
-        OcScopeTrack.ToolTip = on
-            ? "GPU OC runs in G-Mode and the Performance preset (on AC). G-MODE: G-Mode only"
-            : "GPU OC runs in G-Mode only (on AC). + PERF: also in the Performance preset";
+        OcScopeG.IsChecked = _settings.OcInGMode;
+        OcScopePerf.IsChecked = _settings.OcInPerformance;
+        OcScopeTrack.ToolTip = OcScopeText() + " (on AC). G-MODE and + PERF switch on and off on their own; both off = no overclock";
     }
 
     private void ShowOcCountdown() =>
@@ -332,14 +341,15 @@ public partial class MainWindow
         UpdateHomeGModeSub();   // 2.0: the Home G-Mode card names the kept overclock
 
         ShowOcPerfToggle();
-        bool perf = _settings.OcInPerformance;
-        // 1.3.4-beta.2 (Amine): with the toggle lit the hint names both and turns the lighting (accent) colour
+        bool g = _settings.OcInGMode, perf = _settings.OcInPerformance;
+        // 1.3.4-beta.2 (Amine): with + PERF lit the hint names both and turns the lighting (accent) colour
         if (perf) OcHint.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
         else OcHint.ClearValue(TextBlock.ForegroundProperty);
-        if (!_gmodeOn && !OcPerfActive) SetHint(OcHint, perf ? "G-Mode + Perf" : "G-Mode only");
+        if (!g && !perf) SetHint(OcHint, "No overclock");
+        else if (!OcGActive && !OcPerfActive) SetHint(OcHint, g && perf ? "G-Mode + Perf" : g ? "G-Mode only" : "Perf only");
         else if (!OnAc) SetHint(OcHint, "Plug in to use");
         else if (_ocError is not null) SetHint(OcHint, "Driver error");
-        else if (_settings.OcOn) SetHint(OcHint, _gmodeOn ? "On in G-Mode" : "On in Performance");
+        else if (_settings.OcOn) SetHint(OcHint, OcGActive ? "On in G-Mode" : "On in Performance");
         else SetHint(OcHint, "Off");
     }
 }

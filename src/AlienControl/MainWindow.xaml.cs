@@ -137,6 +137,8 @@ public partial class MainWindow : Window
             {
                 // window hidden: no sensor or power polling at all (the tray idles at zero)
                 _poll.Stop(); _powerTimer.Stop(); CloseSettings(instant: true);
+                // 2.0.0-beta1.2 (Amine): every open (F3, tray icon, tray menu) starts on Home, never the last tab
+                ShowPage(HomePage);
                 // Keep the learned rest-of-laptop power for the AC estimate (saved only when it moved).
                 if (Math.Abs(_settings.RestOfSystemW - _power.RestW) >= 1) { _settings.RestOfSystemW = Math.Round(_power.RestW, 1); _settings.Save(); }
             }
@@ -144,7 +146,7 @@ public partial class MainWindow : Window
 
         StateChanged += (_, _) =>
         {
-            if (WindowState == WindowState.Minimized) CloseSettings(instant: true);
+            if (WindowState == WindowState.Minimized) { CloseSettings(instant: true); ShowPage(HomePage); }
             else if (WindowState == WindowState.Normal && _minSlid)
             {
                 _minSlid = false;   // v0.8.9: restored from a slid minimize: rise back up from below the screen
@@ -611,7 +613,7 @@ public partial class MainWindow : Window
         if (_gmodeUiBusy) return;   // 2.0: the Home G-Mode switch is mid-change
         if (!current)
         {
-            var (oc, ocLit) = OcToastTag(true);
+            var (oc, ocLit) = OcToastTag(_settings.OcInGMode);   // 2.0.0-beta1.2: G-MODE switch off = "OC off"
             Notify(new Toast.Info(TrayProfile.GMode, "Icon.GMode", "G-Mode on", "Fans max", Toast.Right.SwitchOn, Oc: oc, OcLit: ocLit),
                 Sounds.Kind.GModeOn);
         }
