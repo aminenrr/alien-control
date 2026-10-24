@@ -227,7 +227,7 @@ public static class Startup
     // ---------- install / update / remove ----------
 
     /// <summary>The files the app needs next to it: the exe, its DLLs and runtime json (non single-file builds),
-    /// LICENSE, README and the alienfx-tools CLIs in tools\. Nothing else from the user's folder.</summary>
+    /// LICENSE, README and the alienfx-tools CLIs (in tools\ or next to the exe). Nothing else from the user's folder.</summary>
     internal static List<string> AppFiles(string src)
     {
         // a zip extracted straight into Downloads must not drag the other files there along, so only named files.
@@ -238,7 +238,10 @@ public static class Startup
         foreach (var f in Directory.EnumerateFiles(src))
         {
             var n = Path.GetFileName(f);
-            if (n.Equals(ExeName, StringComparison.OrdinalIgnoreCase) || n.Equals("LICENSE", StringComparison.OrdinalIgnoreCase)
+            // 2.0.0-beta1.5 (Amine, bug: sensors and shortcuts dead after a reboot): the alienfx-tools CLIs may sit next
+            // to the exe instead of in tools\ (CliRunner looks in both), so copy them from there too
+            if (n.Equals("alienfan-cli.exe", StringComparison.OrdinalIgnoreCase) || n.Equals("alienfx-cli.exe", StringComparison.OrdinalIgnoreCase)
+                || n.Equals(ExeName, StringComparison.OrdinalIgnoreCase) || n.Equals("LICENSE", StringComparison.OrdinalIgnoreCase)
                 || n.Equals("README.md", StringComparison.OrdinalIgnoreCase)
                 || (depsText.Length > 0 && (n.Equals("AlienControl.deps.json", StringComparison.OrdinalIgnoreCase)
                     || n.Equals("AlienControl.runtimeconfig.json", StringComparison.OrdinalIgnoreCase)
