@@ -392,7 +392,7 @@ public partial class App : Application
                     try { exe = p.MainModule?.FileName; } catch { continue; }
                     if (exe is null) continue;
                     var theirs = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe).ProductVersion;
-                    if (Startup.CompareVersions(mine, theirs) > 0) return true;
+                    if (AlienControl.Services.Startup.CompareVersions(mine, theirs) > 0) return true;
                 }
             }
         }
