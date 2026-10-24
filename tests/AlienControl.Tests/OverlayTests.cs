@@ -132,8 +132,9 @@ public class OverlayTests
         var buf = new FramesSource.Frame[200];
         int n = f.CopyRecent(buf);
         var st = FramesSource.StatsOver(buf.AsSpan(0, n), buf[n - 1].Ticks, Stopwatch.Frequency / 4);
-        Assert.InRange(st.Fps, 99, 101);      // 200 presents/s, half generated
-        Assert.InRange(st.GenFps, 99, 101);
+        Assert.InRange(st.Fps, 95, 105);      // 200 presents/s, half generated (an odd frame count in the window tips it a little)
+        Assert.InRange(st.GenFps, 95, 105);
+        Assert.InRange(st.Fps + st.GenFps, 199.9, 200.1);
         Assert.True(st.PcLat);
         Assert.Equal(30, st.LatMs, 3);
     }
