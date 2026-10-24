@@ -100,7 +100,22 @@ public sealed class PowerMeter : IDisposable
 
     private double? ReadGpu()
     {
-        lock (_nvLock) return ReadGpuLocked();
+        lock (_nvLock) { var v = ReadGpuLocked(); if (v is not null) _nvOpen = true; return v; }
+    }
+
+    private bool _nvOpen;   // this meter left the shared session open (keepOpen)
+
+    /// <summary>2.0.0-beta1.4 (services review #9): closes the kept NVML session when power isn't being read (window
+    /// hidden or minimized, a page without sensors) and on battery. The next AC read opens it again (NvmlSession is
+    /// lazy). Waits for a read in flight: call off the UI thread.</summary>
+    public void CloseGpu()
+    {
+        lock (_nvLock)
+        {
+            if (!_nvOpen) return;
+            _nvOpen = false;
+            NvmlSession.Release();
+        }
     }
 
     private double? ReadGpuLocked()
@@ -210,6 +225,8 @@ public sealed class PowerMeter : IDisposable
         bool battery = OnBatteryNow();
         int? cpu = Avg(_cpu, ReadCpu());
         // On battery NVML is skipped: querying it can wake a sleeping RTX and cost battery. Total covers it there.
+        // 2.0.0-beta1.4: and the session itself is closed on battery (it stayed open, only the reads stopped)
+        if (battery) CloseGpu();
         int? gpu = Avg(_gpu, battery ? null : ReadGpu());
         if (battery)
         {
@@ -225,28 +242,11 @@ public sealed class PowerMeter : IDisposable
         return new Reading(cpu, gpu, est, false, est is not null);
     }
 
-    /// <summary>RAPL instances and their values, for the diagnostic report.</summary>
-    public static string Describe()
-    {
-        try
-        {
-            if (!PerformanceCounterCategory.Exists("EsifDeviceInformation")) return "EsifDeviceInformation counters: not present (Intel DTT driver missing?)";
-            var cat = new PerformanceCounterCategory("EsifDeviceInformation");
-            if (!cat.CounterExists("RAPL Power")) return "EsifDeviceInformation: no 'RAPL Power' counter";
-            return "RAPL Power: " + string.Join(", ", cat.GetInstanceNames().Select(i =>
-            {
-                try { using var c = new PerformanceCounter("EsifDeviceInformation", "RAPL Power", i, true); return $"{i}={c.NextValue()}"; }
-                catch { return $"{i}=?"; }
-            }));
-        }
-        catch (Exception ex) { return "RAPL: " + ex.Message; }
-    }
-
     public void Dispose()
     {
         _rapl?.Dispose();
         // 2.0.0-beta1.3 (services review #1): under the NVML lock, so a Sample() still running on a pool thread
         // finishes its read before the session closes
-        lock (_nvLock) { _gpuOff = true; NvmlSession.Release(); }
+        lock (_nvLock) { _gpuOff = true; _nvOpen = false; NvmlSession.Release(); }
     }
 }
