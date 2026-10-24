@@ -17,9 +17,6 @@ public sealed class AlienFan
 
     public bool IsAvailable => _cli.IsAvailable;
 
-    /// <summary>True while sensors come straight from WMI (v1.1); false once it fell back to alienfan-cli.</summary>
-    public bool SensorsViaWmi => !_wmi.Disabled;
-
     /// <summary>Reads temperatures and fan RPMs: WMI first (no process spawn), alienfan-cli as fallback.</summary>
     public async Task<SensorSnapshot> ReadSensorsAsync()
     {
@@ -89,9 +86,6 @@ public sealed class AlienFan
     /// <summary>Boost in percent above BIOS level, one value per fan.</summary>
     public Task<CliResult> SetFanBoostAsync(IReadOnlyList<int> perFan) =>
         _cli.RunAsync("setfans=" + string.Join(",", perFan));
-
-    /// <summary>Raw output of the CLI started with no arguments (hardware summary + help).</summary>
-    public Task<CliResult> ProbeAsync() => _cli.RunAsync("");
 }
 
 public sealed class SensorSnapshot
