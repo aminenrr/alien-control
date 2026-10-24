@@ -254,5 +254,5 @@ public partial class MainWindow
     // settings) restores the boost
     // 2.0.0-beta1.4: ends with one last write of settings a locked settings.json held back (Settings.FlushPending), so
     // Quit, Reset settings and the session end (logoff, restart, shutdown) don't lose the newest change
-    public void AllowClose() { ResetOcOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); InputThread.Invoke(() => { _gkey.Dispose(); _macro.Dispose(); }); InputThread.Shutdown(); _indicatorTimer.Stop(); _watch?.Dispose(); Settings.FlushPending(); }
+    public void AllowClose() { ResetOcOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _igpuTemp.Dispose(); _power.Dispose(); InputThread.Invoke(() => { _gkey.Dispose(); _macro.Dispose(); }); InputThread.Shutdown(); _indicatorTimer.Stop(); _watch?.Dispose(); Settings.FlushPending(); }
 }
