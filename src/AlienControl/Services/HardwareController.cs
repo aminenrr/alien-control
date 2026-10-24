@@ -28,12 +28,4 @@ public static class HardwareController
         try { return work(); }
         finally { Gate.Release(); }
     }
-
-    /// <summary>Tries to take the queue within ms (used on exit, so a stuck CLI can't hang Quit).</summary>
-    public static T? TryRun<T>(Func<T> work, int ms)
-    {
-        if (!Gate.Wait(ms)) return default;
-        try { return work(); }
-        finally { Gate.Release(); }
-    }
 }
