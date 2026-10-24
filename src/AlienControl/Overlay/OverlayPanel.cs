@@ -338,14 +338,18 @@ public sealed class OverlayPanel : FrameworkElement
     }
 
     private double HGraphW => 110 * Scale;
-    private double Gap => 12 * Scale;
+    // ov.9 (Amine picked mockup B): a short, brighter bar between every item of the level 2 strip
+    private double Gap => 20 * Scale;
+    private static readonly Brush DividerBrush = FrozenBrush(Color.FromArgb(0x73, 0xFF, 0xFF, 0xFF));   // white at 45 %
+
+    private static Brush FrozenBrush(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
     private double HItemW(HItem h)
     {
         if (h.Graph) return HGraphW;
         double w = h.Label.Length > 0 ? T(h.Label, h.Color, Fs, FaceLabel).WidthIncludingTrailingWhitespace + 6 * Scale : 0;
         foreach (var c in h.Cells) w += CellW(c) + 6 * Scale;
-        return w;
+        return Math.Max(0, w - 6 * Scale);   // no trailing space: the gap (and its bar) follows
     }
 
     private Size MeasureHorizontal()
@@ -353,28 +357,38 @@ public sealed class OverlayPanel : FrameworkElement
         _hitems = BuildHorizontal();
         double w = Pad * 2;
         foreach (var h in _hitems) w += HItemW(h) + Gap;
-        return new Size(Math.Ceiling(w - Gap), Math.Ceiling(RowH + Pad * 2));
+        if (_hitems.Count > 0) w -= Gap;
+        return new Size(Math.Ceiling(w), Math.Ceiling(RowH + Pad * 2));
     }
 
     private void RenderHorizontal(DrawingContext dc)
     {
         double x = Pad, y = Pad;
-        foreach (var h in _hitems)
+        double barW = Math.Max(1, 1.5 * Scale), barH = RowH * 0.45;
+        for (int i = 0; i < _hitems.Count; i++)
         {
-            if (h.Graph) { DrawGraph(dc, new Rect(x, y + RowH * 0.12, HGraphW, RowH * 0.76)); x += HGraphW + Gap; continue; }
-            if (h.Label.Length > 0)
+            var h = _hitems[i];
+            double start = x;
+            if (h.Graph) DrawGraph(dc, new Rect(x, y + RowH * 0.12, HGraphW, RowH * 0.76));
+            else
             {
-                var lab = T(h.Label, h.Color, Fs, FaceLabel);
-                dc.DrawText(lab, new Point(x, y + (RowH - lab.Height) / 2));
-                x += lab.WidthIncludingTrailingWhitespace + 6 * Scale;
+                if (h.Label.Length > 0)
+                {
+                    var lab = T(h.Label, h.Color, Fs, FaceLabel);
+                    dc.DrawText(lab, new Point(x, y + (RowH - lab.Height) / 2));
+                    x += lab.WidthIncludingTrailingWhitespace + 6 * Scale;
+                }
+                foreach (var c in h.Cells)
+                {
+                    double cw = CellW(c);
+                    DrawCellRight(dc, c, x + cw, y);
+                    x += cw + 6 * Scale;
+                }
             }
-            foreach (var c in h.Cells)
-            {
-                double cw = CellW(c);
-                DrawCellRight(dc, c, x + cw, y);
-                x += cw + 6 * Scale;
-            }
-            x += Gap - 6 * Scale;
+            x = start + HItemW(h);
+            if (i < _hitems.Count - 1)
+                dc.DrawRectangle(DividerBrush, null, new Rect(Math.Round(x + Gap / 2 - barW / 2), y + (RowH - barH) / 2, barW, barH));
+            x += Gap;
         }
     }
 
