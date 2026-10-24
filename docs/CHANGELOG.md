@@ -3,6 +3,13 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+
+## 2.0.0-beta1.3-ov.1 (overlay preview, branch beta1.3-ov)
+- In-game overlay, MangoHud / SteamOS style: 4 levels, F4 off / last level, OFF 1 2 3 4 slider on Home and the Overlay tab, live preview, position, size, background, update interval, Reset to SteamOS.
+- Frametimes from PresentMon 2.6 (ETW, no injection), bundled in tools/PresentMon by CI (pinned SHA256), killed with the app through a job object.
+- The overlay reads only what its level shows and shares the app's pollers. Off = nothing runs.
+- Based on beta1.3, without the beta1.4 fixes. Merged into 2.0.0-beta2 later (docs/BRANCHES-2.0.md).
+
 ## v2.0.0-beta1.3 (2026-10-23, prerelease)
 Tier 1 fixes from the 2.0 code review (services + UI). Untested on the laptop.
 - **NVML**: one shared session (`NvmlSession`, one lock, one handle) for the GPU overclock and the power readout.

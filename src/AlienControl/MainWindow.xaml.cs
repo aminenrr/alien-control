@@ -1,4 +1,5 @@
 using System;
+using AlienControl.Overlay;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -66,6 +67,7 @@ public partial class MainWindow : Window
         F2PresetsToggle.IsChecked = _settings.F2Presets;
         F3OpensToggle.IsChecked = _settings.F3Opens;
         F4OverlayToggle.IsChecked = _settings.F4Overlay;
+        InitOverlay();   // beta1.3-ov
         TaskbarToggle.IsChecked = _settings.ShowInTaskbar;
         ShowInTaskbar = _settings.ShowInTaskbar;
         _macro.LightsHotkey += () => Dispatcher.BeginInvoke(new Action(async () => await CycleLightsAsync()));   // 1.3.1 Ctrl+Alt+F
@@ -136,7 +138,7 @@ public partial class MainWindow : Window
             else
             {
                 // window hidden: no sensor or power polling at all (the tray idles at zero)
-                _poll.Stop(); _powerTimer.Stop(); CloseSettings(instant: true);
+                UpdatePolling(); CloseSettings(instant: true);   // beta1.3-ov: stops both unless the overlay shows sensors
                 // 2.0.0-beta1.2 (Amine): every open (F3, tray icon, tray menu) starts on Home, never the last tab
                 ShowPage(HomePage);
                 // Keep the learned rest-of-laptop power for the AC estimate (saved only when it moved).
@@ -391,7 +393,7 @@ public partial class MainWindow : Window
 
     // 2.0.0-beta1.3 (ui review #3): no RestoreBoostOnExit here any more, PrepareExitAsync (awaited by Quit and Reset
     // settings) restores the boost
-    public void AllowClose() { ResetOcOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); InputThread.Invoke(() => { _gkey.Dispose(); _macro.Dispose(); }); InputThread.Shutdown(); _indicatorTimer.Stop(); _watch?.Dispose(); }
+    public void AllowClose() { StopOverlayOnExit(); ResetOcOnExit(); StopAnimation(); _allowClose = true; _stats.Dispose(); _power.Dispose(); InputThread.Invoke(() => { _gkey.Dispose(); _macro.Dispose(); }); InputThread.Shutdown(); _indicatorTimer.Stop(); _watch?.Dispose(); }
 
     // ---------- status keys ----------
 
@@ -529,7 +531,8 @@ public partial class MainWindow : Window
 
     private async Task RefreshSensorsAsync()
     {
-        if (_polling || !_fan.IsAvailable || !SensorsShown) return;   // 2.0: only read what is on screen
+        // 2.0: only read what is on screen. beta1.3-ov: or what the overlay level shows (temps, fans, usage)
+        if (_polling || !_fan.IsAvailable || !(SensorsShown || OvNeeds(Need.Acpi) || OvNeeds(Need.Usage))) return;
         _polling = true;
         try
         {
@@ -549,14 +552,22 @@ public partial class MainWindow : Window
             SetFanPercent(CpuFanText, CpuFanBar, cpuFan);
             SetFanPercent(GpuFanText, GpuFanBar, gpuFan);
             TuneFans.Text = $"{CpuFanText.Text} / {GpuFanText.Text} %";
-            if (!HomePage.IsVisible) return;   // 2.0: RAM, VRAM, CPU % and GPU % are only on Home
+            // 2.0: RAM, VRAM, CPU % and GPU % are only on Home. beta1.3-ov: or when the overlay level shows them
+            bool homeShown = HomePage.IsVisible && SensorsShown;
+            if (!homeShown && !OvNeeds(Need.Usage)) { OverlayTakeSensors(s, null, null, null, null); return; }
 
-            if (SystemStats.Ram() is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
-            if (_stats.Vram() is { } vram) SetMem(VramText, VramTextUnit, VramBar, vram.Used, vram.Total);
+            var ram = SystemStats.Ram();
+            var vram = _stats.Vram();
+            var cpuUse = _stats.CpuUsage();   // one reader, shared with the overlay ("since last call")
+            double? gpuUse = _gpu.Kind == GpuModeKind.IGpuOnly ? null : _stats.GpuUsage();
+            OverlayTakeSensors(s, cpuUse, gpuUse, ram, vram);
+            if (!homeShown) return;
+            if (ram is { } r) SetMem(RamText, RamTextUnit, RamBar, r.Used, r.Total);
+            if (vram is { } v) SetMem(VramText, VramTextUnit, VramBar, v.Used, v.Total);
             // 1.3.0-beta.1 CPU % / GPU %
-            if (_stats.CpuUsage() is { } cpuUse) { CpuUseText.Text = cpuUse.ToString("0"); CpuUseBar.Value = cpuUse; }
+            if (cpuUse is { } cu) { CpuUseText.Text = cu.ToString("0"); CpuUseBar.Value = cu; }
             if (_gpu.Kind == GpuModeKind.IGpuOnly) { GpuUseText.Text = "Off"; GpuUseUnit.Text = ""; GpuUseBar.Value = 0; }
-            else if (_stats.GpuUsage() is { } gpuUse) { GpuUseText.Text = gpuUse.ToString("0"); GpuUseUnit.Text = " %"; GpuUseBar.Value = gpuUse; }
+            else if (gpuUse is { } gu) { GpuUseText.Text = gu.ToString("0"); GpuUseUnit.Text = " %"; GpuUseBar.Value = gu; }
 
         }
         finally { _polling = false; }
@@ -566,9 +577,9 @@ public partial class MainWindow : Window
     private bool _powerBusy;
     private async Task RefreshPowerAsync()
     {
-        if (_powerBusy || !SensorsShown) return;
+        if (_powerBusy || !(SensorsShown || OvNeeds(Need.Power))) return;   // beta1.3-ov: or the overlay shows watts
         _powerBusy = true;
-        try { ShowPower(await Task.Run(_power.Sample)); }
+        try { var r = await Task.Run(_power.Sample); ShowPower(r); OverlayTakePower(r); }
         catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.xaml.cs:530", __e); }
         finally { _powerBusy = false; }
     }

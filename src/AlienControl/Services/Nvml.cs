@@ -19,4 +19,6 @@ internal static class Nvml
     [DllImport("nvml.dll"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)] public static extern int nvmlDeviceGetPowerUsage(IntPtr device, out uint milliwatts);
     [DllImport("nvml.dll"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)] public static extern int nvmlDeviceGetClockOffsets(IntPtr device, ref ClockOffset o);
     [DllImport("nvml.dll"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)] public static extern int nvmlDeviceSetClockOffsets(IntPtr device, ref ClockOffset o);
+    // beta1.3-ov: overlay levels 3 and 4 show the GPU core and memory clock (NVML_CLOCK_GRAPHICS 0, NVML_CLOCK_MEM 2)
+    [DllImport("nvml.dll"), DefaultDllImportSearchPaths(DllImportSearchPath.System32)] public static extern int nvmlDeviceGetClockInfo(IntPtr device, int type, out uint mhz);
 }

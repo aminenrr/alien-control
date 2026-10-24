@@ -1,4 +1,5 @@
 using System;
+using AlienControl.Overlay;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -71,16 +72,12 @@ public partial class MainWindow
     /// <summary>Starts the sensor and power timers only while a sensor page is on screen; stops them otherwise.</summary>
     private void UpdatePolling()
     {
-        if (SensorsShown && !_openParked)
-        {
-            if (!_poll.IsEnabled) _poll.Start();
-            if (!_powerTimer.IsEnabled && !_rtxSwitching) _powerTimer.Start();
-        }
-        else
-        {
-            _poll.Stop();
-            _powerTimer.Stop();
-        }
+        // beta1.3-ov: the overlay keeps the pollers its level needs running while the window is hidden (shared, never twice)
+        bool page = SensorsShown && !_openParked;
+        if (page || OvNeeds(Need.Acpi) || OvNeeds(Need.Usage)) { if (!_poll.IsEnabled) _poll.Start(); }
+        else _poll.Stop();
+        if ((page || OvNeeds(Need.Power)) && !_rtxSwitching) { if (!_powerTimer.IsEnabled) _powerTimer.Start(); }
+        else _powerTimer.Stop();
     }
 
     // ---------- Home: presets, G-Mode card ----------
@@ -127,19 +124,5 @@ public partial class MainWindow
             : $"GPU overclock +{_settings.OcCore} / +{_settings.OcMem} on AC";
     }
 
-    // ---------- 2.0: F4 is reserved for the overlay (beta 2) ----------
-
-    private long _f4Last;
-
-    private void OnF4Pressed()
-    {
-        if (!_settings.F4Overlay) return;
-        long now = Environment.TickCount64;
-        if (now - _f4Last < 1500) return;   // one hint per burst of presses
-        _f4Last = now;
-        Log.Info("F4", "overlay key pressed (overlay comes in beta 2)");
-        if (_settings.Toasts)
-            Toast.Show(true, new Toast.Info(CurrentProfile, "Icon.ChartBar", "Overlay", "Comes in beta 2", Toast.Right.None, Lit: false,
-                Accent: (Application.Current.Resources["AccentBrush"] as SolidColorBrush)?.Color), Motion.Enabled);
-    }
+    // beta1.3-ov: OnF4Pressed lives in MainWindow.Overlay.cs (F4 toggles the overlay off / last level)
 }

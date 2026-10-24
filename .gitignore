@@ -5,3 +5,4 @@ obj/
 src/AlienControl/tools/*.exe
 src/AlienControl/tools/*.dll
 publish/
+src/AlienControl/tools/PresentMon/

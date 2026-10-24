@@ -110,6 +110,19 @@ public sealed class Settings
     public bool F3Opens { get; set; } = true;
     /// <summary>2.0: F4 (Macro C, media mode) is reserved for the overlay (beta 2). Default on. In beta 1 it only shows a hint.</summary>
     public bool F4Overlay { get; set; } = true;
+
+    // beta1.3-ov: the in-game overlay (MangoHud style). Level 0 = off (nothing runs), 1 to 4 = SteamOS levels.
+    public int OverlayLevel { get; set; } = 0;
+    /// <summary>F4 brings back this level after off.</summary>
+    public int OverlayLastLevel { get; set; } = 3;
+    /// <summary>0 top left (SteamOS), 1 top centre, 2 top right, 3 bottom left, 4 bottom centre, 5 bottom right.</summary>
+    public int OverlayPosition { get; set; } = 0;
+    /// <summary>Size in % of MangoHud's 24 px font (100 = SteamOS size).</summary>
+    public int OverlaySize { get; set; } = 100;
+    /// <summary>Background opacity in % (MangoHud default 50).</summary>
+    public int OverlayBg { get; set; } = 50;
+    /// <summary>Update interval in ms: 250, 500 (MangoHud default fps_sampling_period) or 1000.</summary>
+    public int OverlayUpdateMs { get; set; } = 500;
     /// <summary>v1.1: off = no taskbar button, the app only lives in the tray (minimize hides to the tray).</summary>
     public bool ShowInTaskbar { get; set; } = true;
 
@@ -210,6 +223,13 @@ public sealed class Settings
         MaxFanBoost = C(MaxFanBoost, 0, 100, d.MaxFanBoost);
         FanMaxRpm = C(FanMaxRpm, 1000, 8000, d.FanMaxRpm);
         KeyboardDevice = C(KeyboardDevice, 0, 3, d.KeyboardDevice);
+        // beta1.3-ov overlay
+        OverlayLevel = C(OverlayLevel, 0, 4, d.OverlayLevel);
+        OverlayLastLevel = C(OverlayLastLevel, 1, 4, d.OverlayLastLevel);
+        OverlayPosition = C(OverlayPosition, 0, 5, d.OverlayPosition);
+        OverlaySize = C(OverlaySize, 50, 150, d.OverlaySize);
+        OverlayBg = C(OverlayBg, 0, 100, d.OverlayBg);
+        if (OverlayUpdateMs is not (250 or 500 or 1000)) OverlayUpdateMs = d.OverlayUpdateMs;
         KeyboardLightCount = C(KeyboardLightCount, 1, 136, d.KeyboardLightCount);
         ChassisDevice = C(ChassisDevice, 0, 3, d.ChassisDevice);
         ChassisLights = (ChassisLights ?? d.ChassisLights).Where(id => id is >= 0 and <= 15 && id != PowerButtonLight).Distinct().ToArray();

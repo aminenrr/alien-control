@@ -15,6 +15,15 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
+      - name: PresentMon (beta1.3-ov overlay frames, MIT, pinned)
+        shell: pwsh
+        run: |
+          $d = "src/AlienControl/tools/PresentMon"
+          New-Item -ItemType Directory -Force $d | Out-Null
+          Invoke-WebRequest "https://github.com/GameTechDev/PresentMon/releases/download/v2.6.0/PresentMon-2.6.0-x64.exe" -OutFile "$d/PresentMon.exe"
+          $h = (Get-FileHash "$d/PresentMon.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($h -ne "b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af") { Write-Host "::error::PresentMon hash $h"; exit 1 }
+          Invoke-WebRequest "https://raw.githubusercontent.com/GameTechDev/PresentMon/v2.6.0/LICENSE.txt" -OutFile "$d/LICENSE.txt"
       - name: XAML duplicate keys
         shell: pwsh
         run: |

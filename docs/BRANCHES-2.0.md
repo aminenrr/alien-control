@@ -27,3 +27,19 @@ Whoever merges (agent A or B):
 4. Grep `beta1.3-ov` after the merge: every hook must still be wired.
 5. Bump to `2.0.0-beta2`, release notes `docs/releases/v2.0.0-beta2.md`, PR into `v2.0`, Windows CI green, tag `v2.0.0-beta2`.
 6. Delete `beta1.3-ov` after the release.
+
+## What beta1.3-ov adds (for the merge)
+New files (no conflicts expected):
+- `src/AlienControl/Services/FramesSource.cs` (PresentMon child, CSV parse, job object), `Services/CpuCores.cs`
+- `src/AlienControl/Overlay/OverlayLevels.cs`, `OverlayPanel.cs` (renderer), `OverlayHost.cs` (window, own thread), `LevelSlider.cs`
+- `src/AlienControl/MainWindow.Overlay.cs` (levels, F4, Overlay tab, feeding sensors, exit cleanup)
+- `tests/AlienControl.Tests/OverlayTests.cs`, `docs/releases/v2.0.0-beta1.3-ov.*.md`
+
+Hooks in existing files (all marked `beta1.3-ov`):
+- `MainWindow.xaml.cs`: `InitOverlay()` in the constructor; `RefreshSensorsAsync` / `RefreshPowerAsync` also run for the overlay and call `OverlayTakeSensors` / `OverlayTakePower`; hidden window calls `UpdatePolling()` instead of stopping the timers; `AllowClose` calls `StopOverlayOnExit()`. In 1.4 these live in the Sensors / Window partials.
+- `MainWindow.Tabs.cs`: `UpdatePolling()` keeps the poll / power timers for the overlay's needs; beta1's `OnF4Pressed` hint removed.
+- `MainWindow.Oc.cs`: `EmergencyExitCleanup` stops PresentMon.
+- `MainWindow.xaml`: Home overlay block and the whole `OverlayPage` replaced; `xmlns:ov`.
+- `Services/Settings.cs`: `Overlay*` keys + clamps. `Services/Nvml.cs`: `nvmlDeviceGetClockInfo`.
+- `.github/workflows/*.yml`: PresentMon download step (pinned SHA256). `.gitignore`: `tools/PresentMon/`.
+- 1.4 moves GPU % to one PDH query and removes WPF-UI: the overlay uses neither directly, it reads `_stats.GpuUsage()` through `RefreshSensorsAsync`.
