@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
@@ -7,9 +6,9 @@ using Microsoft.Win32;
 namespace AlienControl.Services;
 
 /// <summary>
-/// RAM and dedicated VRAM usage, read in-process (no CLI, no extra processes).
-/// VRAM uses the Windows "GPU Adapter Memory" performance counters; the adapter with the
-/// biggest dedicated memory is the RTX 3070 Ti.
+/// RAM, dedicated VRAM, CPU % and GPU % usage, read in-process (no CLI, no extra processes).
+/// VRAM uses the Windows "GPU Adapter Memory" counters through one PDH query (2.0.0-beta1.4); the adapter with the
+/// most dedicated memory in use is taken as the RTX 3070 Ti. One caller at a time (CPU % keeps a delta).
 /// </summary>
 public sealed class SystemStats : IDisposable
 {
@@ -23,8 +22,6 @@ public sealed class SystemStats : IDisposable
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX m);
 
-    private PerformanceCounter[]? _vram;
-    private DateTime _nextCounterScan = DateTime.MinValue;
     private readonly ulong _vramTotal = ReadVramTotal();
 
     /// <summary>(used GB, total GB)</summary>
@@ -36,33 +33,138 @@ public sealed class SystemStats : IDisposable
         return ((m.ullTotalPhys - m.ullAvailPhys) / gb, m.ullTotalPhys / gb);
     }
 
-    /// <summary>(used GB, total GB) of the discrete GPU's dedicated memory.</summary>
-    public (double Used, double Total)? Vram()
+    // ---------- 2.0.0-beta1.4 (services review #5, ui review #5): one PDH query ----------
+    // Was: PerformanceCounterCategory("GPU Engine").ReadCategory() every 2 s on the UI thread (every counter of every
+    // engine instance, hundreds of KB of garbage per call) plus a new PerformanceCounter per "GPU Adapter Memory"
+    // instance every 30 s. Now one PDH query holds two wildcard counters, opened once; each Home tick is one
+    // PdhCollectQueryData and two PdhGetFormattedCounterArray calls into a reused buffer, on the sensor worker thread.
+    // Wildcards pick up new instances by themselves, so the 30 s rescan is gone. Read-only Windows counters: no NVML,
+    // the RTX can stay asleep.
+
+    private const uint PDH_FMT_DOUBLE = 0x00000200, PDH_FMT_NOCAP100 = 0x00008000;
+    private const uint PDH_MORE_DATA = 0x800007D2, PDH_CSTATUS_VALID_DATA = 0, PDH_CSTATUS_NEW_DATA = 1;
+
+    [DllImport("pdh.dll", CharSet = CharSet.Unicode)] private static extern uint PdhOpenQueryW(string? source, IntPtr user, out IntPtr query);
+    [DllImport("pdh.dll", CharSet = CharSet.Unicode)] private static extern uint PdhAddEnglishCounterW(IntPtr query, string path, IntPtr user, out IntPtr counter);
+    [DllImport("pdh.dll")] private static extern uint PdhRemoveCounter(IntPtr counter);
+    [DllImport("pdh.dll")] private static extern uint PdhCollectQueryData(IntPtr query);
+    [DllImport("pdh.dll", CharSet = CharSet.Unicode)] private static extern uint PdhGetFormattedCounterArrayW(IntPtr counter, uint format, ref uint bytes, out uint count, IntPtr items);
+    [DllImport("pdh.dll")] private static extern uint PdhCloseQuery(IntPtr query);
+
+    private const string Engine3DPath = @"\GPU Engine(*engtype_3D)\Utilization Percentage";
+    private const string EngineAllPath = @"\GPU Engine(*)\Utilization Percentage";
+    private const string VramPath = @"\GPU Adapter Memory(*)\Dedicated Usage";
+
+    private readonly object _pdhLock = new();
+    private IntPtr _query, _engines, _vramCounter;
+    private bool _pdhTried, _engineAll;
+    private int _emptyEngineReads;
+    private long _lastCollect;              // Environment.TickCount64 of the last collect
+    private IntPtr _buf;                    // reused PDH_FMT_COUNTERVALUE_ITEM_W buffer
+    private uint _bufSize;
+    private double? _gpuUse;                // 3D % from the last collect (null until two collects)
+    private (double Used, double Total)? _vramUse;
+
+    private bool OpenPdh()
     {
+        if (_query != IntPtr.Zero) return true;
+        if (_pdhTried) return false;
+        _pdhTried = true;
         try
         {
-            if (_vram is null || DateTime.Now >= _nextCounterScan)
-            {
-                // Instances change when the GPU sleeps/wakes; rescan every 30 s.
-                foreach (var c in _vram ?? Array.Empty<PerformanceCounter>()) c.Dispose();
-                var cat = new PerformanceCounterCategory("GPU Adapter Memory");
-                _vram = cat.GetInstanceNames()
-                    .Select(n => new PerformanceCounter("GPU Adapter Memory", "Dedicated Usage", n, true))
-                    .ToArray();
-                _nextCounterScan = DateTime.Now.AddSeconds(30);
-            }
-            if (_vram.Length == 0) return null;
-            double used = 0;
-            foreach (var c in _vram)
-            {
-                double v; try { v = c.RawValue; } catch { v = 0; }
-                if (v > used) { used = v; _rtxLuid = LuidOf(c.InstanceName); }
-            }
-            const double gb = 1024d * 1024 * 1024;
-            double total = _vramTotal > 0 ? _vramTotal / gb : 0;
-            return (used / gb, total);
+            if (PdhOpenQueryW(null, IntPtr.Zero, out _query) != 0) { _query = IntPtr.Zero; return false; }
+            if (PdhAddEnglishCounterW(_query, VramPath, IntPtr.Zero, out _vramCounter) != 0) _vramCounter = IntPtr.Zero;
+            AddEngineCounter(all: false);
+            return true;
         }
-        catch { return null; }
+        catch (Exception ex) { Log.Warn("SystemStats.Pdh", ex); ClosePdh(); return false; }
+    }
+
+    /// <summary>The engtype_3D wildcard keeps the array small. If it never returns an instance (a PDH that doesn't
+    /// match part of an instance name), the plain (*) wildcard is used and filtered here.</summary>
+    private void AddEngineCounter(bool all)
+    {
+        if (_engines != IntPtr.Zero) { PdhRemoveCounter(_engines); _engines = IntPtr.Zero; }
+        _engineAll = all;
+        if (PdhAddEnglishCounterW(_query, all ? EngineAllPath : Engine3DPath, IntPtr.Zero, out _engines) != 0)
+        {
+            _engines = IntPtr.Zero;
+            if (!all) AddEngineCounter(all: true);
+        }
+    }
+
+    private void ClosePdh()
+    {
+        if (_query != IntPtr.Zero) { try { PdhCloseQuery(_query); } catch (Exception ex) { Log.Warn("SystemStats.Close", ex); } }
+        _query = _engines = _vramCounter = IntPtr.Zero;
+        if (_buf != IntPtr.Zero) { Marshal.FreeHGlobal(_buf); _buf = IntPtr.Zero; _bufSize = 0; }
+    }
+
+    /// <summary>Runs fn(name, value) for every valid item of a wildcard counter. False when the read failed.</summary>
+    private bool ForEachItem(IntPtr counter, Action<string, double> fn)
+    {
+        if (counter == IntPtr.Zero) return false;
+        uint bytes = _bufSize;
+        uint r = PdhGetFormattedCounterArrayW(counter, PDH_FMT_DOUBLE | PDH_FMT_NOCAP100, ref bytes, out uint count, _buf);
+        if (r == PDH_MORE_DATA || (_buf == IntPtr.Zero && bytes > 0))
+        {
+            if (_buf != IntPtr.Zero) Marshal.FreeHGlobal(_buf);
+            _bufSize = Math.Max(bytes, _bufSize * 2) + 4096;   // headroom: instances come and go
+            _buf = Marshal.AllocHGlobal((int)_bufSize);
+            bytes = _bufSize;
+            r = PdhGetFormattedCounterArrayW(counter, PDH_FMT_DOUBLE | PDH_FMT_NOCAP100, ref bytes, out count, _buf);
+        }
+        if (r != 0) return false;
+        // PDH_FMT_COUNTERVALUE_ITEM_W: LPWSTR szName; PDH_FMT_COUNTERVALUE { DWORD CStatus; (pad); double }
+        int item = IntPtr.Size + 16;
+        for (int i = 0; i < count; i++)
+        {
+            IntPtr at = _buf + i * item;
+            uint status = (uint)Marshal.ReadInt32(at + IntPtr.Size);
+            if (status is not (PDH_CSTATUS_VALID_DATA or PDH_CSTATUS_NEW_DATA)) continue;
+            double v = BitConverter.Int64BitsToDouble(Marshal.ReadInt64(at + IntPtr.Size + 8));
+            fn(Marshal.PtrToStringUni(Marshal.ReadIntPtr(at)) ?? "", v);
+        }
+        return true;
+    }
+
+    /// <summary>One collect for both counters (at most every 500 ms, so Vram() then GpuUsage() share it).</summary>
+    private void Collect()
+    {
+        long now = Environment.TickCount64;
+        if (now - _lastCollect < 500 && _lastCollect != 0) return;
+        _lastCollect = now;
+        if (!OpenPdh() || PdhCollectQueryData(_query) != 0) { _vramUse = null; _gpuUse = null; return; }
+
+        double best = -1; string? bestLuid = null;
+        bool vramOk = ForEachItem(_vramCounter, (name, v) => { if (v > best) { best = v; bestLuid = LuidOf(name); } });
+        const double gb = 1024d * 1024 * 1024;
+        if (vramOk && best >= 0)
+        {
+            _rtxLuid = bestLuid ?? _rtxLuid;
+            _vramUse = (best / gb, _vramTotal > 0 ? _vramTotal / gb : 0);
+        }
+        else _vramUse = null;
+
+        if (_rtxLuid is not { } luid) { _gpuUse = null; return; }
+        double sum = 0; int seen = 0, all = 0;
+        bool engOk = ForEachItem(_engines, (name, v) =>
+        {
+            all++;
+            if (_engineAll && !name.Contains("engtype_3D", StringComparison.OrdinalIgnoreCase)) return;
+            if (!name.Contains(luid, StringComparison.OrdinalIgnoreCase)) return;
+            sum += v; seen++;
+        });
+        if (engOk && !_engineAll && all == 0 && ++_emptyEngineReads >= 3) AddEngineCounter(all: true);
+        else if (all > 0) _emptyEngineReads = 0;
+        _gpuUse = engOk ? (seen > 0 ? Math.Clamp(sum, 0, 100) : 0) : null;
+    }
+
+    /// <summary>(used GB, total GB) of the discrete GPU's dedicated memory. Call off the UI thread.</summary>
+    public (double Used, double Total)? Vram()
+    {
+        try { lock (_pdhLock) { Collect(); return _vramUse; } }
+        catch (Exception ex) { Log.Warn("SystemStats.Vram", ex); return null; }
     }
 
     // ---------- 1.3.0-beta.1 CPU % and GPU % (Part 2), read only while the window is open ----------
@@ -83,8 +185,6 @@ public sealed class SystemStats : IDisposable
     }
 
     private string? _rtxLuid;   // "luid_0x..._0x..." of the adapter with the most dedicated memory in use (the RTX)
-    private PerformanceCounterCategory? _engines;
-    private System.Collections.Generic.Dictionary<string, CounterSample> _prevEng = new();
 
     private static string? LuidOf(string instance)
     {
@@ -92,29 +192,11 @@ public sealed class SystemStats : IDisposable
         return m.Success ? m.Value : null;
     }
 
-    /// <summary>RTX 3D engine use, 0..100, from Windows' own GPU Engine counters (one ReadCategory per call, no NVML,
-    /// so it doesn't wake the RTX). Null until two samples exist or when the RTX isn't known yet.</summary>
+    /// <summary>RTX 3D engine use, 0..100, summed over its engtype_3D instances (no NVML, so it doesn't wake the RTX).
+    /// Null until two samples exist or when the RTX isn't known yet. Call off the UI thread.</summary>
     public double? GpuUsage()
     {
-        try
-        {
-            if (_rtxLuid is null) Vram();
-            if (_rtxLuid is not { } luid) return null;
-            _engines ??= new PerformanceCounterCategory("GPU Engine");
-            var data = _engines.ReadCategory()["utilization percentage"];
-            if (data is null) return null;
-            var next = new System.Collections.Generic.Dictionary<string, CounterSample>();
-            double sum = 0; bool any = false;
-            foreach (InstanceData d in data.Values)
-            {
-                var name = d.InstanceName;
-                if (!name.Contains("engtype_3D", StringComparison.OrdinalIgnoreCase) || !name.Contains(luid, StringComparison.OrdinalIgnoreCase)) continue;
-                next[name] = d.Sample;
-                if (_prevEng.TryGetValue(name, out var prev)) { sum += CounterSample.Calculate(prev, d.Sample); any = true; }
-            }
-            _prevEng = next;
-            return any ? Math.Clamp(sum, 0, 100) : (next.Count > 0 ? null : 0);
-        }
+        try { lock (_pdhLock) { Collect(); return _gpuUse; } }
         catch (Exception ex) { Log.Warn("GpuUsage", ex); return null; }
     }
 
@@ -144,6 +226,6 @@ public sealed class SystemStats : IDisposable
 
     public void Dispose()
     {
-        foreach (var c in _vram ?? Array.Empty<PerformanceCounter>()) c.Dispose();
+        lock (_pdhLock) ClosePdh();
     }
 }
