@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace AlienControl.Services;
 
@@ -94,9 +95,6 @@ public sealed class Settings
     /// <summary>Tray profile: Battery, Quiet, Balanced, Performance or Custom.</summary>
     public string Profile { get; set; } = "Custom";
 
-    /// <summary>Charge mode in use before Express charging was turned on (restored when it's turned off).</summary>
-    public string? ChargeModeBeforeExpress { get; set; }
-
     /// <summary>v0.8.2: true = skip every UI animation (instant, like v0.8.1). Default off.</summary>
     public bool ReduceMotion { get; set; } = false;
 
@@ -136,8 +134,7 @@ public sealed class Settings
 
     // 1.3.0 animations: the beta's NormalWindow / NewSlideEngine toggles were removed after the A/B
     // (old settings.json keys are ignored on load).
-    /// <summary>true = log frame gaps of every slide to crash.log.</summary>
-    public bool FrameLog { get; set; } = false;
+    // 2.0.0-beta1.4 (Amine): the FrameLog key (Log frame gaps) is gone too; Parse drops it from Extra (RetiredKeys).
 
     internal static string FilePath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl", "settings.json");
@@ -151,9 +148,18 @@ public sealed class Settings
             try
             {
                 if (!File.Exists(path)) continue;
-                var s = Parse(File.ReadAllText(path));
+                Settings? s;
+                try { s = Parse(ReadShared(path)); }
+                catch (Exception ex) when (ex is JsonException or NotSupportedException or InvalidOperationException)
+                {
+                    // 2.0.0-beta1.4 (services review #19): a torn file is moved aside as .corrupt, so the recovery save
+                    // below can't turn it into the new .bak (and throw the good backup away)
+                    Log.Warn($"Settings.Load {Path.GetFileName(path)}", ex);
+                    if (path == FilePath) MoveAside(path);
+                    continue;
+                }
                 if (s is null) continue;
-                bool migrated = s.SettingsVersion < CurrentVersion;
+                bool migrated = s.SettingsVersion < CurrentVersion || s.DroppedRetired;
                 s.Clamp();
                 if (migrated || path != FilePath) s.Save();
                 return s;
@@ -163,6 +169,27 @@ public sealed class Settings
         var d = Defaults();
         d.Save();
         return d;
+    }
+
+    /// <summary>2.0.0-beta1.4: reads the whole file and closes it at once, sharing read / write / delete, so Load never
+    /// holds a handle that makes the next save's File.Replace fail.</summary>
+    private static string ReadShared(string path)
+    {
+        using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var r = new StreamReader(fs);
+        return r.ReadToEnd();
+    }
+
+    private static void MoveAside(string path)
+    {
+        try
+        {
+            var bad = path + ".corrupt";
+            ClearReadOnly(bad);
+            File.Move(path, bad, overwrite: true);
+            Log.Info("Settings", $"unreadable {Path.GetFileName(path)} kept as {Path.GetFileName(bad)}");
+        }
+        catch (Exception ex) { Log.Warn("Settings.MoveAside", ex); }
     }
 
     /// <summary>2.0.0-beta1.3 (services review #2): what Load falls back to when there is no readable settings.json or
@@ -176,8 +203,10 @@ public sealed class Settings
     /// <summary>Reads + migrates one file. Null when it's unreadable or too old (guessed power indexes).</summary>
     internal static Settings? Parse(string json)
     {
-        var s = JsonSerializer.Deserialize<Settings>(json);
+        var s = JsonSerializer.Deserialize<Settings>(json, Opts);
         if (s is null) return null;
+        // 2.0.0-beta1.4: keys this app retired are dropped whatever the version (Extra would keep them forever)
+        foreach (var k in RetiredKeys) if (s.Extra?.Remove(k) == true) s.DroppedRetired = true;
         if (s.SettingsVersion >= CurrentVersion) return s;
         if (s.SettingsVersion is < 2) return null;   // older file had guessed power indexes: verified defaults instead
         // v2 sent the power button (ID 2) and missed half the ring (ID 1).
@@ -187,9 +216,10 @@ public sealed class Settings
         // v5 (app v0.8): the G-key is always on, Battery mode = index 3, theme defaults to Legend.
         if (s.BatteryPowerIndex <= 0) s.BatteryPowerIndex = 3;
         // v6 (app v0.8.2): adds ReduceMotion; older files have no key, so it reads as false (animations on).
-        if (s.SettingsVersion < 6) s.ReduceMotion = false;
         // v7 (app 2.0): the "Theme" key is gone (Legend only, Fluent removed). Old files still carry it; System.Text.Json
         // skips unknown keys, and the save after this migration drops it. Nothing else changes.
+        // 2.0.0-beta1.4: unknown keys are kept now (Extra), so the retired Theme key is dropped here by name.
+        s.Extra?.Remove("Theme");
         s.SettingsVersion = CurrentVersion;
         return s;
     }
@@ -247,29 +277,136 @@ public sealed class Settings
     /// <summary>v0.9.15: removes settings.json (next Load writes defaults).</summary>
     public static void Delete()
     {
-        foreach (var f in new[] { FilePath, FilePath + ".bak", FilePath + ".tmp" })
-            try { if (File.Exists(f)) File.Delete(f); } catch (Exception ex) { Log.Warn("Settings.Delete", ex); }
+        lock (SaveGate)
+        {
+            // 2.0.0-beta1.4: a pending retry must not bring the old settings back after a reset
+            _pendingJson = null;
+            _retry?.Dispose(); _retry = null;
+            foreach (var f in new[] { FilePath, FilePath + ".bak", FilePath + ".tmp" })
+                try { ClearReadOnly(f); if (File.Exists(f)) File.Delete(f); } catch (Exception ex) { Log.Warn("Settings.Delete", ex); }
+        }
     }
 
     private const int CurrentVersion = 7;
+
+    /// <summary>2.0.0-beta1.4: keys a past version wrote that are dropped on load (not kept as unknown keys).
+    /// FrameLog = the removed Log frame gaps switch (Amine).</summary>
+    internal static readonly string[] RetiredKeys = { "FrameLog" };
+    [System.Text.Json.Serialization.JsonIgnore] internal bool DroppedRetired { get; private set; }
     public int SettingsVersion { get; set; } = CurrentVersion;
 
-    private static readonly object SaveGate = new();
+    /// <summary>2.0.0-beta1.4 (services review #17): keys this version doesn't know (a newer beta's overlay settings, say)
+    /// are kept and written back, so a downgrade and upgrade during testing loses nothing. A file from a newer version
+    /// also keeps its higher SettingsVersion (Parse returns it as is).</summary>
+    [JsonExtensionData] public Dictionary<string, JsonElement>? Extra { get; set; }
 
+    /// <summary>2.0.0-beta1.4 (services review #18): one options instance, so System.Text.Json builds its metadata once
+    /// (it was rebuilt on every one of the ~35 Save calls).</summary>
+    private static readonly JsonSerializerOptions Opts = new() { WriteIndented = true };
+
+    private static readonly object SaveGate = new();
+    private static string? _pendingJson;          // newest settings that couldn't be written yet
+    private static int _failStreak;               // failed writes in a row (logged once per streak)
+    private static System.Threading.Timer? _retry;
+
+    /// <summary>
+    /// 1.3.0-beta.1 (review #8): atomic. Write .tmp, flush to disk, then swap it in and keep the old file as .bak.
+    /// 2.0.0-beta1.4 (Amine's crash.log): File.Replace failed ~28 times in 6 minutes with "Unable to remove the file to
+    /// be replaced" (settings.json or .bak briefly open in another process: antivirus, the indexer, an editor; or
+    /// read-only), and every one of those saves was lost. Now read-only flags are cleared, File.Replace is retried a few
+    /// times (about 200 ms at most in total), then the .tmp is copied over settings.json. If that fails too, the newest
+    /// settings are kept and written again by the next Save or a 2 s retry timer, and the failure is logged once per
+    /// streak instead of on every save.
+    /// </summary>
     public void Save()
     {
         lock (SaveGate)
+        {
+            string json;
+            try { json = JsonSerializer.Serialize(this, Opts); }
+            catch (Exception ex) { Log.Warn("Settings.Save", ex); return; }
+            WriteLocked(json);
+        }
+    }
+
+    /// <summary>2.0.0-beta1.4: one last try for settings that couldn't be written yet (called on quit).</summary>
+    public static void FlushPending()
+    {
+        lock (SaveGate) if (_pendingJson is { } j) WriteLocked(j);
+    }
+
+    private static void WriteLocked(string json)
+    {
+        var err = TryWrite(json);
+        if (err is null)
+        {
+            if (_failStreak > 0) Log.Info("Settings", $"saved again after {_failStreak} failed tries");
+            _failStreak = 0;
+            _pendingJson = null;
+            _retry?.Dispose(); _retry = null;
+            return;
+        }
+        _pendingJson = json;
+        if (_failStreak++ == 0) Log.Warn("Settings.Save (keeps retrying, logged once)", err);
+        _retry ??= new System.Threading.Timer(_ => RetryPending(), null, 2000, 2000);
+    }
+
+    private static void RetryPending()
+    {
+        lock (SaveGate)
+        {
+            if (_pendingJson is { } j) WriteLocked(j);
+            else { _retry?.Dispose(); _retry = null; }
+        }
+    }
+
+    private static void ClearReadOnly(string path)
+    {
         try
         {
-            // 1.3.0-beta.1 (review #8): atomic. Write .tmp, flush to disk, then swap it in and keep the old file as .bak.
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            var tmp = FilePath + ".tmp";
-            var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+            if (!File.Exists(path)) return;
+            var a = File.GetAttributes(path);
+            if ((a & FileAttributes.ReadOnly) != 0) File.SetAttributes(path, a & ~FileAttributes.ReadOnly);
+        }
+        catch (Exception ex) { Log.Warn("Settings.ClearReadOnly", ex); }
+    }
+
+    /// <summary>Null when written, else the last exception.</summary>
+    internal static Exception? TryWrite(string json, string? path = null)
+    {
+        path ??= FilePath;
+        var tmp = path + ".tmp";
+        var bak = path + ".bak";
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            ClearReadOnly(tmp);
             using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
             using (var w = new StreamWriter(fs)) { w.Write(json); w.Flush(); fs.Flush(true); }
-            if (File.Exists(FilePath)) File.Replace(tmp, FilePath, FilePath + ".bak", ignoreMetadataErrors: true);
-            else File.Move(tmp, FilePath);
         }
-        catch (Exception ex) { Log.Warn("Settings.Save", ex); }
+        catch (Exception ex) { return ex; }
+
+        if (!File.Exists(path))
+        {
+            try { File.Move(tmp, path); return null; }
+            catch (Exception ex) { return ex; }
+        }
+        ClearReadOnly(path);
+        ClearReadOnly(bak);
+        Exception? last = null;
+        foreach (int wait in new[] { 0, 15, 40, 60, 80 })   // ~200 ms at most
+        {
+            if (wait > 0) System.Threading.Thread.Sleep(wait);
+            try { File.Replace(tmp, path, bak, ignoreMetadataErrors: true); return null; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { last = ex; }
+        }
+        // fallback: no .bak this time, but the settings are saved
+        try
+        {
+            File.Copy(tmp, path, overwrite: true);
+            try { File.Delete(tmp); } catch (Exception ex) { Log.Warn("Settings.DeleteTmp", ex); }
+            return null;
+        }
+        catch (Exception ex) { return last ?? ex; }
     }
 }
