@@ -30,7 +30,8 @@ Whoever merges (agent A or B):
 
 ## What beta1.3-ov adds (for the merge)
 New files (no conflicts expected):
-- `src/AlienControl/Services/FramesSource.cs` (PresentMon child, CSV parse, job object), `Services/CpuCores.cs`
+- `src/AlienControl/Services/FramesSource.cs` (PresentMon child, CSV parse, job object, swapchain filter, `Playhead` graph playback), `Services/CpuCores.cs`, `Services/VblankCounter.cs`
+- `src/AlienControl/Services/NvDrs.cs` (NVAPI DRS: per game FPS cap + V-Sync, read back), `MainWindow.FpsCap.cs` (cap chips + APPLY on the Overlay tab)
 - `src/AlienControl/Overlay/OverlayLevels.cs`, `OverlayPanel.cs` (renderer), `OverlayHost.cs` (window, own thread), `LevelSlider.cs`
 - `src/AlienControl/MainWindow.Overlay.cs` (levels, F4, Overlay tab, feeding sensors, exit cleanup)
 - `tests/AlienControl.Tests/OverlayTests.cs`, `docs/releases/v2.0.0-beta1.3-ov.*.md`
@@ -41,5 +42,15 @@ Hooks in existing files (all marked `beta1.3-ov`):
 - `MainWindow.Oc.cs`: `EmergencyExitCleanup` stops PresentMon.
 - `MainWindow.xaml`: Home overlay block and the whole `OverlayPage` replaced; `xmlns:ov`.
 - `Services/Settings.cs`: `Overlay*` keys + clamps. `Services/Nvml.cs`: `nvmlDeviceGetClockInfo`.
+- `AlienControl.csproj`: `ConcurrentGarbageCollection` false + `System.GC.ConserveMemory` 5 (ov.11 RAM). Keep both in the merge.
+- `Themes/Legend2.xaml`: `Icon.Gauge`. Settings > General: Background slider (all overlay levels).
 - `.github/workflows/*.yml`: PresentMon download step (pinned SHA256). `.gitignore`: `tools/PresentMon/`.
 - 1.4 moves GPU % to one PDH query and removes WPF-UI: the overlay uses neither directly, it reads `_stats.GpuUsage()` through `RefreshSensorsAsync`.
+
+## Where beta1.3-ov is (2026-10-24)
+- Latest: `v2.0.0-beta1.3-ov.14` (`0c5d26f`), CI green. Not signed off yet, don't merge.
+- ov.11: NVIDIA driver FPS cap + V-Sync per game, background slider moved to Settings, swapchain filter, RAM teardown 30 s after F4 off.
+- ov.12: Size / Move X / Move Y as compact steppers in Overlay Advanced.
+- ov.13: FPS cap APPLY button, profile name + exe shown, read-back + relaunch check. Tested OK on Amine's 3070 Ti.
+- ov.14: smooth frametime graph (plays PresentMon bursts back), FPS over the last 250 ms.
+- Next, ov.15: clock row, CPU/GPU bound tile, stutter indicator. Later: DirectComposition + Direct2D overlay window.
