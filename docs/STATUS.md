@@ -12,12 +12,13 @@ status keys, toasts and chimes. One 440 x 820 window (Legend theme only), tabs H
 a two-tab Settings page. Runs elevated, starts at logon through a scheduled task.
 
 ## Two branches (until 2.0.0-beta2)
-Two lines of work run in parallel. The full rules are in `docs/BRANCHES-2.0.md`, which lives on branch `beta1.3-ov`
-(not on `v2.0` yet): copy it into `v2.0` at the beta2 merge.
+Two lines of work run in parallel. The full rules are in `docs/BRANCHES-2.0.md` (on both branches since 2026-10-24).
+**Agent A's part is done (2026-10-24):** `v2.0` ends at v2.0.0-beta1.6 (`6ca0a85`), every fix tested on the laptop by
+Amine. Nothing more goes into `v2.0` before the beta2 merge unless Amine reports a new bug.
 - **Agent A owns `v2.0`** (based on beta1.3, 1c26220): beta1.4 and later fixes (Tier 1 / 2 / 3 review work, WPF-UI
   removal, MainWindow partials, the startup task security fix, the Log frame gaps removal). Tags `v2.0.0-beta1.4`, ...
 - **Agent B owns `beta1.3-ov`** (also based on 1c26220): the in-game overlay only (PresentMon frametimes, 4 SteamOS
-  levels, F4, Overlay tab). Pre-release tags `v2.0.0-beta1.3-ov.N` (latest v2.0.0-beta1.3-ov.7, 66cf56d).
+  levels, F4, Overlay tab). Pre-release tags `v2.0.0-beta1.3-ov.N` (latest v2.0.0-beta1.3-ov.14, 0c5d26f, not signed off yet).
 - **`main`** is 1.3.x: nobody touches it until 2.0 is stable.
 
 Rules
@@ -107,7 +108,7 @@ No third-party UI library since beta1.4 (WPF-UI removed).
 - **beta1.4**: Tier 2 and Tier 3, settings save fix, six visual changes (the sixth: INTEL / NVIDIA tags on the GPU
   tiles, `mockups/2.0-beta1.4/6-gpu-source.png`), startup task security fix (Program Files
   copy), Log frame gaps removed, NVIDIA tray icon after iGPU only, OC card greyed while the RTX is off. See
-  [releases/v2.0.0-beta1.4.md](releases/v2.0.0-beta1.4.md). Tested on the laptop 2026-10-24: all good. The NVIDIA tray icon missed once right after the update, then came back 3 out of 3 after a reboot. Its startup copy skipped alienfan-cli.exe / alienfx-cli.exe kept next to the exe (sensors and shortcuts dead after a reboot): fixed in **v2.0.0-beta1.5** ([releases/v2.0.0-beta1.5.md](releases/v2.0.0-beta1.5.md)), which also makes the NVIDIA tray check wait for NVDisplay.Container. Tested OK on the laptop 2026-10-24 (after quitting beta1.4 first). **v2.0.0-beta1.6** ([releases/v2.0.0-beta1.6.md](releases/v2.0.0-beta1.6.md)): a newer copy takes over from the running one (Local\AlienControls.Quit event + mutex hand over); untested on the laptop. IGCL has no GPU temperature sensor on the m15 R7, so iGPU temp is the CPU package.
+  [releases/v2.0.0-beta1.4.md](releases/v2.0.0-beta1.4.md). Tested on the laptop 2026-10-24: all good. The NVIDIA tray icon missed once right after the update, then came back 3 out of 3 after a reboot. Its startup copy skipped alienfan-cli.exe / alienfx-cli.exe kept next to the exe (sensors and shortcuts dead after a reboot): fixed in **v2.0.0-beta1.5** ([releases/v2.0.0-beta1.5.md](releases/v2.0.0-beta1.5.md)), which also makes the NVIDIA tray check wait for NVDisplay.Container. Tested OK on the laptop 2026-10-24 (after quitting beta1.4 first). **v2.0.0-beta1.6** ([releases/v2.0.0-beta1.6.md](releases/v2.0.0-beta1.6.md)): a newer copy takes over from the running one (Local\AlienControls.Quit event + mutex hand over), and the boot-time Startup.GetTask warning is gone. Tested OK on the laptop 2026-10-24; the hand over itself is first exercised by the next version (beta2). IGCL has no GPU temperature sensor on the m15 R7, so iGPU temp is the CPU package.
 
 ## Still to do
 **Beta 2 (the in-game overlay)**, in this order:
@@ -134,14 +135,14 @@ No third-party UI library since beta1.4 (WPF-UI removed).
 ## Known risks / not verified on hardware
 - **Fixed in beta1.4**: the startup task ran the exe as admin from a user-writable folder (Downloads / Desktop), so any
   unelevated program could swap the exe or side-load a DLL next to it. It now only runs the admin-only copy in
-  `%ProgramFiles%\AlienControl` (see `Services/Startup.cs`). Still to verify on the laptop with the What to test steps.
-- Everything in beta1.4 is untested on the laptop: powrprof CPU cap path, NVML close / reopen on battery and minimize,
-  PDH GPU % and VRAM values, the WPF-UI removal (Settings page, toasts, tooltips), focus ring, short-screen scaling.
+  `%ProgramFiles%\AlienControl` (see `Services/Startup.cs`). Verified on the laptop 2026-10-24 (with the beta1.5 CLI copy fix).
+- beta1.4 to beta1.6 passed Amine's What to test lists on 2026-10-24 (powrprof, NVML close / reopen, PDH GPU % and
+  VRAM, WPF-UI removal, focus ring, short-screen scaling, NVIDIA tray restart, OC lock, GPU source chips).
 - **GPU sensors by mode (beta1.4)**: in Advanced Optimus / Ultimate the GPU temp is the AWCC WMI sensor 0x06 (board
   sensor by the RTX) and GPU USE the RTX's PDH 3D engines (tag NVIDIA). In iGPU only the AWCC 0x06 sensor is not the
   Intel GPU, so the temp comes from IGCL and GPU USE from the Intel LUID's 3D engines (tag INTEL). IGCL status: interop
-  written from Intel's public `igcl_api.h` (API 1.1, struct sizes covered by tests) but never run on the laptop; whether
-  the m15 R7's Intel driver exposes a GPU temperature sensor through IGCL is unknown. crash.log says which source was
+  written from Intel's public `igcl_api.h` (API 1.1, struct sizes covered by tests) but run on the laptop 2026-10-24: the m15 R7's
+  Intel driver has no GPU temperature sensor through IGCL, so the CPU package fallback is what ships. crash.log says which source was
   used (`iGPU temp: IGCL` or `iGPU temp: CPU package (IGCL: reason)`); if it's always the CPU package, IGCL has no
   sensor there and the fallback is what ships. The RTX LUID is still the "most dedicated memory in use" adapter (it
   just never takes the Intel LUID once that is known).
