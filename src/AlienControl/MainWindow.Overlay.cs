@@ -95,10 +95,10 @@ public partial class MainWindow
 
     private static string LevelItems(int level) => level switch
     {
-        1 => "FPS.",
-        2 => "FPS, frametime and graph, CPU and GPU load and watts, RAM, VRAM, battery.",
-        3 => "GPU load, temp, watts, core and memory clock. CPU load, temp, watts, clock. VRAM, RAM, battery, engine, FPS, frametime graph.",
-        4 => "Level 3 plus every core (P and E) with its threads' load and real clock, fan RPM, refresh rate, 1% low and max frametime.",
+        1 => "FPS and 1% low.",
+        2 => "FPS, frametime and graph, CPU and GPU load and watts, RAM, VRAM, battery, refresh rate.",
+        3 => "GPU load, temp, watts, core and memory clock. CPU load, temp, watts, clock. VRAM, RAM, battery, engine, FPS, 1% low, frametime graph.",
+        4 => "Level 3 plus every core (P and E) with its threads' load and real clock, fan RPM, refresh rate, 0.1% low and max frametime.",
         _ => "Nothing runs: PresentMon is stopped and no sensor is read for the overlay.",
     };
 
@@ -289,6 +289,7 @@ public partial class MainWindow
         OvPreview.Graph = _previewGraph;
         OvPreview.GraphCount = _previewGraph.Length;
         OvPreview.Low1 = 98;
+        OvPreview.Low01 = 71;
         OvPreview.MaxMs = 12.4;
         OvPreview.InvalidateMeasure();
         OvPreview.InvalidateVisual();

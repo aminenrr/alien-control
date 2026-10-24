@@ -133,24 +133,35 @@ public sealed class OverlayHost : IDisposable
         for (int i = 0; i < g; i++) graph[i] = span[n - g + i].Ms;
         p.Graph = graph;
         p.GraphCount = g;
-        var (low1, maxMs) = Lows(span[(n - g)..]);
+        // lows over every buffered frame (up to 2048, about 8 s at 240 fps), max over the graph like the graph's label
+        var (low1, low01, _) = Lows(span);
         p.Low1 = low1;
-        p.MaxMs = maxMs;
+        p.Low01 = low01;
+        p.MaxMs = g > 0 ? Lows(span[(n - g)..]).MaxMs : 0;
         p.Engine = EngineLabel(frames);
     }
 
-    /// <summary>1 % low fps (from the slowest 1 % of frames) and the max frametime.</summary>
-    internal static (double Low1, double MaxMs) Lows(ReadOnlySpan<FramesSource.Frame> f)
+    [ThreadStatic] private static float[]? _lowScratch;
+
+    /// <summary>1 % and 0.1 % low fps (average of the slowest 1 % / 0.1 % of frames, at least one frame) and the max
+    /// frametime. One sort of at most 2048 floats per update, no allocation after the first call.</summary>
+    internal static (double Low1, double Low01, double MaxMs) Lows(ReadOnlySpan<FramesSource.Frame> f)
     {
-        if (f.Length == 0) return (0, 0);
-        var ms = new float[f.Length];
+        if (f.Length == 0) return (0, 0, 0);
+        var buf = _lowScratch is { } b && b.Length >= f.Length ? b : (_lowScratch = new float[Math.Max(f.Length, 2048)]);
+        var ms = buf.AsSpan(0, f.Length);
         for (int i = 0; i < f.Length; i++) ms[i] = f[i].Ms;
-        Array.Sort(ms);
-        int k = Math.Max(1, ms.Length / 100);
-        double sum = 0;
-        for (int i = ms.Length - k; i < ms.Length; i++) sum += ms[i];
-        double avgWorst = sum / k;
-        return (avgWorst > 0 ? 1000 / avgWorst : 0, ms[^1]);
+        ms.Sort();
+        return (Worst(ms, 100), Worst(ms, 1000), ms[^1]);
+
+        static double Worst(Span<float> sorted, int per)
+        {
+            int k = Math.Max(1, sorted.Length / per);
+            double sum = 0;
+            for (int i = sorted.Length - k; i < sorted.Length; i++) sum += sorted[i];
+            double avg = sum / k;
+            return avg > 0 ? 1000 / avg : 0;
+        }
     }
 
     private static int _engPid;

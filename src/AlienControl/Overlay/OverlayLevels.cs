@@ -14,6 +14,8 @@ public enum Item
     CoreLoads = 1 << 15, Fans = 1 << 16, Refresh = 1 << 17, FrameStats = 1 << 18,
     /// <summary>Latency and real / generated fps: only with the "Latency and frame gen" toggle, levels 2 to 4.</summary>
     FrameGen = 1 << 19, Latency = 1 << 20,
+    /// <summary>ov.5 (Amine): 1 % low fps (levels 1, 3, 4) and 0.1 % low fps (level 4). From the frames already read, no new source.</summary>
+    Low1 = 1 << 21, Low01 = 1 << 22,
 }
 
 /// <summary>What the sensor side must read for a level. Only these run; level 1 reads frames only.</summary>
@@ -36,21 +38,21 @@ public static class OverlayLevels
     public const int Max = 4;
 
     /// <summary>MangoHud preset 1: fps_only.</summary>
-    public const Item L1 = Item.Fps;
+    public const Item L1 = Item.Fps | Item.Low1;   // ov.5: + 1 % low (Amine)
 
     /// <summary>MangoHud preset 2 (horizontal): fps, frame_timing, cpu/gpu load, ram, vram, battery, cpu/gpu power.</summary>
     public const Item L2 = Item.Fps | Item.FrameTime | Item.FrameGraph | Item.Cpu | Item.Gpu | Item.Ram | Item.Vram
-                         | Item.Battery | Item.CpuPower | Item.GpuPower;
+                         | Item.Battery | Item.CpuPower | Item.GpuPower | Item.Refresh;   // ov.5: + RR after battery (Amine)
 
     /// <summary>MangoHud preset 3: the default vertical HUD + temps, power, cpu mhz, gpu core and mem clock, ram, vram, battery.</summary>
     public const Item L3 = Item.Fps | Item.FrameTime | Item.FrameGraph | Item.Engine
                          | Item.Cpu | Item.CpuTemp | Item.CpuPower | Item.CpuMhz
                          | Item.Gpu | Item.GpuTemp | Item.GpuPower | Item.GpuClocks
-                         | Item.Ram | Item.Vram | Item.Battery;
+                         | Item.Ram | Item.Vram | Item.Battery | Item.Low1;   // ov.5: + 1 % low (Amine)
 
     /// <summary>MangoHud preset 4: level 3 + per core load and clock (P and E cores), fans, refresh rate, detailed frame timing.
     /// MangoHud's network row isn't copied (no source that's cheap enough on Windows).</summary>
-    public const Item L4 = L3 | Item.CoreLoads | Item.Fans | Item.Refresh | Item.FrameStats;
+    public const Item L4 = L3 | Item.CoreLoads | Item.Fans | Item.Refresh | Item.FrameStats | Item.Low01;   // ov.5: + 0.1 % low
 
     public static Item Items(int level) => level switch { 1 => L1, 2 => L2, 3 => L3, 4 => L4, _ => Item.None };
 

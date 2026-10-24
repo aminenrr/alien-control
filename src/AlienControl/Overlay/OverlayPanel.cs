@@ -56,6 +56,7 @@ public sealed class OverlayPanel : FrameworkElement
     public int GraphCount { get; set; }
     /// <summary>1 % low fps and max frametime over the graph window (level 4).</summary>
     public double Low1 { get; set; }
+    public double Low01 { get; set; }
     public double MaxMs { get; set; }
 
     private double Fs => 24 * Scale;            // MangoHud font_size 24
@@ -135,6 +136,14 @@ public sealed class OverlayPanel : FrameworkElement
             rows.Add(new(string.IsNullOrEmpty(Engine) ? "FPS" : Engine, EngineC, c.ToArray()));
         }
         if ((it & Item.Latency) != 0) rows.Add(new(LatLabel, DimC, new[] { new Cell(LatValue, "ms") }));
+        // ov.5: lows as normal rows, so they line up with the columns above
+        if ((it & Item.Low1) != 0)
+        {
+            var c = new List<Cell> { new(Low1.ToString("0"), "FPS") };
+            if ((it & Item.FrameStats) != 0) c.Add(new(MaxMs.ToString("0.0"), "ms max"));
+            rows.Add(new("1% LOW", EngineC, c.ToArray()));
+        }
+        if ((it & Item.Low01) != 0) rows.Add(new("0.1% LOW", EngineC, new[] { new Cell(Low01.ToString("0"), "FPS") }));
         return rows;
     }
 
@@ -170,16 +179,23 @@ public sealed class OverlayPanel : FrameworkElement
     }
 
     // level 1: the fps number alone (MangoHud fps_only)
+    // ov.5: the fps, then the 1 % low with a small "1%" unit (Amine)
+    private bool L1Low => (Items & Item.Low1) != 0;
+    private Cell L1LowCell => new(Low1.ToString("0"), "1%");
+    private double L1FpsW => Math.Max(T(Fps.ToString("0"), White, Fs).WidthIncludingTrailingWhitespace, T("000", White, Fs).Width);
+
     private Size MeasureL1()
     {
-        var t = T(Fps.ToString("0"), White, Fs);
-        return new Size(Math.Max(t.WidthIncludingTrailingWhitespace, T("000", White, Fs).Width) + Pad * 2, RowH + Pad * 2);
+        double w = L1FpsW + Pad * 2;
+        if (L1Low) w += 10 * Scale + Math.Max(CellW(L1LowCell), CellW(new("000", "1%")));
+        return new Size(Math.Ceiling(w), RowH + Pad * 2);
     }
 
     private void RenderL1(DrawingContext dc)
     {
-        var t = T(Fps.ToString("0"), White, Fs);
-        dc.DrawText(t, new Point(_size.Width - Pad - t.WidthIncludingTrailingWhitespace, Pad + (RowH - t.Height) / 2));
+        double right = Pad + L1FpsW;
+        DrawCellRight(dc, new Cell(Fps.ToString("0"), ""), right, Pad);
+        if (L1Low) DrawCellRight(dc, L1LowCell, _size.Width - Pad, Pad);
     }
 
     // ---------- vertical (levels 3 and 4) ----------
@@ -212,7 +228,6 @@ public sealed class OverlayPanel : FrameworkElement
             w = Math.Max(w, GraphW + Pad * 2);
             h += GraphH + FsUnit * 1.4 + Pad;
         }
-        if ((Items & Item.FrameStats) != 0) h += RowH;
         return new Size(Math.Ceiling(w), Math.Ceiling(h));
     }
 
@@ -230,14 +245,6 @@ public sealed class OverlayPanel : FrameworkElement
                 x += _colW[i] + 10 * Scale;
                 if (i < r.Cells.Length) DrawCellRight(dc, r.Cells[i], x, y);
             }
-            y += RowH;
-        }
-        if ((Items & Item.FrameStats) != 0)
-        {
-            var lab = T("1% LOW", EngineC, Fs, FaceLabel);
-            dc.DrawText(lab, new Point(Pad, y + (RowH - lab.Height) / 2));
-            DrawCellRight(dc, new Cell(Low1.ToString("0"), "FPS"), _size.Width - Pad - _colW[1] - 10 * Scale, y);
-            DrawCellRight(dc, new Cell(MaxMs.ToString("0.0"), "ms max"), _size.Width - Pad, y);
             y += RowH;
         }
         if ((Items & Item.FrameGraph) != 0)
@@ -310,6 +317,7 @@ public sealed class OverlayPanel : FrameworkElement
             if (d.OnAc) c.Add(new("AC", "")); else if (d.BatteryW is int w) c.Add(new(w.ToString(), "W"));
             l.Add(new("BATT", BattC, c.ToArray(), false));
         }
+        if ((it & Item.Refresh) != 0) l.Add(new("RR", DimC, new[] { new Cell(N(d.RefreshHz), "Hz") }, false));   // ov.5
         return l;
     }
 

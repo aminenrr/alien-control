@@ -54,9 +54,15 @@ public class OverlayTests
     {
         var frames = new FramesSource.Frame[100];
         for (int i = 0; i < 100; i++) frames[i] = new(i, i * 0.01, i == 50 ? 50f : 10f);
-        var (low, max) = OverlayHost.Lows(frames);
+        var (low, low01, max) = OverlayHost.Lows(frames);
         Assert.Equal(20, low, 3);   // the slowest 1 % is the 50 ms frame
+        Assert.Equal(20, low01, 3); // under 1000 frames the 0.1 % is the single slowest frame
         Assert.Equal(50, max, 3);
+        var many = new FramesSource.Frame[2000];
+        for (int i = 0; i < 2000; i++) many[i] = new(i, i * 0.01, i < 2 ? 100f : i < 20 ? 20f : 10f);
+        var (l1, l01, _) = OverlayHost.Lows(many);
+        Assert.Equal(10, l01, 3);   // slowest 2 frames: 100 ms
+        Assert.Equal(1000.0 / ((2 * 100 + 18 * 20) / 20.0), l1, 3);
     }
 
     [Fact]
