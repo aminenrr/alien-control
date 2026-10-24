@@ -24,11 +24,16 @@ public static class NvDrs
     /// (false: the values shown are the global ones it falls back to).</summary>
     public readonly record struct State(int Fps, bool Vsync, bool Own);
 
+    /// <summary>ov.13: which NVIDIA profile a game lands in. Name null = the game has no profile (global values apply).
+    /// Predefined = NVIDIA ships it. FileInFolder / Launcher = extra match rules on the app entry (when set, the driver
+    /// only uses the profile if they match, a reason a cap can silently not apply).</summary>
+    public readonly record struct ProfileInfo(string? Name, bool Predefined, string? FileInFolder, string? Launcher);
+
     // NvAPI_QueryInterface ids (nvapi_interface.h)
     private const uint IdInitialize = 0x0150E828, IdCreateSession = 0x0694D52E, IdDestroySession = 0xDAD9CFF8,
         IdLoadSettings = 0x375DBD6B, IdSaveSettings = 0xFCBC7E14, IdFindApp = 0xEEE566B2, IdCreateProfile = 0xCC176068,
         IdFindProfile = 0x7E4A9A0B, IdCreateApp = 0x4347A9DE, IdSetSetting = 0x577DD202, IdGetSetting = 0x73BF8338,
-        IdDeleteSetting = 0xE4A26362, IdGetBase = 0xDA8466A0;
+        IdDeleteSetting = 0xE4A26362, IdGetBase = 0xDA8466A0, IdGetProfileInfo = 0x61CD6FD6;
 
     // NvAPI_Status
     private const int Ok = 0, NvidiaDeviceNotFound = -6, InvalidUserPrivilege = -137, SettingNotFound = -160,
@@ -37,6 +42,8 @@ public static class NvDrs
     // struct sizes (nvapi.h): NVDRS_SETTING_V1 is pack(4) = 12320, NVDRS_APPLICATION_V1 = 12296, NVDRS_PROFILE_V1 = 4116
     private const int SettingSize = 12320, SettingIdOff = 4100, SettingTypeOff = 4104, SettingCurOff = 8220;
     private const int AppSize = 12296, AppNameOff = 8, ProfileSize = 4116, ProfileNameOff = 4, UStr = 2048;
+    // ov.13: NVDRS_APPLICATION_V2 adds fileInFolder (read only, for the target line and the log); PROFILE_V1 isPredefined
+    private const int App2Size = 16392, AppLauncherOff = 8 + 2 * 4096, AppFileInFolderOff = 8 + 3 * 4096, ProfilePredefOff = 4104;
     private static uint Ver(int size, int v) => (uint)size | ((uint)v << 16);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr QueryFn(uint id);
@@ -51,6 +58,7 @@ public static class NvDrs
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GetSettingFn(IntPtr s, IntPtr prof, uint id, IntPtr setting);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int DeleteSettingFn(IntPtr s, IntPtr prof, uint id);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GetBaseFn(IntPtr s, out IntPtr prof);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GetProfileInfoFn(IntPtr s, IntPtr prof, IntPtr info);
 
     private static readonly object Gate = new();
     private static QueryFn? _query;
@@ -84,18 +92,61 @@ public static class NvDrs
     }
 
     /// <summary>Reads the cap and V-Sync for exe (null = global). Error = a short reason, State default then.</summary>
-    public static (State State, string? Error) Read(string? exe)
+    public static (State State, string? Error) Read(string? exe) { var (st, _, err) = ReadFull(exe); return (st, err); }
+
+    /// <summary>ov.13: Read plus the profile the game lands in (name, predefined, extra match rules).</summary>
+    public static (State State, ProfileInfo Profile, string? Error) ReadFull(string? exe)
     {
         lock (Gate)
         {
-            if (!Load()) return (default, "Needs the NVIDIA driver");
-            return Session(false, (s, f) =>
+            if (!Load()) return (default, default, "Needs the NVIDIA driver");
+            var ((st, pi), err) = Session(false, (s, f) =>
             {
                 var (prof, own) = Profile(s, f, exe, create: false);
-                if (prof == IntPtr.Zero) return (default(State), "NVIDIA profiles not readable");
-                return (new State((int)Get(s, f, prof, FrlId, 0), Get(s, f, prof, VsyncId, 0) == VsyncForceOn, own), (string?)null);
+                if (prof == IntPtr.Zero) return ((default(State), default(ProfileInfo)), "NVIDIA profiles not readable");
+                var st = new State((int)Get(s, f, prof, FrlId, 0), Get(s, f, prof, VsyncId, 0) == VsyncForceOn, own);
+                var pi = own ? Describe(s, f, prof, exe) : default;
+                return ((st, pi), (string?)null);
             });
+            return (st, pi, err);
         }
+    }
+
+    /// <summary>Profile name + predefined, and the app entry's launcher / fileInFolder rules (APPLICATION_V2).</summary>
+    private static ProfileInfo Describe(IntPtr s, Fns f, IntPtr prof, string? exe)
+    {
+        string? name = null, fif = null, launcher = null;
+        bool predef = false;
+        var info = Marshal.AllocHGlobal(ProfileSize);
+        try
+        {
+            Zero(info, ProfileSize);
+            Marshal.WriteInt32(info, 0, (int)Ver(ProfileSize, 1));
+            if (f.GetProfileInfo(s, prof, info) == Ok)
+            {
+                name = Marshal.PtrToStringUni(info + ProfileNameOff);
+                predef = Marshal.ReadInt32(info, ProfilePredefOff) != 0;
+            }
+        }
+        finally { Marshal.FreeHGlobal(info); }
+        if (!string.IsNullOrEmpty(exe))
+        {
+            var app = Marshal.AllocHGlobal(App2Size);
+            var n = UBuf(exe);
+            try
+            {
+                Zero(app, App2Size);
+                Marshal.WriteInt32(app, 0, (int)Ver(App2Size, 2));
+                if (f.FindApp(s, n, out _, app) == Ok)
+                {
+                    launcher = Marshal.PtrToStringUni(app + AppLauncherOff);
+                    fif = Marshal.PtrToStringUni(app + AppFileInFolderOff);
+                }
+            }
+            finally { Marshal.FreeHGlobal(app); Marshal.FreeHGlobal(n); }
+        }
+        return new ProfileInfo(string.IsNullOrEmpty(name) ? null : name, predef,
+            string.IsNullOrEmpty(fif) ? null : fif, string.IsNullOrEmpty(launcher) ? null : launcher);
     }
 
     /// <summary>Writes the cap (fps 0 = remove ours, null = leave) and V-Sync (true = force on, false = remove ours,
@@ -121,8 +172,15 @@ public static class NvDrs
                 }
                 return (0, (string?)null);
             });
-            if (err is null) Log.Info("NvDrs", $"{exe ?? "global"}: cap {(fps is null ? "kept" : fps <= 0 ? "off" : fps.ToString())}, vsync {(vsync is null ? "kept" : vsync == true ? "on" : "default")}");
-            return err;
+            if (err is not null) { Log.Info("NvDrs", $"{exe ?? "global"}: write failed: {err}"); return err; }
+            // ov.13: read it back in a fresh session (what the next game launch will load) and log where it went
+            var (st, pi, rerr) = ReadFull(exe);
+            Log.Info("NvDrs", $"{exe ?? "global"}: cap {(fps is null ? "kept" : fps <= 0 ? "off" : fps.ToString())}, vsync {(vsync is null ? "kept" : vsync == true ? "on" : "default")}" +
+                $" -> profile \"{pi.Name ?? "base"}\"{(pi.Predefined ? " (NVIDIA)" : " (user)")}{(pi.FileInFolder is { } ff ? $", needs file {ff}" : "")}{(pi.Launcher is { } la ? $", launcher {la}" : "")}" +
+                $", read back cap {st.Fps} vsync {(st.Vsync ? "on" : "default")}{(rerr is null ? "" : " err " + rerr)}");
+            if (rerr is null && ((fps is int want && (want <= 0 ? st.Fps != 0 : st.Fps != Math.Clamp(want, MinFps, MaxFps))) || (vsync is bool v2 && st.Vsync != v2)))
+                return "the driver didn't keep it";
+            return null;
         }
     }
 
@@ -138,6 +196,7 @@ public static class NvDrs
         public GetSettingFn GetSetting = null!;
         public DeleteSettingFn DeleteSetting = null!;
         public GetBaseFn GetBase = null!;
+        public GetProfileInfoFn GetProfileInfo = null!;
     }
 
     private static Fns? _fns;
@@ -154,6 +213,7 @@ public static class NvDrs
                 Save = Fn<HFn>(IdSaveSettings), FindApp = Fn<FindAppFn>(IdFindApp), CreateProfile = Fn<CreateProfileFn>(IdCreateProfile),
                 FindProfile = Fn<FindProfileFn>(IdFindProfile), CreateApp = Fn<CreateAppFn>(IdCreateApp), SetSetting = Fn<SetSettingFn>(IdSetSetting),
                 GetSetting = Fn<GetSettingFn>(IdGetSetting), DeleteSetting = Fn<DeleteSettingFn>(IdDeleteSetting), GetBase = Fn<GetBaseFn>(IdGetBase),
+                GetProfileInfo = Fn<GetProfileInfoFn>(IdGetProfileInfo),
             };
             if ((r = f.Create(out var s)) != Ok) return (default!, Why(r));
             try
@@ -201,6 +261,7 @@ public static class NvDrs
                 CopyU(name, app + AppNameOff);
                 r = f.CreateApp(s, prof, app);
                 if (r != Ok) { Log.Info("NvDrs", $"add {exe}: {r}"); return (IntPtr.Zero, false); }
+                Log.Info("NvDrs", $"{exe}: no NVIDIA profile, made \"Alien Controls: {exe}\"");
                 return (prof, true);
             }
             finally { Marshal.FreeHGlobal(info); Marshal.FreeHGlobal(pname); }

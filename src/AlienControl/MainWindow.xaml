@@ -777,8 +777,13 @@
                                         <TextBlock Text="V-Sync in driver" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
                                         <TextBlock Text="on with G-Sync" Style="{DynamicResource RowSub2}" VerticalAlignment="Center" Margin="8,1,0,0" />
                                     </StackPanel>
-                                    <CheckBox x:Name="OvCapVsync" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="OvCapVsync_Click"
-                                              ToolTip="NVIDIA's Vertical sync: On for this game. With G-Sync and the cap it never kicks in, it just catches a frame that would tear. Turn V-Sync off in the game" />
+                                    <!-- ov.13: picks are staged, APPLY writes them (Amine: show an apply button) -->
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <CheckBox x:Name="OvCapVsync" Style="{DynamicResource Toggle2}" VerticalAlignment="Center" Click="OvCapVsync_Click"
+                                                  ToolTip="NVIDIA's Vertical sync: On for this game. With G-Sync and the cap it never kicks in, it just catches a frame that would tear. Turn V-Sync off in the game" />
+                                        <Button x:Name="OvCapApply" Style="{DynamicResource ButtonPrimary2}" Content="APPLY" Height="24" FontSize="10.5" Padding="12,0" Margin="10,0,0,0"
+                                                IsEnabled="False" Click="OvCapApply_Click" ToolTip="Writes the cap and V-Sync into the game's NVIDIA profile. Restart the game after" />
+                                    </StackPanel>
                                 </Grid>
                             </StackPanel>
                         </Border>
