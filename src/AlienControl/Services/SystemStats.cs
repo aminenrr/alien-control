@@ -134,30 +134,115 @@ public sealed class SystemStats : IDisposable
         long now = Environment.TickCount64;
         if (now - _lastCollect < 500 && _lastCollect != 0) return;
         _lastCollect = now;
-        if (!OpenPdh() || PdhCollectQueryData(_query) != 0) { _vramUse = null; _gpuUse = null; return; }
+        if (!OpenPdh() || PdhCollectQueryData(_query) != 0) { _vramUse = null; _gpuUse = null; _intelUse = null; return; }
 
         double best = -1; string? bestLuid = null;
         bool vramOk = ForEachItem(_vramCounter, (name, v) => { if (v > best) { best = v; bestLuid = LuidOf(name); } });
         const double gb = 1024d * 1024 * 1024;
         if (vramOk && best >= 0)
         {
-            _rtxLuid = bestLuid ?? _rtxLuid;
+            // 2.0.0-beta1.4 (Amine): never take the Intel adapter (once known) as the RTX
+            if (bestLuid is not null && !string.Equals(bestLuid, _intelLuid, StringComparison.OrdinalIgnoreCase)) _rtxLuid = bestLuid;
             _vramUse = (best / gb, _vramTotal > 0 ? _vramTotal / gb : 0);
         }
         else _vramUse = null;
 
-        if (_rtxLuid is not { } luid) { _gpuUse = null; return; }
-        double sum = 0; int seen = 0, all = 0;
+        // 2.0.0-beta1.4 (Amine): one pass over the 3D engine instances sums two adapters: the RTX (as before) and, when
+        // IntelGpuUsage() asked for it, the Intel iGPU (by its DXGI LUID). Each sum only takes its own LUID's
+        // instances, so the Intel engines never mix into the NVIDIA value and the other way round.
+        string? intel = _wantIntel ? IntelLuid() : null, rtx = _rtxLuid;   // Intel first: its lookup can clear a wrong _rtxLuid
+        if (rtx is null && intel is null) { _gpuUse = null; _intelUse = null; return; }
+        double sum = 0, isum = 0; int seen = 0, iseen = 0, all = 0;
         bool engOk = ForEachItem(_engines, (name, v) =>
         {
             all++;
             if (_engineAll && !name.Contains("engtype_3D", StringComparison.OrdinalIgnoreCase)) return;
-            if (!name.Contains(luid, StringComparison.OrdinalIgnoreCase)) return;
-            sum += v; seen++;
+            if (intel is not null && name.Contains(intel, StringComparison.OrdinalIgnoreCase)) { isum += v; iseen++; }
+            else if (rtx is not null && name.Contains(rtx, StringComparison.OrdinalIgnoreCase)) { sum += v; seen++; }
         });
         if (engOk && !_engineAll && all == 0 && ++_emptyEngineReads >= 3) AddEngineCounter(all: true);
         else if (all > 0) _emptyEngineReads = 0;
-        _gpuUse = engOk ? (seen > 0 ? Math.Clamp(sum, 0, 100) : 0) : null;
+        _gpuUse = rtx is null ? null : engOk ? (seen > 0 ? Math.Clamp(sum, 0, 100) : 0) : null;
+        if (intel is not null && engOk && all > 0 && iseen == 0 && ++_intelMisses >= 3) { _intelLuid = null; _intelMisses = 0; }   // adapter re-created: look it up again
+        else if (iseen > 0) _intelMisses = 0;
+        _intelUse = intel is null ? null : engOk ? (iseen > 0 ? Math.Clamp(isum, 0, 100) : 0) : null;
+    }
+
+    // ---------- 2.0.0-beta1.4 (Amine): Intel iGPU use, for the GPU USE tile in iGPU only ----------
+
+    private bool _wantIntel;                // set by the first IntelGpuUsage() call
+    private string? _intelLuid;             // "luid_0x..._0x..." of the Intel adapter (DXGI, VendorId 0x8086)
+    private long _intelLookup;              // TickCount64 of the last DXGI lookup (at most every 30 s)
+    private int _intelMisses;
+    private double? _intelUse;
+
+    /// <summary>Intel iGPU 3D engine use, 0..100, summed over its engtype_3D instances (same PDH query and buffer as
+    /// GpuUsage). Null until two samples exist or when no Intel adapter is found. The adapter is found through DXGI
+    /// (CreateDXGIFactory / EnumAdapters / GetDesc, adapter metadata only, no device is created); the caller only asks
+    /// in iGPU only, with the RTX disabled, and GpuUsage() turns the Intel sum off again. Call off the UI thread.</summary>
+    public double? IntelGpuUsage()
+    {
+        try
+        {
+            lock (_pdhLock)
+            {
+                if (!_wantIntel) { _wantIntel = true; _lastCollect = 0; }   // first call in iGPU only: collect again with the Intel sum
+                Collect();
+                return _intelUse;
+            }
+        }
+        catch (Exception ex) { Log.Warn("IntelGpuUsage", ex); return null; }
+    }
+
+    /// <summary>The Intel adapter's LUID string as PDH names it (cached, looked up again at most every 30 s).</summary>
+    private string? IntelLuid()
+    {
+        if (_intelLuid is not null) return _intelLuid;
+        long now = Environment.TickCount64;
+        if (_intelLookup != 0 && now - _intelLookup < 30_000) return null;
+        _intelLookup = now;
+        try { _intelLuid = DxgiAdapterLuid(0x8086); }
+        catch (Exception ex) { Log.Warn("SystemStats.Dxgi", ex); _intelLuid = null; }
+        if (_intelLuid is not null && string.Equals(_intelLuid, _rtxLuid, StringComparison.OrdinalIgnoreCase)) _rtxLuid = null;   // VRAM heuristic picked the Intel
+        return _intelLuid;
+    }
+
+    /// <summary>PDH instance part for an adapter LUID: luid_0x{High:X8}_0x{Low:X8}.</summary>
+    internal static string LuidName(uint low, int high) => $"luid_0x{(uint)high:X8}_0x{low:X8}";
+
+    [DllImport("dxgi.dll")] private static extern int CreateDXGIFactory(ref Guid riid, out IntPtr factory);
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int EnumAdaptersFn(IntPtr self, uint index, out IntPtr adapter);
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int GetDescFn(IntPtr self, IntPtr desc);
+    private static readonly Guid IID_IDXGIFactory = new("7b7166ec-21c7-44ae-b21a-c9ae321ae369");
+    // DXGI_ADAPTER_DESC: WCHAR Description[128] (256) | UINT VendorId @256, DeviceId, SubSysId, Revision |
+    // SIZE_T Dedicated/DedicatedSystem/SharedSystem @272..295 | LUID { DWORD Low @296; LONG High @300 } = 304 bytes
+    private const int DescSize = 304, DescVendor = 256, DescLuidLow = 296, DescLuidHigh = 300;
+
+    /// <summary>LUID (PDH form) of the first DXGI adapter with this PCI vendor id, or null. Vtable slots: IDXGIFactory
+    /// EnumAdapters = 7 (IUnknown 3 + IDXGIObject 4), IDXGIAdapter GetDesc = 8 (IUnknown 3 + IDXGIObject 4 + EnumOutputs).</summary>
+    private static string? DxgiAdapterLuid(uint vendor)
+    {
+        var iid = IID_IDXGIFactory;
+        if (CreateDXGIFactory(ref iid, out IntPtr factory) < 0 || factory == IntPtr.Zero) return null;
+        IntPtr desc = Marshal.AllocHGlobal(DescSize);
+        try
+        {
+            var enumAdapters = Marshal.GetDelegateForFunctionPointer<EnumAdaptersFn>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(factory), 7 * IntPtr.Size));
+            for (uint i = 0; i < 16; i++)
+            {
+                if (enumAdapters(factory, i, out IntPtr adapter) < 0 || adapter == IntPtr.Zero) break;   // DXGI_ERROR_NOT_FOUND ends the list
+                try
+                {
+                    var getDesc = Marshal.GetDelegateForFunctionPointer<GetDescFn>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(adapter), 8 * IntPtr.Size));
+                    if (getDesc(adapter, desc) < 0) continue;
+                    if ((uint)Marshal.ReadInt32(desc, DescVendor) != vendor) continue;
+                    return LuidName((uint)Marshal.ReadInt32(desc, DescLuidLow), Marshal.ReadInt32(desc, DescLuidHigh));
+                }
+                finally { Marshal.Release(adapter); }
+            }
+            return null;
+        }
+        finally { Marshal.FreeHGlobal(desc); Marshal.Release(factory); }
     }
 
     /// <summary>(used GB, total GB) of the discrete GPU's dedicated memory. Call off the UI thread.</summary>
@@ -196,7 +281,7 @@ public sealed class SystemStats : IDisposable
     /// Null until two samples exist or when the RTX isn't known yet. Call off the UI thread.</summary>
     public double? GpuUsage()
     {
-        try { lock (_pdhLock) { Collect(); return _gpuUse; } }
+        try { lock (_pdhLock) { _wantIntel = false; Collect(); return _gpuUse; } }   // 2.0.0-beta1.4: no Intel sum / DXGI outside iGPU only
         catch (Exception ex) { Log.Warn("GpuUsage", ex); return null; }
     }
 
