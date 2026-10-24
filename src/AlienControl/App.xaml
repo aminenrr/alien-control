@@ -1,16 +1,11 @@
 <Application x:Class="AlienControl.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <ResourceDictionary>
-            <!-- The active theme (Themes/Legend.xaml or Themes/Fluent.xaml) is added at runtime by App.ApplyTheme;
-                 only one is loaded at a time. Accent brushes are set at this level by MainWindow.ApplyAccent. -->
-            <ResourceDictionary.MergedDictionaries>
-                <ui:ThemesDictionary Theme="Dark" />
-                <ui:ControlsDictionary />
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
+        <!-- 2.0: the theme (Themes/Legend.xaml, then Themes/Legend2.xaml) is merged in at runtime by App.ApplyTheme, before
+             the window is built. Accent brushes are set at this level by MainWindow.ApplyAccent.
+             2.0.0-beta1.4: no WPF-UI dictionaries any more; every control the app uses has a Legend style. -->
+        <ResourceDictionary />
     </Application.Resources>
 </Application>
