@@ -306,3 +306,14 @@ public class SoundsWav
     [Fact] public void Rejects_float_and_8bit() { Assert.Null(Sounds.ReadWav(Wav(3, 1, 48000, 32, 960))); Assert.Null(Sounds.ReadWav(Wav(1, 1, 48000, 8, 960))); }
     [Fact] public void Rejects_truncated() { var b = Wav(1, 1, 48000, 16, 960); Assert.Null(Sounds.ReadWav(b[..100])); }
 }
+
+/// <summary>2.0.0-beta1.4 (Amine): GPU tiles read the Intel GPU in iGPU only.</summary>
+public class GpuSource
+{
+    // sizes from Intel's igcl_api.h (natural packing, x64): ctl_init_args_t 36 bytes, ctl_temp_properties_t 24 bytes
+    [Fact] public void Igcl_struct_sizes() { Assert.Equal(36, IntelGpuTemp.InitArgsSize); Assert.Equal(24, IntelGpuTemp.TempPropertiesSize); }
+
+    // PDH GPU Engine instance names: pid_X_luid_0x{High:X8}_0x{Low:X8}_phys_0_eng_N_engtype_3D
+    [Fact] public void Luid_matches_pdh_instance_name() =>
+        Assert.Contains(SystemStats.LuidName(0x0000D1A8, 0), "pid_1234_luid_0x00000000_0x0000D1A8_phys_0_eng_0_engtype_3D");
+}
