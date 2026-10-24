@@ -22,6 +22,7 @@ namespace AlienControl;
 public partial class MainWindow
 {
     private readonly FramesSource _frames = new();
+    private readonly VblankCounter _vblank = new();   // ov.7: real (VRR) refresh rate, only while a level shows RR
     private OverlayHost? _overlay;
     private Need _ovNeed;
     private Sensors _ovSnap = new();
@@ -64,7 +65,7 @@ public partial class MainWindow
         };
         SyncOverlayLookUi();
         OvExtraToggle.IsChecked = _settings.OverlayLatencyFg;
-        (_settings.OverlayUpdateMs switch { 250 => OvUpd250, 1000 => OvUpd1000, _ => OvUpd500 }).IsChecked = true;
+        (_settings.OverlaySmoothGraph ? OvUpdLive : _settings.OverlayUpdateMs switch { 250 => OvUpd250, 1000 => OvUpd1000, _ => OvUpd500 }).IsChecked = true;
         // after the constructor: the window's services are ready, and the app may start hidden in the tray
         Dispatcher.BeginInvoke(new Action(ApplyOverlay), DispatcherPriority.Background);
     }
@@ -111,13 +112,14 @@ public partial class MainWindow
 
         // the latency / frame gen toggle: a hard switch, PresentMon collects none of it unless on (and a level 2+ shows it)
         _frames.SetExtended(OverlayLevels.WantsExtended(level, _settings.OverlayLatencyFg));
-        if (level > 0) { if (!_frames.Running) _frames.Start(); }
+        if (level > 0) _frames.Start();   // ov.7: always call, Start cancels a pending debounced stop (F4 off / on within 2 s)
         else _frames.StopSoon();   // ov.4: debounced, F4 spam keeps one PresentMon
 
         _overlay ??= level > 0 ? new OverlayHost(_frames) : null;
         var look = OvLook;
         _overlay?.Apply(level, look.Position, look.Size / 100.0, look.Bg / 100.0, _settings.OverlayUpdateMs,
-            look.X, look.Y, _settings.OverlayLatencyFg);
+            look.X, look.Y, _settings.OverlayLatencyFg, _settings.OverlaySmoothGraph);
+        if (OvNeeds(Need.Refresh)) _vblank.Start(); else _vblank.Stop();
 
         bool extra = OvNeeds(Need.Clocks) || OvNeeds(Need.Cores) || OvNeeds(Need.Battery) || OvNeeds(Need.Refresh);
         if (extra) { if (!_ovExtra.IsEnabled) { _ovExtra.Start(); _ = OverlayExtraTickAsync(); } }
@@ -214,7 +216,8 @@ public partial class MainWindow
                 GpuCoreMhz = gpuOn ? r.gpu.core ?? _ovSnap.GpuCoreMhz : null,
                 GpuMemMhz = gpuOn ? r.gpu.mem ?? _ovSnap.GpuMemMhz : null,
                 Cores = r.cores ?? _ovSnap.Cores,
-                RefreshHz = r.hz ?? _ovSnap.RefreshHz,
+                // ov.7: counted vblanks (what the panel really does under G-Sync), the mode's Hz until / unless that works
+                RefreshHz = (need & Need.Refresh) != 0 ? _vblank.Hz ?? r.hz ?? _ovSnap.RefreshHz : _ovSnap.RefreshHz,
                 BatteryPct = (need & Need.Battery) != 0 && ps.BatteryLifePercent <= 1 ? (int)Math.Round(ps.BatteryLifePercent * 100) : _ovSnap.BatteryPct,
                 OnAc = ps.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online,
                 GpuOff = !gpuOn && _gpu.Kind == GpuModeKind.IGpuOnly,
@@ -391,8 +394,12 @@ public partial class MainWindow
 
     private void OvUpdate_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not RadioButton { Tag: var t } || !int.TryParse(t?.ToString(), out int ms)) return;
-        _settings.OverlayUpdateMs = ms;
+        if (sender is not RadioButton { Tag: var t }) return;
+        // ov.7: LIVE = numbers every 250 ms and the frametime graph redrawn ~30 times a second (smooth like RTSS)
+        bool live = t?.ToString() == "live";
+        if (!live && !int.TryParse(t?.ToString(), out _)) return;
+        _settings.OverlaySmoothGraph = live;
+        _settings.OverlayUpdateMs = live ? 250 : int.Parse(t!.ToString()!);
         _settings.Save();
         ApplyOverlay();
     }
@@ -415,6 +422,7 @@ public partial class MainWindow
     private void StopOverlayOnExit()
     {
         try { _ovExtra.Stop(); _ovPreviewTimer.Stop(); } catch { /* wrong thread on the crash path */ }
+        try { _vblank.Stop(); } catch { /* ignore */ }
         try { _frames.StopAndWait(); } catch (Exception e) { Log.Warn("Overlay exit frames", e); }
         try { _overlay?.Dispose(); } catch (Exception e) { Log.Warn("Overlay exit window", e); }
     }

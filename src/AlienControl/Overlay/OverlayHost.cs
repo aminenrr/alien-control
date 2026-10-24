@@ -29,7 +29,8 @@ public sealed class OverlayHost : IDisposable
     // settings, written from the app thread, read on the overlay thread
     private volatile int _level, _position, _updateMs = 500, _offX, _offY;
     private double _scale = 0.8, _bg = 0.5;
-    private volatile bool _extended;
+    private volatile bool _extended, _smooth;
+    private DispatcherTimer? _graphTimer;
 
     private readonly FramesSource.Frame[] _buf = new FramesSource.Frame[2048];
     private float[] _graph = new float[240];
@@ -41,9 +42,10 @@ public sealed class OverlayHost : IDisposable
     public void Push(Sensors s) => _sensors = s;
 
     /// <summary>Applies level and look. Level 0 hides the window (the thread stays parked, it costs nothing).</summary>
-    public void Apply(int level, int position, double scale, double bg, int updateMs, int offsetX = 0, int offsetY = 0, bool extended = false)
+    public void Apply(int level, int position, double scale, double bg, int updateMs, int offsetX = 0, int offsetY = 0, bool extended = false, bool smooth = false)
     {
         _extended = extended;
+        _smooth = smooth;
         _offX = offsetX; _offY = offsetY;
         _level = level; _position = position; _scale = scale; _bg = bg; _updateMs = Math.Clamp(updateMs, 100, 2000);
         if (level > 0) EnsureThread();
@@ -75,6 +77,9 @@ public sealed class OverlayHost : IDisposable
             _win.SizeChanged += (_, _) => Place();
             _timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(_updateMs) };
             _timer.Tick += (_, _) => Tick();
+            // ov.7: LIVE mode, the graph alone at ~30 Hz between the number updates
+            _graphTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
+            _graphTimer.Tick += (_, _) => GraphTick();
             _ready.Set();
             Dispatcher.Run();
         }
@@ -88,6 +93,7 @@ public sealed class OverlayHost : IDisposable
         if (level <= 0)
         {
             _timer.Stop();
+            _graphTimer?.Stop();
             if (_win.IsVisible) _win.Hide();
             return;
         }
@@ -100,6 +106,20 @@ public sealed class OverlayHost : IDisposable
         if (!_win.IsVisible) _win.Show();
         Place();
         if (!_timer.IsEnabled) _timer.Start();
+        bool graph = _smooth && (_panel.Items & Item.FrameGraph) != 0;
+        if (graph) { if (_graphTimer is { IsEnabled: false }) _graphTimer.Start(); }
+        else _graphTimer?.Stop();
+    }
+
+    /// <summary>LIVE mode: newest frametimes into the graph and a redraw, no new numbers and no re-measure.</summary>
+    private void GraphTick()
+    {
+        if (_panel is null) return;
+        int n = _frames.CopyRecent(_buf);
+        int g = Math.Min(_graph.Length, n);
+        for (int i = 0; i < g; i++) _graph[i] = _buf[n - g + i].Ms;
+        _panel.GraphCount = g;
+        _panel.InvalidateVisual();
     }
 
     private int _topTick;

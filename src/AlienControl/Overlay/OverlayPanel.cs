@@ -398,18 +398,16 @@ public sealed class OverlayPanel : FrameworkElement
     private void DrawGraph(DrawingContext dc, Rect r)
     {
         if (GraphCount < 2) return;
-        // MangoHud scales the graph to the window's min / max; keep a floor so a flat line sits in the middle
-        double min = GraphMin(), max = GraphMax();
-        double span = Math.Max(max - min, 2.0);
-        double mid = (max + min) / 2;
-        double lo = mid - span / 2 - span * 0.1, hi = mid + span / 2 + span * 0.1;
+        // MangoHud's default frame_timing graph: a fixed 0 to 50 ms scale (dynamic_frame_timing is off on SteamOS),
+        // so a steady 17 ms sits flat a third of the way up and only real stutters spike; slower frames clip at the top
+        const double lo = 0, hi = 50;
         var g = new StreamGeometry();
         using (var c = g.Open())
         {
             for (int i = 0; i < GraphCount; i++)
             {
                 double x = r.Left + r.Width * i / (GraphCount - 1);
-                double y = r.Bottom - r.Height * (Graph[i] - lo) / (hi - lo);
+                double y = r.Bottom - r.Height * (Math.Clamp(Graph[i], lo, hi) - lo) / (hi - lo);
                 if (i == 0) c.BeginFigure(new Point(x, y), false, false);
                 else c.LineTo(new Point(x, y), true, false);
             }

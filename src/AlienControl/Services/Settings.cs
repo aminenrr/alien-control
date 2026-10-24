@@ -123,6 +123,8 @@ public sealed class Settings
     public int OverlayBg { get; set; } = 50;
     /// <summary>Update interval in ms: 250, 500 (MangoHud default fps_sampling_period) or 1000.</summary>
     public int OverlayUpdateMs { get; set; } = 500;
+    /// <summary>ov.7: LIVE update: the frametime graph redraws ~30 times a second. Off by default (costs a little CPU in this app).</summary>
+    public bool OverlaySmoothGraph { get; set; } = false;
     /// <summary>Nudge from the chosen spot, in % of the screen: X -50 (left) .. 50 (right), Y -50 (up) .. 50 (down).
     /// The overlay always stays on screen.</summary>
     public int OverlayOffsetX { get; set; } = 0;

@@ -768,11 +768,13 @@
                                 </Grid>
                                 <Grid Height="32">
                                     <TextBlock Text="Update every (ms)" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                    <Border Style="{DynamicResource PillTrack2}" Width="172" Height="26" HorizontalAlignment="Right">
-                                        <UniformGrid Columns="3">
+                                    <Border Style="{DynamicResource PillTrack2}" Width="224" Height="26" HorizontalAlignment="Right">
+                                        <UniformGrid Columns="4">
                                             <RadioButton x:Name="OvUpd250" GroupName="OvUpdate" Content="250" Tag="250" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click" />
                                             <RadioButton x:Name="OvUpd500" GroupName="OvUpdate" Content="500" Tag="500" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click" />
                                             <RadioButton x:Name="OvUpd1000" GroupName="OvUpdate" Content="1000" Tag="1000" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click" />
+                                            <RadioButton x:Name="OvUpdLive" GroupName="OvUpdate" Content="LIVE" Tag="live" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click"
+                                                         ToolTip="Numbers every 250 ms and a smooth frametime graph (~30 redraws a second, a little more CPU in this app, none in the game)" />
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
