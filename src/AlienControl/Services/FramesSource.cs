@@ -43,6 +43,7 @@ public sealed class FramesSource : IDisposable
     private int _targetPid;
     private string _targetApp = "";
     private string _runtime = "";
+    private string _presentMode = "";
     private long _lastFgCheck;
     private IntPtr _job;
 
@@ -85,6 +86,9 @@ public sealed class FramesSource : IDisposable
     public int TargetPid { get { lock (_lock) return _targetPid; } }
     /// <summary>PresentMon's PresentRuntime for the target (DXGI, D3D9, Other). The overlay maps it to an engine label.</summary>
     public string Runtime { get { lock (_lock) return _runtime; } }
+    /// <summary>ov.6: PresentMon's PresentMode for the target ("Hardware: Independent Flip", "Composed: Flip", ...). Only
+    /// filled with display tracking (the latency and frame gen toggle); empty otherwise.</summary>
+    public string PresentMode { get { lock (_lock) return _presentMode; } }
 
     private readonly object _life = new();
 
@@ -117,7 +121,7 @@ public sealed class FramesSource : IDisposable
             _proc = p;
             _running = true;
             _startedAt = Stopwatch.GetTimestamp();
-            lock (_lock) { _head = 0; _count = 0; _targetPid = 0; _targetApp = ""; _runtime = ""; }
+            lock (_lock) { _head = 0; _count = 0; _targetPid = 0; _targetApp = ""; _runtime = ""; _presentMode = ""; }
             _reader = new Thread(() => ReadLoop(p)) { IsBackground = true, Name = "PresentMon reader", Priority = ThreadPriority.BelowNormal };
             _reader.Start();
             Log.Info("Frames", (Extended ? $"PresentMon started (latency and frame gen, tier {_tier})" : "PresentMon started")
@@ -146,7 +150,7 @@ public sealed class FramesSource : IDisposable
         _running = false;
         var p = _proc;
         _proc = null;
-        lock (_lock) { _count = 0; _targetPid = 0; _targetApp = ""; _runtime = ""; }
+        lock (_lock) { _count = 0; _targetPid = 0; _targetApp = ""; _runtime = ""; _presentMode = ""; }
         if (p is not null)
         {
             var t = System.Threading.Tasks.Task.Run(() => Shutdown(p));
@@ -238,7 +242,7 @@ public sealed class FramesSource : IDisposable
     // ---------- CSV ----------
 
     private int _colApp = -1, _colPid = -1, _colRuntime = -1, _colMs = -1, _colT = -1;
-    private int _colType = -1, _colPcLat = -1, _colDispLat = -1;
+    private int _colType = -1, _colPcLat = -1, _colDispLat = -1, _colMode = -1;
 
     /// <summary>Reads the header once, then one frame per line. Lines that don't belong to the foreground process are dropped.</summary>
     private void ReadLoop(Process p)
@@ -297,7 +301,7 @@ public sealed class FramesSource : IDisposable
     {
         var cols = line.Split(',');
         _colApp = _colPid = _colRuntime = _colMs = _colT = -1;
-        _colType = _colPcLat = _colDispLat = -1;
+        _colType = _colPcLat = _colDispLat = _colMode = -1;
         for (int i = 0; i < cols.Length; i++)
         {
             var c = cols[i].Trim();
@@ -308,6 +312,7 @@ public sealed class FramesSource : IDisposable
             else if (_colMs < 0 && c.Equals("FrameTime", StringComparison.OrdinalIgnoreCase)) _colMs = i;
             else if (c.Equals("CPUStartTime", StringComparison.OrdinalIgnoreCase) || c.Equals("TimeInSeconds", StringComparison.OrdinalIgnoreCase)) _colT = i;
             else if (c.Equals("FrameType", StringComparison.OrdinalIgnoreCase)) _colType = i;
+            else if (c.Equals("PresentMode", StringComparison.OrdinalIgnoreCase)) _colMode = i;
             else if (c.Equals("MsPCLatency", StringComparison.OrdinalIgnoreCase)) _colPcLat = i;
             else if (c.Equals("DisplayLatency", StringComparison.OrdinalIgnoreCase) || c.Equals("MsDisplayLatency", StringComparison.OrdinalIgnoreCase)) _colDispLat = i;
         }
@@ -343,6 +348,7 @@ public sealed class FramesSource : IDisposable
                 _runtime = _colRuntime >= 0 && _colRuntime < cols.Length ? cols[_colRuntime] : "";
                 _count = 0;
             }
+            if (_colMode >= 0 && _colMode < cols.Length && !gen) _presentMode = cols[_colMode];   // the game's own frames
             if (double.IsNaN(t)) t = (_count > 0 ? _ring[(_head - 1 + _ring.Length) % _ring.Length].T : 0) + ms / 1000.0;
             _ring[_head] = new Frame(now, t, ms, gen, lat, pcLat);
             _head = (_head + 1) % _ring.Length;

@@ -16,6 +16,8 @@ public enum Item
     FrameGen = 1 << 19, Latency = 1 << 20,
     /// <summary>ov.5 (Amine): 1 % low fps (levels 1, 3, 4) and 0.1 % low fps (level 4). From the frames already read, no new source.</summary>
     Low1 = 1 << 21, Low01 = 1 << 22,
+    /// <summary>ov.6: flip mode (independent vs composed), level 4 with the latency toggle only (needs display tracking).</summary>
+    PresentMode = 1 << 23,
 }
 
 /// <summary>What the sensor side must read for a level. Only these run; level 1 reads frames only.</summary>
@@ -58,7 +60,7 @@ public static class OverlayLevels
 
     /// <summary>Items with the latency and frame gen toggle: it adds FrameGen + Latency on levels 2 to 4, never on level 1.</summary>
     public static Item Items(int level, bool extended) =>
-        extended && level >= 2 ? Items(level) | Item.FrameGen | Item.Latency : Items(level);
+        extended && level >= 2 ? Items(level) | Item.FrameGen | Item.Latency | (level == 4 ? Item.PresentMode : Item.None) : Items(level);
 
     /// <summary>Does PresentMon need the extended tracking? Only when the toggle is on and the level shows it.</summary>
     public static bool WantsExtended(int level, bool toggle) => toggle && level >= 2;

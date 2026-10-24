@@ -57,6 +57,21 @@ public sealed class OverlayPanel : FrameworkElement
     /// <summary>1 % low fps and max frametime over the graph window (level 4).</summary>
     public double Low1 { get; set; }
     public double Low01 { get; set; }
+    /// <summary>ov.6: PresentMon's PresentMode string, empty when unknown.</summary>
+    public string PresentMode { get; set; } = "";
+
+    /// <summary>Short label for PresentMon's PresentMode. Independent flip is what G-Sync / VRR wants; composed means
+    /// DWM is compositing the game (about a frame more latency, VRR may drop).</summary>
+    internal static string ModeLabel(string m) => m.Trim() switch
+    {
+        "Hardware: Independent Flip" => "IFLIP",
+        "Hardware Composed: Independent Flip" => "IFLIP MPO",
+        "Hardware: Legacy Flip" => "FULLSCREEN",
+        "Hardware: Legacy Copy to front buffer" => "FS COPY",
+        "Composed: Flip" => "COMPOSED",
+        "Composed: Copy with GPU GDI" or "Composed: Copy with CPU GDI" => "COMPOSED COPY",
+        _ => "--",
+    };
     public double MaxMs { get; set; }
 
     private double Fs => 24 * Scale;            // MangoHud font_size 24
@@ -136,6 +151,7 @@ public sealed class OverlayPanel : FrameworkElement
             rows.Add(new(string.IsNullOrEmpty(Engine) ? "FPS" : Engine, EngineC, c.ToArray()));
         }
         if ((it & Item.Latency) != 0) rows.Add(new(LatLabel, DimC, new[] { new Cell(LatValue, "ms") }));
+        if ((it & Item.PresentMode) != 0) rows.Add(new("MODE", DimC, new[] { new Cell(ModeLabel(PresentMode), "") }));
         // ov.5: lows as normal rows, so they line up with the columns above
         if ((it & Item.Low1) != 0)
         {

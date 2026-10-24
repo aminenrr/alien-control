@@ -98,7 +98,7 @@ public partial class MainWindow
         1 => "FPS and 1% low.",
         2 => "FPS, frametime and graph, CPU and GPU load and watts, RAM, VRAM, battery, refresh rate.",
         3 => "GPU load, temp, watts, core and memory clock. CPU load, temp, watts, clock. VRAM, RAM, battery, engine, FPS, 1% low, frametime graph.",
-        4 => "Level 3 plus every core (P and E) with its threads' load and real clock, fan RPM, refresh rate, 0.1% low and max frametime.",
+        4 => "Level 3 plus every core (P and E) with its threads' load and real clock, fan RPM, refresh rate, 0.1% low and max frametime. With Latency and frame gen on: flip mode (IFLIP or COMPOSED).",
         _ => "Nothing runs: PresentMon is stopped and no sensor is read for the overlay.",
     };
 
@@ -290,6 +290,7 @@ public partial class MainWindow
         OvPreview.GraphCount = _previewGraph.Length;
         OvPreview.Low1 = 98;
         OvPreview.Low01 = 71;
+        OvPreview.PresentMode = "Hardware: Independent Flip";
         OvPreview.MaxMs = 12.4;
         OvPreview.InvalidateMeasure();
         OvPreview.InvalidateVisual();

@@ -124,6 +124,11 @@ public class OverlayTests
         Assert.True(OverlayLevels.Items(2, true).HasFlag(Item.FrameGen));
         Assert.False(OverlayLevels.Items(3, false).HasFlag(Item.Latency));
         Assert.False(OverlayLevels.WantsExtended(1, true));
+        Assert.True(OverlayLevels.Items(4, true).HasFlag(Item.PresentMode));    // ov.6: level 4 + toggle only
+        Assert.False(OverlayLevels.Items(4, false).HasFlag(Item.PresentMode));
+        Assert.False(OverlayLevels.Items(3, true).HasFlag(Item.PresentMode));
+        Assert.Equal("IFLIP", OverlayPanel.ModeLabel("Hardware: Independent Flip"));
+        Assert.Equal("COMPOSED", OverlayPanel.ModeLabel("Composed: Flip"));
         Assert.False(OverlayLevels.WantsExtended(4, false));
         Assert.True(OverlayLevels.WantsExtended(2, true));
     }

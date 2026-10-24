@@ -139,6 +139,7 @@ public sealed class OverlayHost : IDisposable
         p.Low01 = low01;
         p.MaxMs = g > 0 ? Lows(span[(n - g)..]).MaxMs : 0;
         p.Engine = EngineLabel(frames);
+        p.PresentMode = frames.PresentMode;
     }
 
     [ThreadStatic] private static float[]? _lowScratch;
