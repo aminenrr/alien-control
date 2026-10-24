@@ -27,6 +27,7 @@ public partial class MainWindow
 
     private GpuMode.State _gpu = new(GpuModeKind.Unknown, false, null);
     private bool _gpuBusy, _gpuDisplayHooked, _rtxSwitching;
+    private bool _gpuSourceUnsure;   // 2.0.0-beta1.4 (Amine): RTX turned back on, mode not re-read yet (GPU tile chips hidden)
 
     private Task RefreshGpuHintAsync() => RefreshGpuAsync(withBios: true);
 
@@ -59,6 +60,7 @@ public partial class MainWindow
             if (prev.Kind == GpuModeKind.Ultimate) st = st with { Kind = GpuModeKind.Ultimate, Auto = false };
         }
         _gpu = st;
+        _gpuSourceUnsure = false;   // 2.0.0-beta1.4 (Amine): the mode is known again, the GPU tiles' chips can show
         ShowGpuState();
         if (prev.Kind != st.Kind) UpdateOcUi();   // 2.0.0-beta1.4 (bug B): grey / restore the OC card with the RTX
         if (!_gpuDisplayHooked)
@@ -133,6 +135,7 @@ public partial class MainWindow
         if (_gpu.PendingRestart)
             hint = _gpu.BiosUltimate == true ? "ULTIMATE AFTER RESTART" : "ADV. OPTIMUS AFTER RESTART";
         GpuHint.Text = hint;
+        UpdateGpuSourceTags();   // 2.0.0-beta1.4 (Amine): INTEL / NVIDIA chips on the GPU tiles
     }
 
     private bool _gpuNoteSticky;   // the green RTX-off note
@@ -236,6 +239,7 @@ public partial class MainWindow
         // already in flight, closes the shared session and refuses NVML calls until pnputil has exited.
         _rtxSwitching = true;
         UpdateOcUi();   // 2.0.0-beta1.4 (bug B): the OC card greys while the RTX switches
+        UpdateGpuSourceTags();   // 2.0.0-beta1.4 (Amine): chips hidden while switching
         _powerTimer.Stop();
         await Task.Run(() => { _power.GpuOff = true; NvmlSession.BeginDeviceRemoval(); });
         string? err;
@@ -244,6 +248,7 @@ public partial class MainWindow
         if (err is not null) _power.GpuOff = false;
         else _gpu = _gpu with { Kind = GpuModeKind.IGpuOnly };   // 2.0.0-beta1.3: OC syncs skip NVML until the re-read lands
         UpdateOcUi();   // 2.0.0-beta1.4 (bug B): OC card greyed, Home OC line hidden
+        UpdateGpuSourceTags();   // 2.0.0-beta1.4 (Amine): INTEL chip
         UpdatePolling();   // 2.0.0-beta1.3 (ui review #14): only when a sensor page is on screen (was IsVisible)
         _ocApplied = null;   // the driver forgets the offsets with the device
         Status(err ?? "RTX is off. Click Advanced Optimus to turn it back on.");
@@ -254,7 +259,9 @@ public partial class MainWindow
     {
         Status("Turning the RTX back on...");
         _rtxSwitching = true;
+        _gpuSourceUnsure = true;   // 2.0.0-beta1.4 (Amine): which GPU the tiles read is unknown until the mode is re-read
         UpdateOcUi();   // 2.0.0-beta1.4 (bug B)
+        UpdateGpuSourceTags();
         await Task.Run(NvmlSession.BeginDeviceRemoval);   // 2.0.0-beta1.3: no NVML call while the device comes back
         string? err;
         try { err = await GpuMode.SetDgpuEnabledAsync(true); }
@@ -262,6 +269,7 @@ public partial class MainWindow
         if (err is not null)
         {
             Status(err);
+            _ = RefreshGpuAsync(withBios: false);   // 2.0.0-beta1.4 (Amine): re-read the mode (clears the chips' hold)
             // 2.0.0-beta1.4: a pnputil that timed out may still bring the RTX back: then do the tray restart too
             _ = Task.Run(async () =>
             {
