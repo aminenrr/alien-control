@@ -3,6 +3,17 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta1.6 (2026-10-24, prerelease)
+Updating takes over from the running copy (Amine). Untested on the laptop.
+- **Newer copy takes over** (Amine: beta1.5 started while beta1.4 sat in the tray only woke beta1.4, so the Program
+  Files copy stayed on beta1.4). In `App.OnStartup`, a second copy whose version is newer than the running one
+  (`RunningIsOlder`: the other process's exe ProductVersion vs this InformationalVersion, `Startup.CompareVersions`)
+  sets `Local\AlienControls.Quit` and waits up to 15 s for the single-instance mutex. The running copy's `HandOver`
+  does Quit's cleanup without the iGPU prompt, releases the mutex and exits. Older copies don't listen: the wait times
+  out and the new copy wakes them and exits as before.
+- `Startup.TryGetXml` treats `FileNotFoundException` (late-bound COM "task not found") as not found instead of
+  logging a warning at every start.
+
 ## v2.0.0-beta1.5 (2026-10-24, prerelease)
 Fix for beta1.4's startup copy, found by Amine on the laptop. Untested on the laptop.
 - **Startup copy missed the CLIs** (Amine): `Startup.AppFiles` only took the alienfx-tools CLIs from `tools\`. With

@@ -469,6 +469,7 @@ public static class Startup
         xml = "";
         try { dynamic task = Folder().GetTask("\\" + name); xml = (string)task.Xml; return true; }
         catch (COMException) { return false; }   // not found (0x80070002) or no access
+        catch (FileNotFoundException) { return false; }   // 2.0.0-beta1.6: late-bound COM maps "not found" to this (logged at every start)
         catch (Exception ex) { Log.Warn("Startup.GetTask", ex); return false; }
     }
 

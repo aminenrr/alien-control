@@ -17,6 +17,7 @@ public partial class App : Application
     private Icon? _baseIcon;
     private System.Threading.Mutex? _single;
     private System.Threading.EventWaitHandle? _showEvent;
+    private System.Threading.EventWaitHandle? _quitEvent;   // 2.0.0-beta1.6: a newer copy asks this one to hand over
     private IntPtr _tintHandle;
     private WinForms.ContextMenuStrip? _menu;
     private Font? _menuFont;
@@ -50,7 +51,18 @@ public partial class App : Application
         {
             // Reset settings starts a new copy while the old one is exiting: wait for it to let go.
             bool restarted = e.Args.Contains("--restarted", StringComparer.OrdinalIgnoreCase);
-            try { first = restarted && _single.WaitOne(8000); } catch (System.Threading.AbandonedMutexException) { first = true; }
+            // 2.0.0-beta1.6 (Amine: starting beta1.5 while beta1.4 sat in the tray only woke beta1.4, so the update and
+            // the Program Files copy never ran): a newer version asks the running one to quit cleanly and takes over.
+            // Copies before beta1.6 don't listen, so the wait times out and this one exits as before.
+            bool takeover = !restarted && RunningIsOlder();
+            if (takeover)
+            {
+                using var quit = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, @"Local\AlienControls.Quit");
+                quit.Set();
+            }
+            try { first = (restarted || takeover) && _single.WaitOne(takeover ? 15000 : 8000); }
+            catch (System.Threading.AbandonedMutexException) { first = true; }
+            if (takeover) Log.Info("Startup", first ? "took over from an older running copy" : "older running copy didn't hand over");
             if (!first)
             {
                 if (!e.Args.Contains("--tray", StringComparer.OrdinalIgnoreCase)) _showEvent.Set();
@@ -58,6 +70,9 @@ public partial class App : Application
                 return;
             }
         }
+        _quitEvent = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, @"Local\AlienControls.Quit");
+        System.Threading.ThreadPool.RegisterWaitForSingleObject(_quitEvent, (_, _) =>
+            Dispatcher.BeginInvoke(new Action(() => HandOver())), null, -1, true);
         System.Threading.ThreadPool.RegisterWaitForSingleObject(_showEvent, (_, _) =>
             Dispatcher.BeginInvoke(new Action(() => ShowMain())), null, -1, false);   // kernel wait, no polling
 
@@ -343,6 +358,46 @@ public partial class App : Application
         if (_tintHandle != IntPtr.Zero) DestroyIcon(_tintHandle);
         _window?.AllowClose();
         Shutdown();
+    }
+
+    /// <summary>2.0.0-beta1.6: a newer copy started and asked for the hand over. Same cleanup as Quit, without the iGPU
+    /// prompt (nobody is there to answer it); the mutex goes with the process and the new copy carries on.</summary>
+    private async void HandOver()
+    {
+        if (_quitting) return;
+        _quitting = true;
+        Log.Info("Startup", "a newer copy started: handing over");
+        try { if (_window is not null) await _window.PrepareExitAsync(promptIgpu: false); }
+        catch (Exception ex) { Log.Warn("PrepareExit", ex); }
+        if (_tray is not null) { _tray.Visible = false; _tray.Dispose(); _tray = null; }
+        if (_tintHandle != IntPtr.Zero) { DestroyIcon(_tintHandle); _tintHandle = IntPtr.Zero; }
+        _window?.AllowClose();
+        try { _single?.ReleaseMutex(); } catch (Exception ex) { Log.Warn("HandOver mutex", ex); }
+        Shutdown();
+    }
+
+    /// <summary>2.0.0-beta1.6: true when another AlienControl process runs an older version than this exe.</summary>
+    private static bool RunningIsOlder()
+    {
+        try
+        {
+            var me = System.Diagnostics.Process.GetCurrentProcess();
+            string? mine = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(App).Assembly)?.InformationalVersion;
+            foreach (var p in System.Diagnostics.Process.GetProcessesByName(me.ProcessName))
+            {
+                using (p)
+                {
+                    if (p.Id == me.Id || p.SessionId != me.SessionId) continue;
+                    string? exe;
+                    try { exe = p.MainModule?.FileName; } catch { continue; }
+                    if (exe is null) continue;
+                    var theirs = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe).ProductVersion;
+                    if (AlienControl.Services.Startup.CompareVersions(mine, theirs) > 0) return true;
+                }
+            }
+        }
+        catch (Exception ex) { Log.Warn("Startup.RunningIsOlder", ex); }
+        return false;
     }
 
     /// <summary>v0.9.15 Reset settings: clean exit (OC +0, boost restored), delete settings.json, start again with the window open.
