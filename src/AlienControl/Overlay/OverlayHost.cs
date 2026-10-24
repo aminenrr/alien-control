@@ -35,6 +35,7 @@ public sealed class OverlayHost : IDisposable
 
     private readonly FramesSource.Frame[] _buf = new FramesSource.Frame[2048];
     private float[] _graph = new float[240];
+    private readonly FramesSource.Playhead _play = new();
 
     public OverlayHost(FramesSource frames) { _frames = frames; }
 
@@ -151,7 +152,8 @@ public sealed class OverlayHost : IDisposable
         if (!_win.IsVisible) _win.Show();
         Place();
         if (!_timer.IsEnabled) _timer.Start();
-        bool graph = _smooth && (_panel.Items & Item.FrameGraph) != 0;
+        // ov.14: the graph always scrolls at ~30 Hz when it's shown (was LIVE only); numbers keep the chosen period
+        bool graph = (_panel.Items & Item.FrameGraph) != 0;
         if (graph) { if (_graphTimer is { IsEnabled: false }) _graphTimer.Start(); }
         else _graphTimer?.Stop();
     }
@@ -161,6 +163,7 @@ public sealed class OverlayHost : IDisposable
     {
         if (_panel is null) return;
         int n = _frames.CopyRecent(_buf);
+        n = _play.Visible(new ReadOnlySpan<FramesSource.Frame>(_buf, 0, n), System.Diagnostics.Stopwatch.GetTimestamp());
         int g = Math.Min(_graph.Length, n);
         for (int i = 0; i < g; i++) _graph[i] = _buf[n - g + i].Ms;
         _panel.GraphCount = g;
@@ -173,6 +176,7 @@ public sealed class OverlayHost : IDisposable
     {
         if (_panel is null || _win is null) return;
         Fill(_panel, _frames, _buf, ref _graph, _updateMs);
+        if (_graphTimer is { IsEnabled: true }) GraphTick();   // keep the played-back graph, not the newest burst
         _panel.Data = _sensors;
         _panel.InvalidateMeasure();
         _panel.InvalidateVisual();
@@ -187,7 +191,8 @@ public sealed class OverlayHost : IDisposable
         int n = frames.CopyRecent(buf);
         var span = new ReadOnlySpan<FramesSource.Frame>(buf, 0, n);
         long now = System.Diagnostics.Stopwatch.GetTimestamp();
-        long window = System.Diagnostics.Stopwatch.Frequency * Math.Max(updateMs, 250) / 1000;
+        // ov.14: fps over the last 250 ms whatever the update period, so the number follows the game quicker
+        long window = System.Diagnostics.Stopwatch.Frequency / 4;
         var st = FramesSource.StatsOver(span, now, window);
         p.Fps = st.Fps;                       // real fps: the game's own frames (= all frames without frame gen)
         p.GenFps = st.GenFps;

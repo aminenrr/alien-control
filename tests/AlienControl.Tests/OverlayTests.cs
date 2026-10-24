@@ -276,4 +276,24 @@ public class OverlayTests
         Assert.Equal(4, OverlayLook.StepOffset(3, 1, false));
         Assert.Equal(-50, OverlayLook.StepOffset(-45, -1, true));
     }
+
+    [Fact]
+    public void Playhead_plays_a_burst_back_one_frame_at_a_time()
+    {
+        long f = Stopwatch.Frequency;
+        var ph = new FramesSource.Playhead();
+        // 60 fps; frames 0..59 arrive on time, then 60..119 all land in one burst 1 s late
+        var fr = new FramesSource.Frame[120];
+        for (int i = 0; i < 120; i++)
+        {
+            double t = 10 + i / 60.0;
+            long arrive = (long)((i < 60 ? t : 10 + 119 / 60.0) * f);
+            fr[i] = new FramesSource.Frame(arrive, t, 16.7f);
+        }
+        long now = fr[119].Ticks;
+        int a = ph.Visible(fr, now);
+        int b = ph.Visible(fr, now + f / 10);
+        Assert.True(a < 120);          // the burst isn't dumped at once
+        Assert.True(b > a && b - a <= 8); // about 6 frames per 100 ms at 60 fps
+    }
 }

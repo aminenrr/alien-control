@@ -491,7 +491,8 @@ public sealed class FramesSource : IDisposable
     public static (double Fps, double AvgMs) FpsOver(ReadOnlySpan<Frame> frames, long nowTicks, long windowTicks)
     {
         if (frames.Length == 0) return (0, 0);
-        if (nowTicks - frames[^1].Ticks > Stopwatch.Frequency) return (0, 0);
+        // ov.14: 1.5 s, PresentMon hands frames over in ETW bursts (up to ~1 s apart), so 1 s flickered to 0
+        if (nowTicks - frames[^1].Ticks > Stopwatch.Frequency * 3 / 2) return (0, 0);
         double window = windowTicks / (double)Stopwatch.Frequency, last = frames[^1].T;
         double sum = 0; int n = 0;
         for (int i = frames.Length - 1; i >= 0; i--)
@@ -525,6 +526,32 @@ public sealed class FramesSource : IDisposable
         // Reflex PC latency wins when the game sends it; otherwise PresentMon's display latency
         double lat = pcN > 0 ? pcSum / pcN : latN > 0 ? latSum / latN : double.NaN;
         return new Stats(fps - genFps, genFps, avg, lat, pcN > 0);
+    }
+
+    /// <summary>ov.14: smooth graph playback. PresentMon delivers frames in bursts (ETW buffers), so drawing the newest
+    /// frames made the graph jump a chunk at a time. This maps PresentMon's clock onto ours (smallest arrival delay seen)
+    /// and plays the frames back a burst behind, so the graph scrolls one frame at a time at the game's own pace.</summary>
+    public sealed class Playhead
+    {
+        private double _delay = 0.1;
+        /// <summary>How many of frames (oldest first) are due to be shown at nowTicks.</summary>
+        public int Visible(ReadOnlySpan<Frame> frames, long nowTicks)
+        {
+            int n = frames.Length;
+            if (n == 0) return 0;
+            double f = Stopwatch.Frequency;
+            double off = double.MaxValue, worst = 0;
+            int from = Math.Max(0, n - 512);
+            for (int i = from; i < n; i++) off = Math.Min(off, frames[i].Ticks / f - frames[i].T);
+            for (int i = from; i < n; i++) worst = Math.Max(worst, frames[i].Ticks / f - frames[i].T - off);
+            worst = Math.Min(worst, 1.2) + 0.02;
+            // grow at once on a bigger burst, shrink slowly so the scroll speed doesn't wobble
+            _delay = worst > _delay ? worst : _delay + (worst - _delay) * 0.02;
+            double play = nowTicks / f - off - _delay;
+            int k = n;
+            while (k > 0 && frames[k - 1].T > play) k--;
+            return k;
+        }
     }
 
     // ---------- job object: PresentMon dies with us ----------
