@@ -4,7 +4,7 @@ Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Unt
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
 ## v2.0.0-beta1.4 (2026-10-23, prerelease)
-Settings save fix, Tier 2 (performance) and Tier 3 (cleanup) from the 2.0 code review, and five visual changes
+Settings save fix, Tier 2 (performance) and Tier 3 (cleanup) from the 2.0 code review, and six visual changes
 (Amine's calls). Untested on the laptop.
 - Run on startup now runs a copy in Program Files, so other programs can't swap the file that starts as admin at logon.
   Turning it on copies the exe, `tools\` (alienfx-tools CLIs), LICENSE and README to `%ProgramFiles%\AlienControl`
@@ -58,6 +58,18 @@ Settings save fix, Tier 2 (performance) and Tier 3 (cleanup) from the 2.0 code r
   (`AccentSelBg` / `AccentPillBg`; zone tiles use their own colour; white gives a weaker grey; Rainbow and Spectrum use
   cyan fills); keyboard-only focus ring; the window scales down when the work area is shorter than 848 DIP; Legend
   tooltips (UI font, normal case, wrap at 320).
+- **GPU tiles show which GPU they read** (Amine, mockup `docs/mockups/2.0-beta1.4/6-gpu-source.png`): a small accent
+  chip (`GpuSourceChip2`: mono semibold, 1 px `AccentBrush` border on `AccentPillBg`, 3 px corners) next to the Home
+  GPU and GPU USE labels and the Tuning strip's GPU reads INTEL in iGPU only and NVIDIA in Advanced Optimus / Ultimate,
+  with a tooltip and AutomationProperties.Name, hidden while the mode is unknown or the RTX is switching. In iGPU only
+  GPU USE now shows the Intel GPU's 3D engine use (was "Off"): `SystemStats.IntelGpuUsage()` sums the same PDH
+  `GPU Engine(*engtype_3D)` query, filtered to the Intel adapter's LUID (DXGI `EnumAdapters`, VendorId 0x8086, looked
+  up only in iGPU only); the RTX sum keeps its own LUID and never adopts the Intel one. The GPU temp in iGPU only is the
+  Intel GPU through Intel IGCL (`Services/IntelGpuTemp.cs`: ControlLib.dll from System32, ctlInit with Level Zero,
+  GPU-type temperature sensor, the device max as a second choice) instead of the AWCC board sensor by the RTX; any
+  IGCL failure or a missing sensor disables it for the session and the tile shows the CPU package temperature (same
+  die). crash.log gets one `iGPU temp: IGCL` or `iGPU temp: CPU package (...)` line. Bars and colours unchanged. New
+  tests: IGCL struct sizes (36 / 24 bytes), PDH LUID name format.
 
 ## v2.0.0-beta1.3 (2026-10-23, prerelease)
 Tier 1 fixes from the 2.0 code review (services + UI). Untested on the laptop.
