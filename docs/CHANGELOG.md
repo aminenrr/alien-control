@@ -3,6 +3,62 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta1.4 (2026-10-23, prerelease)
+Settings save fix, Tier 2 (performance) and Tier 3 (cleanup) from the 2.0 code review, and five visual changes
+(Amine's calls). Untested on the laptop.
+- Run on startup now runs a copy in Program Files, so other programs can't swap the file that starts as admin at logon.
+  Turning it on copies the exe, `tools\` (alienfx-tools CLIs), LICENSE and README to `%ProgramFiles%\AlienControl`
+  (protected ACL: SYSTEM and Administrators full, Users read; every file owned by Administrators) and points the task
+  there. `Startup.IsAdminOnly` checks the folder, `tools\`, the exe and the parent folders; the task is only ever
+  registered or repointed (`NeedsRebuild`) to a path that passes. On start, an older task pointing at a user-writable
+  folder is moved to Program Files, or deleted with the toggle off and a status line if that fails; a newer version run
+  from elsewhere updates the copy (staged `*.new`, swapped, a file in use renamed to `*.old`). The task is registered
+  through the Task Scheduler COM API (late-bound `Schedule.Service`, XML as a string): the `%TEMP%` XML file and the
+  beta1.3 pin / read-back code are gone. Turning it off deletes the task and removes the Program Files copy (Amine);
+  when that copy is the one running, its files go at the next reboot (MoveFileEx) or on the next start from elsewhere.
+  `%AppData%\AlienControl` is never touched.
+- Removed the Log frame gaps debug option. (Settings > Advanced row, the `FrameLog` key, which is now dropped from old
+  settings.json files on load, and `WindowSlide.LogFrames` with its per-slide crash.log lines; Reset settings is the
+  first Advanced row and the freed height is spread over the tab, Amine.)
+- **NVIDIA tray icon after iGPU only** (Amine): going back to Advanced Optimus left NVIDIA's display mode icon gone
+  until a reboot (1.3.x brought it back). Regression from beta1.3: `net stop NVDisplay.ContainerLocalSystem` ran with a
+  60 s kill, then `net start` right away, so a slow stop was killed and the start hit a service still stopping. It was
+  also skipped whenever any nvcontainer process was in the session. Now the app waits for the RTX to report OK, always
+  stops the service through the service manager, waits until it is stopped, starts it, waits until it runs, logs the
+  outcome (`NvidiaTray` in crash.log), and does all of it on a pool thread outside the command gate. A pnputil that
+  timed out but finished later still gets the restart.
+- **GPU overclock while the RTX is off** (Amine): in iGPU only (or with no NVML) the Tuning OC card is greyed
+  (sliders, Reset, Apply, G-MODE / + PERF), shows RTX IS OFF / OC in Advanced Optimus, and no OC write is attempted
+  (startup +0, Reset, quit included). Home's G-Mode line reads "GPU overclock off while the RTX is off" and toasts show
+  no OC tag. Everything comes back with the RTX, and the kept offsets are re-applied in G-Mode.
+- **Settings save**: settings.json is read with shared access and closed at once. Saves clear read-only flags, retry
+  File.Replace (about 200 ms), then copy over the file; if that fails too the newest settings are kept and written by
+  the next save, a 2 s retry timer or on quit (`Settings.FlushPending`). One warning per failure streak in crash.log
+  (Amine's log had ~28 lost saves in 6 minutes). A torn file is moved aside as `settings.json.corrupt`. Unknown keys are
+  kept (`[JsonExtensionData]`), one shared `JsonSerializerOptions`.
+- **Performance (Tier 2)**: one PDH GPU query (utilisation + VRAM) read off the UI thread, Home reads off the UI thread;
+  presets use powrprof in-process instead of 5 powercfg.exe runs; one getgmode at startup shared by lighting and OC;
+  the GPU WMI query (Win32_PnPEntity) only on Tuning, at most every 10 s; the NVML session closes on battery, hidden and
+  minimized; the light animation reuses its buffers (no per-frame dictionary or per-key arrays); accent and profile
+  changes return early when nothing changed.
+- **Packages**: WPF-UI and System.Diagnostics.PerformanceCounter removed. ToolTip, TextBox and ScrollBar have Legend
+  styles. Published exe 11.6 MB to 3.7 MB, zip about 5.0 MB to 2.3 MB (measured on a Linux cross-publish).
+- **Cleanup (Tier 3)**: dead code removed (20 s F7 probe, `GpuMode.Report`, Fluent theme branches, compact-mode
+  leftovers, DellBios password / Express charge and related unused calls, F2 key overrides); 69 dead theme keys pruned;
+  MainWindow.xaml.cs split into partials (Gpu, Modes, Sensors, Window added to the existing ones); hint text contrast
+  #76828E (4.86:1); icon-only buttons have AutomationProperties.Name; an exception in a UI handler is logged and shown
+  in the status line instead of closing the app; HID re-search backs off 1.5 s after a failed search; slider keys
+  commit.
+- **Build**: Dependabot config, CI NuGet cache and concurrency (newer push cancels the old run), `dev/check_xaml_keys.py`
+  replaces the PowerShell key check; release.yml checks the tag against InformationalVersion and the release notes
+  before building, and ships LICENSE in the zip. New tests (ThemeAndReleaseTests.cs): theme keys load and resolve,
+  no dashes in UI text, swatches match the colour they send, WAVs load, version has notes, settings round trip, tints.
+  The theme generator is retired to `dev/retired/gen_themes.py`; Legend.xaml is hand-edited.
+- **Visual (Amine)**: green swatch #3CFF7A (matches the keys); selected fills are a dark tint of the lighting colour
+  (`AccentSelBg` / `AccentPillBg`; zone tiles use their own colour; white gives a weaker grey; Rainbow and Spectrum use
+  cyan fills); keyboard-only focus ring; the window scales down when the work area is shorter than 848 DIP; Legend
+  tooltips (UI font, normal case, wrap at 320).
+
 ## v2.0.0-beta1.3 (2026-10-23, prerelease)
 Tier 1 fixes from the 2.0 code review (services + UI). Untested on the laptop.
 - **NVML**: one shared session (`NvmlSession`, one lock, one handle) for the GPU overclock and the power readout.
