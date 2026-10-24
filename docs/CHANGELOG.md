@@ -4,7 +4,7 @@ Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Unt
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
 ## v2.0.0-beta1.6 (2026-10-24, prerelease)
-Updating takes over from the running copy (Amine). Untested on the laptop.
+Updating takes over from the running copy (Amine). Tested on the laptop 2026-10-24 (the hand over itself needs the next version to test).
 - **Newer copy takes over** (Amine: beta1.5 started while beta1.4 sat in the tray only woke beta1.4, so the Program
   Files copy stayed on beta1.4). In `App.OnStartup`, a second copy whose version is newer than the running one
   (`RunningIsOlder`: the other process's exe ProductVersion vs this InformationalVersion, `Startup.CompareVersions`)
@@ -15,7 +15,7 @@ Updating takes over from the running copy (Amine). Untested on the laptop.
   logging a warning at every start.
 
 ## v2.0.0-beta1.5 (2026-10-24, prerelease)
-Fix for beta1.4's startup copy, found by Amine on the laptop. Untested on the laptop.
+Fix for beta1.4's startup copy, found by Amine on the laptop. Tested on the laptop 2026-10-24.
 - **Startup copy missed the CLIs** (Amine): `Startup.AppFiles` only took the alienfx-tools CLIs from `tools\`. With
   `alienfan-cli.exe` / `alienfx-cli.exe` next to the exe (Amine's `C:\AlienFX`), the Program Files copy had none, so
   after a reboot `AlienFan.IsAvailable` was false: Home sensors showed `--` and presets, G-Mode and shortcuts did
@@ -26,7 +26,7 @@ Fix for beta1.4's startup copy, found by Amine on the laptop. Untested on the la
 
 ## v2.0.0-beta1.4 (2026-10-23, prerelease)
 Settings save fix, Tier 2 (performance) and Tier 3 (cleanup) from the 2.0 code review, and six visual changes
-(Amine's calls). Untested on the laptop.
+(Amine's calls). Tested on the laptop 2026-10-24 (startup copy CLI bug fixed in beta1.5).
 - Run on startup now runs a copy in Program Files, so other programs can't swap the file that starts as admin at logon.
   Turning it on copies the exe, `tools\` (alienfx-tools CLIs), LICENSE and README to `%ProgramFiles%\AlienControl`
   (protected ACL: SYSTEM and Administrators full, Users read; every file owned by Administrators) and points the task
@@ -93,7 +93,7 @@ Settings save fix, Tier 2 (performance) and Tier 3 (cleanup) from the 2.0 code r
   tests: IGCL struct sizes (36 / 24 bytes), PDH LUID name format.
 
 ## v2.0.0-beta1.3 (2026-10-23, prerelease)
-Tier 1 fixes from the 2.0 code review (services + UI). Untested on the laptop.
+Tier 1 fixes from the 2.0 code review (services + UI). Tested on the laptop 2026-10-23.
 - **NVML**: one shared session (`NvmlSession`, one lock, one handle) for the GPU overclock and the power readout.
   RTX off / on calls `BeginDeviceRemoval` / `EndDeviceRemoval`, so no NVML call runs while pnputil removes or re-adds
   the RTX (an in-flight OC write could, the 1.2.0-beta.4 crash class). `PowerMeter.Dispose` takes the lock. The OC
