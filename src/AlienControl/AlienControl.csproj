@@ -11,8 +11,8 @@
     <RootNamespace>AlienControl</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>2.0.0</Version>
-    <!-- 2.0.0-beta1.3: the footer and Settings show the informational version (v2.0.0-beta1.3) -->
-    <InformationalVersion>2.0.0-beta1.3</InformationalVersion>
+    <!-- the footer and Settings show the informational version (v2.0.0-beta1.4); release.yml checks it matches the tag -->
+    <InformationalVersion>2.0.0-beta1.4</InformationalVersion>
     <Product>Alien Controls</Product>
     <AssemblyTitle>Alien Controls</AssemblyTitle>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <!-- Publish (dotnet publish -r win-x64): one framework-dependent exe, ReadyToRun-precompiled for fast start.
-       No compression (it unpacks into RAM) and no trimming (WPF/WPF-UI reflection breaks). -->
+       No compression (it unpacks into RAM) and no trimming (WPF uses reflection, trimming is unsupported). -->
   <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
     <SelfContained>false</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
@@ -41,8 +41,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="WPF-UI" Version="4.3.0" />
-    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
+    <!-- 2.0.0-beta1.4: WPF-UI is gone (ToolTip / TextBox / ScrollBar have Legend styles in Themes/Legend2.xaml), and the
+         System.Diagnostics.PerformanceCounter package too: Microsoft.WindowsDesktop.App 8.0 already ships it (build
+         review #1 and #7, the exe drops from about 11.6 MB to about 3.7 MB) -->
     <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
