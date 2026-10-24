@@ -814,26 +814,51 @@
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
-                                <Grid Height="28" Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="Size" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                    <Slider x:Name="OvSizeSlider" Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="50" Maximum="150" Value="100" TickFrequency="5" IsSnapToTickEnabled="True"
-                                            IsMoveToPointEnabled="True" ValueChanged="OvSize_Changed" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="100 % = SteamOS size" />
-                                    <TextBlock x:Name="OvSizeValue" Grid.Column="2" Text="100%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
-                                </Grid>
-                                <Grid Height="30">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="Move left / right" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                    <Slider x:Name="OvXSlider" Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="-50" Maximum="50" Value="0" TickFrequency="1" IsSnapToTickEnabled="True"
-                                            IsMoveToPointEnabled="True" ValueChanged="OvX_Changed" MouseDoubleClick="OvOffset_Reset" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Nudge from the chosen spot, in % of the screen. Double click to reset. It never leaves the screen" />
-                                    <TextBlock x:Name="OvXValue" Grid.Column="2" Text="0" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
-                                </Grid>
-                                <Grid Height="30">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="Move up / down" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                    <Slider x:Name="OvYSlider" Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="-50" Maximum="50" Value="0" TickFrequency="1" IsSnapToTickEnabled="True"
-                                            IsMoveToPointEnabled="True" ValueChanged="OvY_Changed" MouseDoubleClick="OvOffset_Reset" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Nudge from the chosen spot, in % of the screen. Double click to reset. It never leaves the screen" />
-                                    <TextBlock x:Name="OvYValue" Grid.Column="2" Text="0" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
+                                <!-- ov.12: Size and Move as three steppers in one row (Amine picked mock v15 A, the sliders took too much height) -->
+                                <Grid Margin="0,4,0,6">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="SIZE" Style="{DynamicResource SecHint2}" FontSize="9" Margin="2,0,0,4" />
+                                        <Border Height="26" Background="{DynamicResource SelBg}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4"
+                                                Tag="Size" MouseWheel="OvStepWheel" ToolTip="100 % = SteamOS size. Click - / +, or scroll. Shift = 25. Double click the number to reset">
+                                            <Grid>
+                                                <TextBlock Text="−" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="Size:-1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                                <TextBlock x:Name="OvSizeValue" Text="100%" Style="{DynamicResource SecHint2}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" Tag="Size" MouseLeftButtonDown="OvStepReset" Background="Transparent" />
+                                                <TextBlock Text="+" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="Size:1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="MOVE ←→" Style="{DynamicResource SecHint2}" FontSize="9" Margin="2,0,0,4" />
+                                        <Border Height="26" Background="{DynamicResource SelBg}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4"
+                                                Tag="X" MouseWheel="OvStepWheel" ToolTip="Nudge left / right from the chosen spot, in % of the screen. Scroll works, Shift = 10. Double click the number to reset. It never leaves the screen">
+                                            <Grid>
+                                                <TextBlock Text="−" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="X:-1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                                <TextBlock x:Name="OvXValue" Text="0" Style="{DynamicResource SecHint2}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" Tag="X" MouseLeftButtonDown="OvStepReset" Background="Transparent" />
+                                                <TextBlock Text="+" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="X:1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="MOVE ↑↓" Style="{DynamicResource SecHint2}" FontSize="9" Margin="2,0,0,4" />
+                                        <Border Height="26" Background="{DynamicResource SelBg}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4"
+                                                Tag="Y" MouseWheel="OvStepWheel" ToolTip="Nudge up / down from the chosen spot, in % of the screen. Scroll works, Shift = 10. Double click the number to reset. It never leaves the screen">
+                                            <Grid>
+                                                <TextBlock Text="−" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="Y:-1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                                <TextBlock x:Name="OvYValue" Text="0" Style="{DynamicResource SecHint2}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" Tag="Y" MouseLeftButtonDown="OvStepReset" Background="Transparent" />
+                                                <TextBlock Text="+" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="Y:1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
                                 </Grid>
                                 <Grid Height="32">
                                     <TextBlock Text="Update every (ms)" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />

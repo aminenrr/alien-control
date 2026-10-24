@@ -45,10 +45,8 @@ public partial class MainWindow
     private void SyncOverlayLookUi()
     {
         var l = OvLook;
-        OvSizeSlider.Value = l.Size;
         OvBgSlider.Value = l.Bg;
-        OvXSlider.Value = l.X;
-        OvYSlider.Value = l.Y;
+        PaintOverlaySteppers();
         PaintOverlayPosition();
     }
 
@@ -350,16 +348,6 @@ public partial class MainWindow
         ApplyOverlay();
     }
 
-    private void OvSize_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (OvSizeValue is null) return;   // during InitializeComponent
-        OvSizeValue.Text = $"{(int)e.NewValue}%";
-        if ((int)e.NewValue == OvLook.Size) return;
-        OvLook.Size = (int)e.NewValue;
-        _settings.Save();
-        ApplyOverlay();
-    }
-
     private void OvBg_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (OvBgValue is null) return;
@@ -371,30 +359,54 @@ public partial class MainWindow
         ApplyOverlay();
     }
 
-    private void OvX_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    // ov.12: Size / Move X / Move Y steppers (tags "Size", "X", "Y"; buttons "X:-1")
+    private void PaintOverlaySteppers()
     {
-        if (OvXValue is null) return;
-        OvXValue.Text = OffsetText((int)e.NewValue);
-        if ((int)e.NewValue == OvLook.X) return;
-        OvLook.X = (int)e.NewValue;
-        _settings.Save();
-        ApplyOverlay();
+        var l = OvLook;
+        OvSizeValue.Text = $"{l.Size}%";
+        OvXValue.Text = OffsetText(l.X);
+        OvYValue.Text = OffsetText(l.Y);
     }
 
-    private void OvY_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    private void OvStep_Click(object sender, MouseButtonEventArgs e)
     {
-        if (OvYValue is null) return;
-        OvYValue.Text = OffsetText((int)e.NewValue);
-        if ((int)e.NewValue == OvLook.Y) return;
-        OvLook.Y = (int)e.NewValue;
-        _settings.Save();
-        ApplyOverlay();
-    }
-
-    private void OvOffset_Reset(object sender, MouseButtonEventArgs e)
-    {
-        if (sender == OvXSlider) OvXSlider.Value = 0; else OvYSlider.Value = 0;
+        if (sender is not FrameworkElement { Tag: string t }) return;
+        var parts = t.Split(':');
+        if (parts.Length == 2 && int.TryParse(parts[1], out int dir)) StepLook(parts[0], dir);
         e.Handled = true;
+    }
+
+    private void OvStepWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string key }) StepLook(key, Math.Sign(e.Delta));
+        e.Handled = true;
+    }
+
+    private void OvStepReset(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount < 2 || sender is not FrameworkElement { Tag: string key }) return;
+        var l = OvLook;
+        switch (key) { case "Size": l.Size = 100; break; case "X": l.X = 0; break; case "Y": l.Y = 0; break; }
+        _settings.Save();
+        PaintOverlaySteppers();
+        ApplyOverlay();
+        e.Handled = true;
+    }
+
+    private void StepLook(string key, int dir)
+    {
+        bool shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+        var l = OvLook;
+        switch (key)
+        {
+            case "Size": l.Size = OverlayLook.StepSize(l.Size, dir, shift); break;
+            case "X": l.X = OverlayLook.StepOffset(l.X, dir, shift); break;
+            case "Y": l.Y = OverlayLook.StepOffset(l.Y, dir, shift); break;
+            default: return;
+        }
+        _settings.Save();
+        PaintOverlaySteppers();
+        ApplyOverlay();
     }
 
     /// <summary>ov.9: the refresh and battery buttons of Show on overlay. Off = gone from every level and not read.</summary>

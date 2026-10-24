@@ -264,4 +264,16 @@ public class OverlayTests
         Assert.Equal(141, NvDrs.GsyncCap(144));
         Assert.Equal(NvDrs.MinFps, NvDrs.GsyncCap(10));
     }
+
+    [Fact]
+    public void Look_steppers_clamp_and_snap()
+    {
+        Assert.Equal(105, OverlayLook.StepSize(100, 1, false));
+        Assert.Equal(125, OverlayLook.StepSize(100, 1, true));
+        Assert.Equal(150, OverlayLook.StepSize(145, 1, true));
+        Assert.Equal(50, OverlayLook.StepSize(50, -1, false));
+        Assert.Equal(105, OverlayLook.StepSize(102, 1, false));
+        Assert.Equal(4, OverlayLook.StepOffset(3, 1, false));
+        Assert.Equal(-50, OverlayLook.StepOffset(-45, -1, true));
+    }
 }

@@ -353,4 +353,16 @@ public sealed class OverlayLook
     public int Bg { get; set; } = 50;
     public int X { get; set; } = 0;
     public int Y { get; set; } = 0;
+
+    /// <summary>ov.12 stepper: 5 % a click (Shift 25), 50 to 150, lands on a multiple of 5.</summary>
+    public static int StepSize(int v, int dir, bool shift)
+    {
+        int step = shift ? 25 : 5;
+        int n = (int)Math.Round(v / 5.0) * 5 + Math.Sign(dir) * step;
+        return Math.Clamp(n, 50, 150);
+    }
+
+    /// <summary>ov.12 stepper: 1 % a click (Shift 10), -50 to +50.</summary>
+    public static int StepOffset(int v, int dir, bool shift) =>
+        Math.Clamp(v + Math.Sign(dir) * (shift ? 10 : 1), -50, 50);
 }
