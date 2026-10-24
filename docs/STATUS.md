@@ -77,7 +77,10 @@ line (a burst of more than 5 in 10 s, or a fatal type, still runs the cleanup).
   restart after the RTX comes back (`EnsureNvidiaTrayAsync`, service manager, waits for each state); `DellBios` MUX lookup.
 - `CpuFreq` CPU cap and boost through powrprof in-process (powercfg fallback); `DisplayRefresh` 60 / 240 Hz on the
   internal panel.
-- `SystemStats` RAM, VRAM and GPU % through one PDH query; `SystemState` / `StateWatch` mute, mic, touchpad.
+- `SystemStats` RAM, VRAM and GPU % through one PDH query (beta1.4: `GpuUsage` = RTX LUID, `IntelGpuUsage` = Intel
+  LUID from DXGI, same query, called only in iGPU only); `SystemState` / `StateWatch` mute, mic, touchpad.
+- `IntelGpuTemp` (beta1.4) Intel GPU temperature through Intel IGCL (ControlLib.dll, System32, read-only), used for the
+  GPU temp tile in iGPU only. Disabled for the session after the first failure; the tile then shows the CPU package.
 - `MacroKeys` F2 / F3 / F4 macro keys (raw HID), `GKeyHook` F1, `InputThread` low-level input thread.
 - `Settings` `settings.json` (versioned migrations, v7; atomic save with retry, copy fallback and a pending flush;
   `.corrupt` rename; unknown keys kept by `[JsonExtensionData]`).
@@ -101,7 +104,8 @@ No third-party UI library since beta1.4 (WPF-UI removed).
   power modes, tray, auto preset, resume), dirty / retry follow-ups, no polling while minimized, keyboard fade / wake
   race, startup task XML lock and exe path, refresh rate on the internal panel, process timeouts. Lights hint reads
   CTRL + ALT + F · LIGHT LEVEL. Tested on the laptop: all good.
-- **beta1.4**: Tier 2 and Tier 3, settings save fix, five visual changes, startup task security fix (Program Files
+- **beta1.4**: Tier 2 and Tier 3, settings save fix, six visual changes (the sixth: INTEL / NVIDIA tags on the GPU
+  tiles, `mockups/2.0-beta1.4/6-gpu-source.png`), startup task security fix (Program Files
   copy), Log frame gaps removed, NVIDIA tray icon after iGPU only, OC card greyed while the RTX is off. See
   [releases/v2.0.0-beta1.4.md](releases/v2.0.0-beta1.4.md). Not yet tested on the laptop.
 
@@ -133,6 +137,14 @@ No third-party UI library since beta1.4 (WPF-UI removed).
   `%ProgramFiles%\AlienControl` (see `Services/Startup.cs`). Still to verify on the laptop with the What to test steps.
 - Everything in beta1.4 is untested on the laptop: powrprof CPU cap path, NVML close / reopen on battery and minimize,
   PDH GPU % and VRAM values, the WPF-UI removal (Settings page, toasts, tooltips), focus ring, short-screen scaling.
+- **GPU sensors by mode (beta1.4)**: in Advanced Optimus / Ultimate the GPU temp is the AWCC WMI sensor 0x06 (board
+  sensor by the RTX) and GPU USE the RTX's PDH 3D engines (tag NVIDIA). In iGPU only the AWCC 0x06 sensor is not the
+  Intel GPU, so the temp comes from IGCL and GPU USE from the Intel LUID's 3D engines (tag INTEL). IGCL status: interop
+  written from Intel's public `igcl_api.h` (API 1.1, struct sizes covered by tests) but never run on the laptop; whether
+  the m15 R7's Intel driver exposes a GPU temperature sensor through IGCL is unknown. crash.log says which source was
+  used (`iGPU temp: IGCL` or `iGPU temp: CPU package (IGCL: reason)`); if it's always the CPU package, IGCL has no
+  sensor there and the fallback is what ships. The RTX LUID is still the "most dedicated memory in use" adapter (it
+  just never takes the Intel LUID once that is known).
 - CI is the only place the tests run (they need Windows). The NuGet cache uses setup-dotnet `cache: true`; if it
   fails, switch to `actions/cache` on `~/.nuget/packages`.
 
