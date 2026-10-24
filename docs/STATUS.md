@@ -107,7 +107,7 @@ No third-party UI library since beta1.4 (WPF-UI removed).
 - **beta1.4**: Tier 2 and Tier 3, settings save fix, six visual changes (the sixth: INTEL / NVIDIA tags on the GPU
   tiles, `mockups/2.0-beta1.4/6-gpu-source.png`), startup task security fix (Program Files
   copy), Log frame gaps removed, NVIDIA tray icon after iGPU only, OC card greyed while the RTX is off. See
-  [releases/v2.0.0-beta1.4.md](releases/v2.0.0-beta1.4.md). Not yet tested on the laptop.
+  [releases/v2.0.0-beta1.4.md](releases/v2.0.0-beta1.4.md). Tested on the laptop 2026-10-24: all good except the NVIDIA display mode tray icon, which still doesn't come back after iGPU only to Advanced Optimus (open bug). IGCL has no GPU temperature sensor on the m15 R7, so iGPU temp is the CPU package.
 
 ## Still to do
 **Beta 2 (the in-game overlay)**, in this order:
