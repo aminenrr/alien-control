@@ -720,7 +720,7 @@
                             <TextBlock x:Name="OvReset" Grid.Column="3" Text="RESET TO STEAMOS" Style="{DynamicResource SecHint2}" Cursor="Hand"
                                        MouseLeftButtonUp="OvReset_Click" ToolTip="Top left, SteamOS size, 50 % background, 500 ms" />
                         </Grid>
-                        <Border Style="{DynamicResource Card2}" Height="292" Padding="14,10,14,10">
+                        <Border Style="{DynamicResource Card2}" Height="380" Padding="14,10,14,10">
                             <StackPanel>
                                 <Grid Height="50">
                                     <StackPanel VerticalAlignment="Center">
@@ -752,6 +752,20 @@
                                             IsMoveToPointEnabled="True" ValueChanged="OvBg_Changed" VerticalAlignment="Center" Margin="0,0,10,0" />
                                     <TextBlock x:Name="OvBgValue" Grid.Column="2" Text="50%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
                                 </Grid>
+                                <Grid Height="30">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Move left / right" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                    <Slider x:Name="OvXSlider" Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="-50" Maximum="50" Value="0" TickFrequency="1" IsSnapToTickEnabled="True"
+                                            IsMoveToPointEnabled="True" ValueChanged="OvX_Changed" MouseDoubleClick="OvOffset_Reset" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Nudge from the chosen spot, in % of the screen. Double click to reset. It never leaves the screen" />
+                                    <TextBlock x:Name="OvXValue" Grid.Column="2" Text="0" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
+                                </Grid>
+                                <Grid Height="30">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Move up / down" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                    <Slider x:Name="OvYSlider" Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="-50" Maximum="50" Value="0" TickFrequency="1" IsSnapToTickEnabled="True"
+                                            IsMoveToPointEnabled="True" ValueChanged="OvY_Changed" MouseDoubleClick="OvOffset_Reset" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="Nudge from the chosen spot, in % of the screen. Double click to reset. It never leaves the screen" />
+                                    <TextBlock x:Name="OvYValue" Grid.Column="2" Text="0" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
+                                </Grid>
                                 <Grid Height="32">
                                     <TextBlock Text="Update every (ms)" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
                                     <Border Style="{DynamicResource PillTrack2}" Width="172" Height="26" HorizontalAlignment="Right">
@@ -762,11 +776,18 @@
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
+                                <Grid Height="44">
+                                    <StackPanel VerticalAlignment="Center" Margin="0,0,56,0">
+                                        <TextBlock Text="Latency and frame gen" Style="{DynamicResource RowTitle2}" />
+                                        <TextBlock Text="Real / generated FPS and latency on levels 2 to 4. Off = not collected" Style="{DynamicResource RowSub2}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="OvExtraToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="OvExtra_Click"
+                                              ToolTip="Off by default. On: PresentMon also tracks display, frame type and PC latency (a little more CPU in PresentMon, not in the game)" />
+                                </Grid>
                                 <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,6,0,6" />
-                                <TextBlock x:Name="OvLevelInfo" Style="{DynamicResource RowTitle2}" Text="Level 3" />
-                                <TextBlock x:Name="OvLevelItems" Style="{DynamicResource RowSub2}" TextWrapping="Wrap" Margin="0,3,0,0" />
-                                <TextBlock Style="{DynamicResource RowSub2}" TextWrapping="Wrap" Margin="0,8,0,0" Opacity="0.75"
-                                           Text="Frametimes from PresentMon (ETW, no injection, anti cheat safe). Shows over windowed and borderless games. Per level customizing comes in a later preview." />
+                                <TextBlock x:Name="OvLevelInfo" Style="{DynamicResource RowTitle2}" Text="Level 3"
+                                           ToolTip="Frametimes from PresentMon (ETW, no injection, anti cheat safe). Shows over windowed and borderless games." />
+                                <TextBlock x:Name="OvLevelItems" Style="{DynamicResource RowSub2}" TextWrapping="Wrap" Margin="0,3,0,0" MaxHeight="34" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                         </Border>
                     </StackPanel>

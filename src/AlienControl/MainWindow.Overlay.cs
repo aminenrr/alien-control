@@ -47,6 +47,9 @@ public partial class MainWindow
         };
         OvSizeSlider.Value = _settings.OverlaySize;
         OvBgSlider.Value = _settings.OverlayBg;
+        OvXSlider.Value = _settings.OverlayOffsetX;
+        OvYSlider.Value = _settings.OverlayOffsetY;
+        OvExtraToggle.IsChecked = _settings.OverlayLatencyFg;
         (_settings.OverlayUpdateMs switch { 250 => OvUpd250, 1000 => OvUpd1000, _ => OvUpd500 }).IsChecked = true;
         PaintOverlayPosition();
         // after the constructor: the window's services are ready, and the app may start hidden in the tray
@@ -73,7 +76,7 @@ public partial class MainWindow
         1 => "FPS only",
         2 => "One line: FPS, frametime, CPU, GPU, memory, battery",
         3 => "Full HUD with temps, clocks and power",
-        4 => "Everything: per thread CPU, fans, refresh rate",
+        4 => "Everything: every core's load and clock, fans, refresh rate",
         _ => "Off",
     };
 
@@ -82,7 +85,7 @@ public partial class MainWindow
         1 => "FPS.",
         2 => "FPS, frametime and graph, CPU and GPU load and watts, RAM, VRAM, battery.",
         3 => "GPU load, temp, watts, core and memory clock. CPU load, temp, watts, clock. VRAM, RAM, battery, engine, FPS, frametime graph.",
-        4 => "Level 3 plus load per CPU thread, fan RPM, refresh rate, 1% low and max frametime.",
+        4 => "Level 3 plus every core (P and E) with its threads' load and real clock, fan RPM, refresh rate, 1% low and max frametime.",
         _ => "Nothing runs: PresentMon is stopped and no sensor is read for the overlay.",
     };
 
@@ -93,11 +96,14 @@ public partial class MainWindow
         var oldNeed = _ovNeed;
         _ovNeed = OverlayLevels.Needs(level);
 
+        // the latency / frame gen toggle: a hard switch, PresentMon collects none of it unless on (and a level 2+ shows it)
+        _frames.SetExtended(OverlayLevels.WantsExtended(level, _settings.OverlayLatencyFg));
         if (level > 0) { if (!_frames.Running) _frames.Start(); }
         else _frames.Stop();
 
         _overlay ??= level > 0 ? new OverlayHost(_frames) : null;
-        _overlay?.Apply(level, _settings.OverlayPosition, _settings.OverlaySize / 100.0 * 1.0, _settings.OverlayBg / 100.0, _settings.OverlayUpdateMs);
+        _overlay?.Apply(level, _settings.OverlayPosition, _settings.OverlaySize / 100.0 * 1.0, _settings.OverlayBg / 100.0, _settings.OverlayUpdateMs,
+            _settings.OverlayOffsetX, _settings.OverlayOffsetY, _settings.OverlayLatencyFg);
 
         bool extra = OvNeeds(Need.Clocks) || OvNeeds(Need.Cores) || OvNeeds(Need.Battery) || OvNeeds(Need.Refresh);
         if (extra) { if (!_ovExtra.IsEnabled) { _ovExtra.Start(); _ = OverlayExtraTickAsync(); } }
@@ -105,6 +111,7 @@ public partial class MainWindow
 
         // the NVML session the clocks kept open: give it back when nothing else (the power readout) needs it
         if ((oldNeed & Need.Clocks) != 0 && !OvNeeds(Need.Clocks) && !SensorsShown && !OvNeeds(Need.Power)) NvmlSession.Release();
+        if ((oldNeed & (Need.Clocks | Need.Cores)) != 0 && !OvNeeds(Need.Clocks) && !OvNeeds(Need.Cores)) _cores.Release();
         if (level == 0) _ovSnap = new Sensors();
 
         UpdatePolling();
@@ -177,9 +184,11 @@ public partial class MainWindow
             bool readRefresh = (need & Need.Refresh) != 0 && (_ovRefreshTick++ % 5 == 0 || _ovSnap.RefreshHz is null);
             var r = await Task.Run(() =>
             {
-                int? mhz = (need & Need.Clocks) != 0 ? _cores.Mhz() : null;
+                // one PDH collect serves both the CPU row clock (level 3) and the per core clocks (level 4)
+                int[]? perThreadMhz = (need & (Need.Clocks | Need.Cores)) != 0 ? _cores.Mhz() : null;
+                int? mhz = CpuCores.MaxMhz(perThreadMhz);
                 (int? core, int? mem) gpu = (need & Need.Clocks) != 0 && gpuOn ? GpuClocks() : (null, null);
-                double[]? cores = (need & Need.Cores) != 0 ? _cores.Loads() : null;
+                CpuCores.CoreReading[]? cores = (need & Need.Cores) != 0 ? CpuCores.Combine(_cores.Topology, _cores.Loads(), perThreadMhz) : null;
                 int? hz = readRefresh ? DisplayRefresh.Read()?.CurrentHz : null;
                 return (mhz, gpu, cores, hz);
             });
@@ -225,7 +234,13 @@ public partial class MainWindow
         CpuLoad = 38, CpuTemp = 78, CpuW = 45, CpuMhz = 4100,
         VramGiB = 6.2, RamGiB = 11.4, BatteryPct = 100, OnAc = true,
         CpuFanRpm = 4200, GpuFanRpm = 4350, RefreshHz = 240,
-        Cores = new double[] { 62, 40, 55, 31, 48, 22, 70, 35, 44, 18, 25, 12, 30, 9, 21, 14, 11, 8, 16, 6 },
+        Cores = new CpuCores.CoreReading[]
+        {
+            new('P', 1, new double[] { 62, 40 }, 4600), new('P', 2, new double[] { 55, 31 }, 4600), new('P', 3, new double[] { 48, 22 }, 4500),
+            new('P', 4, new double[] { 70, 35 }, 4700), new('P', 5, new double[] { 44, 18 }, 4400), new('P', 6, new double[] { 25, 12 }, 4400),
+            new('E', 1, new double[] { 30 }, 3500), new('E', 2, new double[] { 9 }, 3500), new('E', 3, new double[] { 21 }, 3400), new('E', 4, new double[] { 14 }, 3400),
+            new('E', 5, new double[] { 11 }, 3300), new('E', 6, new double[] { 8 }, 3300), new('E', 7, new double[] { 16 }, 3300), new('E', 8, new double[] { 6 }, 3300),
+        },
     };
 
     private readonly float[] _previewGraph = new float[160];
@@ -243,12 +258,17 @@ public partial class MainWindow
             _previewGraph[i] = (float)(7.0 + 0.6 * Math.Sin(k * 0.21) + ((k * 37) % 97 == 0 ? 5 : 0) + new Random(k).NextDouble() * 0.5);
         }
         OvPreview.Level = level;
-        OvPreview.Items = OverlayLevels.Items(level);
+        OvPreview.Items = OverlayLevels.Items(level, _settings.OverlayLatencyFg);
         OvPreview.Scale = _settings.OverlaySize / 100.0;
         OvPreview.BgAlpha = _settings.OverlayBg / 100.0;
         OvPreview.Data = Sample;
         OvPreview.Fps = 142 + rnd.Next(-2, 3);
         OvPreview.FrameMs = 1000.0 / OvPreview.Fps;
+        // sample: frame gen doubling a 71 fps game, Reflex PC latency
+        OvPreview.GenFps = _settings.OverlayLatencyFg ? 71 : 0;
+        if (_settings.OverlayLatencyFg) { OvPreview.Fps = 71; OvPreview.FrameMs = 1000.0 / 142; }
+        OvPreview.LatMs = 28 + rnd.Next(-2, 3);
+        OvPreview.LatPc = true;
         OvPreview.Engine = "DX12";
         OvPreview.Graph = _previewGraph;
         OvPreview.GraphCount = _previewGraph.Length;
@@ -259,6 +279,16 @@ public partial class MainWindow
         int pos = _settings.OverlayPosition;
         OvPreviewBox.HorizontalAlignment = (pos % 3) switch { 0 => HorizontalAlignment.Left, 1 => HorizontalAlignment.Center, _ => HorizontalAlignment.Right };
         OvPreviewBox.VerticalAlignment = pos < 3 ? VerticalAlignment.Top : VerticalAlignment.Bottom;
+        // the nudge on the preview: same % of the preview area, kept inside it
+        if (OvPreviewBox.Parent is FrameworkElement area && area.ActualWidth > 0)
+        {
+            double w = OvPreviewBox.ActualWidth, h = OvPreviewBox.ActualHeight;
+            double baseX = (pos % 3) switch { 0 => 0, 1 => (area.ActualWidth - w) / 2, _ => area.ActualWidth - w };
+            double baseY = pos < 3 ? 0 : area.ActualHeight - h;
+            double x = Math.Clamp(baseX + area.ActualWidth * _settings.OverlayOffsetX / 100.0, 0, Math.Max(0, area.ActualWidth - w));
+            double y = Math.Clamp(baseY + area.ActualHeight * _settings.OverlayOffsetY / 100.0, 0, Math.Max(0, area.ActualHeight - h));
+            OvPreviewBox.RenderTransform = new TranslateTransform(x - baseX, y - baseY);
+        }
     }
 
     private void PaintOverlayPosition()
@@ -305,6 +335,42 @@ public partial class MainWindow
         ApplyOverlay();
     }
 
+    private void OvX_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (OvXValue is null) return;
+        OvXValue.Text = OffsetText((int)e.NewValue);
+        if ((int)e.NewValue == _settings.OverlayOffsetX) return;
+        _settings.OverlayOffsetX = (int)e.NewValue;
+        _settings.Save();
+        ApplyOverlay();
+    }
+
+    private void OvY_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (OvYValue is null) return;
+        OvYValue.Text = OffsetText((int)e.NewValue);
+        if ((int)e.NewValue == _settings.OverlayOffsetY) return;
+        _settings.OverlayOffsetY = (int)e.NewValue;
+        _settings.Save();
+        ApplyOverlay();
+    }
+
+    private void OvOffset_Reset(object sender, MouseButtonEventArgs e)
+    {
+        if (sender == OvXSlider) OvXSlider.Value = 0; else OvYSlider.Value = 0;
+        e.Handled = true;
+    }
+
+    private void OvExtra_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.OverlayLatencyFg = OvExtraToggle.IsChecked == true;
+        _settings.Save();
+        Log.Info("Overlay", $"latency and frame gen {(_settings.OverlayLatencyFg ? "on" : "off")}");
+        ApplyOverlay();
+    }
+
+    private static string OffsetText(int v) => v == 0 ? "0" : v > 0 ? $"+{v}%" : $"{v}%";
+
     private void OvUpdate_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not RadioButton { Tag: var t } || !int.TryParse(t?.ToString(), out int ms)) return;
@@ -320,7 +386,13 @@ public partial class MainWindow
         _settings.OverlaySize = d.OverlaySize;
         _settings.OverlayBg = d.OverlayBg;
         _settings.OverlayUpdateMs = d.OverlayUpdateMs;
+        _settings.OverlayOffsetX = 0;
+        _settings.OverlayOffsetY = 0;
+        _settings.OverlayLatencyFg = false;
+        OvExtraToggle.IsChecked = false;
         _settings.Save();
+        OvXSlider.Value = 0;
+        OvYSlider.Value = 0;
         OvSizeSlider.Value = d.OverlaySize;
         OvBgSlider.Value = d.OverlayBg;
         OvUpd500.IsChecked = true;

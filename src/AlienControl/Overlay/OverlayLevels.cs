@@ -12,6 +12,8 @@ public enum Item
     Gpu = 1 << 7, GpuTemp = 1 << 8, GpuPower = 1 << 9, GpuClocks = 1 << 10,
     Ram = 1 << 11, Vram = 1 << 12, Battery = 1 << 13, Engine = 1 << 14,
     CoreLoads = 1 << 15, Fans = 1 << 16, Refresh = 1 << 17, FrameStats = 1 << 18,
+    /// <summary>Latency and real / generated fps: only with the "Latency and frame gen" toggle, levels 2 to 4.</summary>
+    FrameGen = 1 << 19, Latency = 1 << 20,
 }
 
 /// <summary>What the sensor side must read for a level. Only these run; level 1 reads frames only.</summary>
@@ -46,11 +48,18 @@ public static class OverlayLevels
                          | Item.Gpu | Item.GpuTemp | Item.GpuPower | Item.GpuClocks
                          | Item.Ram | Item.Vram | Item.Battery;
 
-    /// <summary>MangoHud preset 4: level 3 + per core load, fans, refresh rate, detailed frame timing.
+    /// <summary>MangoHud preset 4: level 3 + per core load and clock (P and E cores), fans, refresh rate, detailed frame timing.
     /// MangoHud's network row isn't copied (no source that's cheap enough on Windows).</summary>
     public const Item L4 = L3 | Item.CoreLoads | Item.Fans | Item.Refresh | Item.FrameStats;
 
     public static Item Items(int level) => level switch { 1 => L1, 2 => L2, 3 => L3, 4 => L4, _ => Item.None };
+
+    /// <summary>Items with the latency and frame gen toggle: it adds FrameGen + Latency on levels 2 to 4, never on level 1.</summary>
+    public static Item Items(int level, bool extended) =>
+        extended && level >= 2 ? Items(level) | Item.FrameGen | Item.Latency : Items(level);
+
+    /// <summary>Does PresentMon need the extended tracking? Only when the toggle is on and the level shows it.</summary>
+    public static bool WantsExtended(int level, bool toggle) => toggle && level >= 2;
 
     public static bool Horizontal(int level) => level == 2;
 
@@ -92,5 +101,6 @@ public sealed record Sensors
     public int? CpuFanRpm { get; init; }
     public int? GpuFanRpm { get; init; }
     public int? RefreshHz { get; init; }
-    public double[]? Cores { get; init; }
+    /// <summary>One row per physical core (P / E / C), thread loads and the core clock.</summary>
+    public AlienControl.Services.CpuCores.CoreReading[]? Cores { get; init; }
 }

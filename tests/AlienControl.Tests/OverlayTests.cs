@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Diagnostics;
 using AlienControl.Overlay;
@@ -79,5 +80,102 @@ public class OverlayTests
         Assert.Equal(50, s.OverlayBg);
         Assert.Equal(500, s.OverlayUpdateMs);
         Assert.Equal(100, s.OverlaySize);
+    }
+
+    [Fact]
+    public void Offsets_and_latency_toggle_default_off_and_clamp()
+    {
+        var s = new Settings();
+        Assert.Equal(0, s.OverlayOffsetX);
+        Assert.Equal(0, s.OverlayOffsetY);
+        Assert.False(s.OverlayLatencyFg);
+        s.OverlayOffsetX = 400; s.OverlayOffsetY = -400;
+        s.Clamp();
+        Assert.Equal(0, s.OverlayOffsetX);   // out of range falls back to 0
+        Assert.Equal(0, s.OverlayOffsetY);
+        s.OverlayOffsetX = -20; s.Clamp();
+        Assert.Equal(-20, s.OverlayOffsetX);
+    }
+
+    [Fact]
+    public void Lean_mode_tracks_no_display_and_extended_adds_it()
+    {
+        var off = FramesSource.Args(false);
+        Assert.Contains("--no_track_display", off);
+        Assert.DoesNotContain("--track_frame_type", off);
+        Assert.DoesNotContain("--track_pc_latency", off);
+        var on = FramesSource.Args(true);
+        Assert.DoesNotContain("--no_track_display", on);
+        Assert.Contains("--track_frame_type", on);
+        Assert.Contains("--track_pc_latency", on);
+        Assert.DoesNotContain("--track_frame_type", FramesSource.Args(true, 1));
+        Assert.Equal(OverlayLevels.Items(1), OverlayLevels.Items(1, true));   // level 1 stays FPS only
+        Assert.True(OverlayLevels.Items(2, true).HasFlag(Item.FrameGen));
+        Assert.False(OverlayLevels.Items(3, false).HasFlag(Item.Latency));
+        Assert.False(OverlayLevels.WantsExtended(1, true));
+        Assert.False(OverlayLevels.WantsExtended(4, false));
+        Assert.True(OverlayLevels.WantsExtended(2, true));
+    }
+
+    [Fact]
+    public void Frame_gen_splits_real_and_generated_and_reads_latency()
+    {
+        const string h = "Application,ProcessID,SwapChainAddress,PresentRuntime,FrameType,CPUStartTime,MsBetweenPresents,DisplayLatency,MsPCLatency";
+        var f = new FramesSource();
+        Assert.True(f.ParseHeader(h));
+        f.SetForegroundForTest(7);
+        for (int i = 0; i < 100; i++)
+        {
+            bool gen = i % 2 == 1;
+            f.OnLine($"game.exe,7,0x1,DXGI,{(gen ? "AMD AFMF" : "Application")},{(i * 0.005).ToString(System.Globalization.CultureInfo.InvariantCulture)},5.0,12.0,{(gen ? "NA" : "30.0")}");
+        }
+        var buf = new FramesSource.Frame[200];
+        int n = f.CopyRecent(buf);
+        var st = FramesSource.StatsOver(buf.AsSpan(0, n), buf[n - 1].Ticks, Stopwatch.Frequency / 4);
+        Assert.InRange(st.Fps, 99, 101);      // 200 presents/s, half generated
+        Assert.InRange(st.GenFps, 99, 101);
+        Assert.True(st.PcLat);
+        Assert.Equal(30, st.LatMs, 3);
+    }
+
+    [Fact]
+    public void No_generated_frames_means_real_is_all()
+    {
+        long now = Stopwatch.GetTimestamp();
+        var frames = new FramesSource.Frame[100];
+        for (int i = 0; i < 100; i++) frames[i] = new(now, i * 0.01, 10f);
+        var st = FramesSource.StatsOver(frames, now, Stopwatch.Frequency / 2);
+        Assert.InRange(st.Fps, 99.9, 100.1);
+        Assert.Equal(0, st.GenFps);
+        Assert.True(double.IsNaN(st.LatMs));
+        Assert.True(FramesSource.IsGenerated("Intel XeFG"));
+        Assert.False(FramesSource.IsGenerated("Application"));
+        Assert.False(FramesSource.IsGenerated("Repeated"));
+    }
+
+    [Fact]
+    public void Hybrid_topology_labels_p_then_e_cores()
+    {
+        var raw = new System.Collections.Generic.List<(byte, int[])>
+        {
+            (1, new[] { 0, 1 }), (1, new[] { 2, 3 }), (0, new[] { 4 }), (0, new[] { 5 }),
+        };
+        var cores = CpuCores.Label(raw, 6);
+        Assert.Equal(new[] { "P1", "P2", "E1", "E2" }, cores.Select(c => $"{c.Kind}{c.Index}").ToArray());
+        var flat = CpuCores.Label(new() { (0, new[] { 0, 1 }), (0, new[] { 2, 3 }) }, 4);
+        Assert.All(flat, c => Assert.Equal('C', c.Kind));
+        Assert.Equal(4, CpuCores.Label(new(), 4).Count);   // no topology: one row per thread
+    }
+
+    [Fact]
+    public void Core_clock_is_its_fastest_thread()
+    {
+        var cores = CpuCores.Label(new() { (1, new[] { 0, 1 }), (0, new[] { 2 }) }, 3);
+        var r = CpuCores.Combine(cores, new[] { 10.0, 50.0, 80.0 }, new[] { 4100, 4300, 3200 });
+        Assert.Equal(4300, r[0].Mhz);
+        Assert.Equal(new[] { 10.0, 50.0 }, r[0].Loads);
+        Assert.Equal(3200, r[1].Mhz);
+        Assert.Null(CpuCores.Combine(cores, null, null)[0].Mhz);
+        Assert.Equal(4300, CpuCores.MaxMhz(new[] { 4100, 4300, 3200 }));
     }
 }

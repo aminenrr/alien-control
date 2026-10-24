@@ -27,8 +27,9 @@ public sealed class OverlayHost : IDisposable
     private readonly ManualResetEventSlim _ready = new();
 
     // settings, written from the app thread, read on the overlay thread
-    private volatile int _level, _position, _updateMs = 500;
+    private volatile int _level, _position, _updateMs = 500, _offX, _offY;
     private double _scale = 0.8, _bg = 0.5;
+    private volatile bool _extended;
 
     private readonly FramesSource.Frame[] _buf = new FramesSource.Frame[2048];
     private float[] _graph = new float[240];
@@ -40,8 +41,10 @@ public sealed class OverlayHost : IDisposable
     public void Push(Sensors s) => _sensors = s;
 
     /// <summary>Applies level and look. Level 0 hides the window (the thread stays parked, it costs nothing).</summary>
-    public void Apply(int level, int position, double scale, double bg, int updateMs)
+    public void Apply(int level, int position, double scale, double bg, int updateMs, int offsetX = 0, int offsetY = 0, bool extended = false)
     {
+        _extended = extended;
+        _offX = offsetX; _offY = offsetY;
         _level = level; _position = position; _scale = scale; _bg = bg; _updateMs = Math.Clamp(updateMs, 100, 2000);
         if (level > 0) EnsureThread();
         _disp?.BeginInvoke(new Action(ApplyOnThread));
@@ -89,7 +92,7 @@ public sealed class OverlayHost : IDisposable
             return;
         }
         _panel.Level = level;
-        _panel.Items = OverlayLevels.Items(level);
+        _panel.Items = OverlayLevels.Items(level, _extended);
         _panel.Scale = _scale;
         _panel.BgAlpha = _bg;
         _timer.Interval = TimeSpan.FromMilliseconds(_updateMs);
@@ -120,9 +123,12 @@ public sealed class OverlayHost : IDisposable
         var span = new ReadOnlySpan<FramesSource.Frame>(buf, 0, n);
         long now = System.Diagnostics.Stopwatch.GetTimestamp();
         long window = System.Diagnostics.Stopwatch.Frequency * Math.Max(updateMs, 250) / 1000;
-        var (fps, avg) = FramesSource.FpsOver(span, now, window);
-        p.Fps = fps;
-        p.FrameMs = fps > 0 ? avg : 0;
+        var st = FramesSource.StatsOver(span, now, window);
+        p.Fps = st.Fps;                       // real fps: the game's own frames (= all frames without frame gen)
+        p.GenFps = st.GenFps;
+        p.FrameMs = st.AvgMs;
+        p.LatMs = st.LatMs;
+        p.LatPc = st.PcLat;
         int g = Math.Min(graph.Length, n);
         for (int i = 0; i < g; i++) graph[i] = span[n - g + i].Ms;
         p.Graph = graph;
@@ -195,6 +201,9 @@ public sealed class OverlayHost : IDisposable
         var r = mi.rcMonitor;
         int x = (_position % 3) switch { 0 => r.Left, 1 => r.Left + (r.Right - r.Left - w) / 2, _ => r.Right - w };
         int y = _position < 3 ? r.Top : r.Bottom - h;
+        // the X / Y nudge (% of the screen), clamped so the overlay never leaves the monitor
+        x = Math.Clamp(x + (r.Right - r.Left) * _offX / 100, r.Left, Math.Max(r.Left, r.Right - w));
+        y = Math.Clamp(y + (r.Bottom - r.Top) * _offY / 100, r.Top, Math.Max(r.Top, r.Bottom - h));
         SetWindowPos(hwnd, HWND_TOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
     }
 

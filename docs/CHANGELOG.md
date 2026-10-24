@@ -4,6 +4,12 @@ Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Unt
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
 
+## 2.0.0-beta1.3-ov.2 (overlay preview, branch beta1.3-ov)
+- Level 4: one row per CPU core, P cores then E cores (P1..P6, E1..E8 on the i7-12700H), each thread's load and the core's real clock (PDH % Processor Performance). The CPU MHz on level 3 is the real clock too, not the 2300 MHz base.
+- Overlay tab: Move left / right and Move up / down sliders (-50..+50 % of the screen from the chosen spot, double click = 0, never leaves the screen).
+- Latency and frame gen toggle (off by default, hard switch): on = PresentMon also tracks display, frame type and PC latency; levels 2 to 4 show real FPS | generated FPS (Steam style, only real when no generated frames) and latency (PC LAT from Reflex games, otherwise display latency). Off = none of it is collected. Level 1 never changes.
+- Graph caption reads min / max in ms.
+
 ## 2.0.0-beta1.3-ov.1 (overlay preview, branch beta1.3-ov)
 - In-game overlay, MangoHud / SteamOS style: 4 levels, F4 off / last level, OFF 1 2 3 4 slider on Home and the Overlay tab, live preview, position, size, background, update interval, Reset to SteamOS.
 - Frametimes from PresentMon 2.6 (ETW, no injection), bundled in tools/PresentMon by CI (pinned SHA256), killed with the app through a job object.

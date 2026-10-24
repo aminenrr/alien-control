@@ -123,6 +123,12 @@ public sealed class Settings
     public int OverlayBg { get; set; } = 50;
     /// <summary>Update interval in ms: 250, 500 (MangoHud default fps_sampling_period) or 1000.</summary>
     public int OverlayUpdateMs { get; set; } = 500;
+    /// <summary>Nudge from the chosen spot, in % of the screen: X -50 (left) .. 50 (right), Y -50 (up) .. 50 (down).
+    /// The overlay always stays on screen.</summary>
+    public int OverlayOffsetX { get; set; } = 0;
+    /// <summary>Latency and frame gen (real / generated fps). Off by default: PresentMon collects none of it while off.</summary>
+    public bool OverlayLatencyFg { get; set; } = false;
+    public int OverlayOffsetY { get; set; } = 0;
     /// <summary>v1.1: off = no taskbar button, the app only lives in the tray (minimize hides to the tray).</summary>
     public bool ShowInTaskbar { get; set; } = true;
 
@@ -230,6 +236,8 @@ public sealed class Settings
         OverlaySize = C(OverlaySize, 50, 150, d.OverlaySize);
         OverlayBg = C(OverlayBg, 0, 100, d.OverlayBg);
         if (OverlayUpdateMs is not (250 or 500 or 1000)) OverlayUpdateMs = d.OverlayUpdateMs;
+        OverlayOffsetX = C(OverlayOffsetX, -50, 50, 0);
+        OverlayOffsetY = C(OverlayOffsetY, -50, 50, 0);
         KeyboardLightCount = C(KeyboardLightCount, 1, 136, d.KeyboardLightCount);
         ChassisDevice = C(ChassisDevice, 0, 3, d.ChassisDevice);
         ChassisLights = (ChassisLights ?? d.ChassisLights).Where(id => id is >= 0 and <= 15 && id != PowerButtonLight).Distinct().ToArray();

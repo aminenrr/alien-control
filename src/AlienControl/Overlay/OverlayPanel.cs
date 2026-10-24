@@ -23,6 +23,7 @@ public sealed class OverlayPanel : FrameworkElement
     private static readonly Brush EngineC = Frozen(0xEB, 0x5B, 0x5B);
     private static readonly Brush BattC = Frozen(0xFF, 0x90, 0x78);
     private static readonly Brush FanC = Frozen(0xE0, 0x7B, 0x85);
+    private static readonly Brush CoreE = Frozen(0x7F, 0xB8, 0xDB);   // E cores: a lighter CPU blue
     private static readonly Brush DimC = Frozen(0xA0, 0xA0, 0xA0);
     private static readonly Pen GraphPen = FrozenPen(Color.FromRgb(0x00, 0xFF, 0x00), 1.4);
 
@@ -40,6 +41,15 @@ public sealed class OverlayPanel : FrameworkElement
     public Sensors Data { get; set; } = new();
     public double Fps { get; set; }
     public double FrameMs { get; set; }
+    /// <summary>Generated fps (frame generation), 0 when none seen. Shown after the real fps, Steam style, behind a line.</summary>
+    public double GenFps { get; set; }
+    /// <summary>Latency in ms, NaN when unknown. LatPc: Reflex style PC latency instead of display latency.</summary>
+    public double LatMs { get; set; } = double.NaN;
+    public bool LatPc { get; set; }
+
+    private bool ShowGen => (Items & Item.FrameGen) != 0 && GenFps >= 1;
+    private string LatLabel => LatPc ? "PC LAT" : "LATENCY";
+    private string LatValue => double.IsNaN(LatMs) ? "--" : LatMs.ToString(LatMs < 10 ? "0.0" : "0");
     public string Engine { get; set; } = "";
     /// <summary>Recent frametimes, oldest first (the graph).</summary>
     public float[] Graph { get; set; } = Array.Empty<float>();
@@ -93,13 +103,16 @@ public sealed class OverlayPanel : FrameworkElement
         }
         if ((it & Item.CoreLoads) != 0 && d.Cores is { Length: > 0 } cores)
         {
-            // MangoHud lists one row per core; two cores per row keeps 20 threads at a sane height
-            for (int i = 0; i < cores.Length; i += 2)
+            // one row per physical core: P1..P6 (two threads each), E1..E8 (one thread) on the i7-12700H,
+            // each thread's load then the core's real clock; single thread cores pad so the clocks line up
+            int maxThreads = 1;
+            foreach (var c in cores) maxThreads = Math.Max(maxThreads, c.Loads.Length);
+            foreach (var core in cores)
             {
-                var c = new List<Cell> { new(cores[i].ToString("0"), "%") };
-                string label = $"CPU{i}";
-                if (i + 1 < cores.Length) { c.Add(new($"{cores[i + 1]:0}", "%")); label = $"CPU{i}-{i + 1}"; }
-                rows.Add(new(label, CpuC, c.ToArray()));
+                var c = new List<Cell>();
+                for (int t = 0; t < maxThreads; t++) c.Add(t < core.Loads.Length ? new(core.Loads[t].ToString("0"), "%") : new("", ""));
+                c.Add(new(N(core.Mhz), "MHz"));
+                rows.Add(new($"{core.Kind}{core.Index}", core.Kind == 'E' ? CoreE : CpuC, c.ToArray()));
             }
         }
         if ((it & Item.Vram) != 0) rows.Add(new("VRAM", VramC, new[] { new Cell(G(d.VramGiB), "GiB") }));
@@ -117,9 +130,11 @@ public sealed class OverlayPanel : FrameworkElement
         if ((it & Item.Engine) != 0)
         {
             var c = new List<Cell> { new(Fps.ToString("0"), "FPS") };
+            if (ShowGen) c.Add(new("| " + GenFps.ToString("0"), "FG"));
             if ((it & Item.FrameTime) != 0) c.Add(new(FrameMs.ToString("0.0"), "ms"));
             rows.Add(new(string.IsNullOrEmpty(Engine) ? "FPS" : Engine, EngineC, c.ToArray()));
         }
+        if ((it & Item.Latency) != 0) rows.Add(new(LatLabel, DimC, new[] { new Cell(LatValue, "ms") }));
         return rows;
     }
 
@@ -230,7 +245,7 @@ public sealed class OverlayPanel : FrameworkElement
             y += Pad / 2;
             var cap = T("Frametime", White, FsUnit);
             dc.DrawText(cap, new Point(Pad, y));
-            var range = T($"{GraphMin():0.0} / {GraphMax():0.0} ms", DimC, FsUnit);
+            var range = T($"min {GraphMin():0.0} / max {GraphMax():0.0} ms", DimC, FsUnit);
             dc.DrawText(range, new Point(_size.Width - Pad - range.Width, y));
             y += FsUnit * 1.4;
             DrawGraph(dc, new Rect(Pad, y, _size.Width - Pad * 2, GraphH));
@@ -240,6 +255,7 @@ public sealed class OverlayPanel : FrameworkElement
     private void DrawCellRight(DrawingContext dc, Cell c, double right, double y)
     {
         double x = right;
+        if (c.Value.Length == 0) return;
         if (c.Unit.Length > 0)
         {
             var u = T(c.Unit, White, FsUnit);
@@ -263,8 +279,15 @@ public sealed class OverlayPanel : FrameworkElement
     {
         var d = Data; var it = Items;
         var l = new List<HItem>();
-        if ((it & Item.Fps) != 0) l.Add(new("FPS", EngineC, new[] { new Cell(Fps.ToString("0"), "") }, false));
+        if ((it & Item.Fps) != 0)
+        {
+            // Steam style: real fps, then a line and the generated fps; only the real fps when no generated frames are seen
+            var c = new List<Cell> { new(Fps.ToString("0"), "") };
+            if (ShowGen) c.Add(new("| " + GenFps.ToString("0"), "FG"));
+            l.Add(new("FPS", EngineC, c.ToArray(), false));
+        }
         if ((it & Item.FrameTime) != 0) l.Add(new("", White, new[] { new Cell(FrameMs.ToString("0.0"), "ms") }, false));
+        if ((it & Item.Latency) != 0) l.Add(new(LatPc ? "PC LAT" : "LAT", DimC, new[] { new Cell(LatValue, "ms") }, false));
         if ((it & Item.FrameGraph) != 0) l.Add(new("", White, Array.Empty<Cell>(), true));
         if ((it & Item.Cpu) != 0)
         {
