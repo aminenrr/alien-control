@@ -27,6 +27,7 @@ public sealed class KeyboardHid
     private static readonly object Gate = new();
     private static SafeFileHandle? _dev;
     private static int _len;
+    private static long _nextOpen;
 
     private bool WithDevice(Func<SafeFileHandle, int, bool> send)
     {
@@ -34,7 +35,14 @@ public sealed class KeyboardHid
         {
             for (int attempt = 0; attempt < 2; attempt++)
             {
-                if (_dev is null || _dev.IsInvalid || _dev.IsClosed) { _dev = Open(out _len); if (_dev is null) return false; }
+                if (_dev is null || _dev.IsInvalid || _dev.IsClosed)
+                {
+                    // 2.0.0-beta1.4 (services review #21): after a failed search (resume before USB is back) wait 1.5 s
+                    // before the next full SetupDi enumeration, instead of one per frame (20 a second with Spectrum)
+                    if (Environment.TickCount64 < _nextOpen) return false;
+                    _dev = Open(out _len);
+                    if (_dev is null) { _nextOpen = Environment.TickCount64 + 1500; return false; }
+                }
                 if (send(_dev, _len)) return true;
                 _dev.Dispose(); _dev = null;   // device dropped (sleep / reconnect): reopen once
             }
@@ -132,72 +140,64 @@ public sealed class KeyboardHid
     }
 
     /// <summary>Sends every key's color in one frame.</summary>
+    /// <summary>Sends every key's color in one frame. The list may be a buffer the caller reuses (the animation):
+    /// a frame held while dark or off is copied.</summary>
     public bool SetKeys(IReadOnlyList<(byte id, byte r, byte g, byte b)> keys)
     {
-        lock (Gate) if (_dark || _off) { _held = keys; return true; }
+        lock (Gate) if (_dark || _off) { _held = new List<(byte, byte, byte, byte)>(keys); return true; }
         return WithDevice((dev, len) => SetKeys(dev, len, keys));
+    }
+
+    // 2.0.0-beta1.4 (services review #22): the commands are static and the report buffer is reused (always under Gate:
+    // WithDevice holds it), so a frame no longer allocates a new feature buffer per HID report.
+    private static readonly byte[] CmdReset = { 0x94 }, CmdColorSet = { 0x8c, 0x02 }, CmdLoop = { 0x8c, 0x13 }, CmdUpdate = { 0x8b, 0x01, 0xff };
+    private static byte[]? _report;
+
+    private static byte[] Report(int len, byte[] cmd)
+    {
+        if (_report is null || _report.Length != len) _report = new byte[len];
+        Array.Clear(_report);
+        _report[0] = ReportId;
+        Array.Copy(cmd, 0, _report, 1, cmd.Length);
+        return _report;
     }
 
     private static bool SetKeys(SafeFileHandle dev, int len, IReadOnlyList<(byte id, byte r, byte g, byte b)> keys)
     {
-        bool ok = Send(dev, len, new byte[] { 0x94 });            // reset: start a frame
-        var buf = NewBuffer(len, new byte[] { 0x8c, 0x02 });       // colorSet
+        bool ok = Send(dev, len, CmdReset);                         // reset: start a frame
+        var buf = Report(len, CmdColorSet);                          // colorSet
         int pos = 4;
-        foreach (var k in keys)
+        for (int i = 0; i < keys.Count; i++)
         {
+            var k = keys[i];
             if (pos + 4 > len)
             {
                 ok &= HidD_SetFeature(dev, buf, len);
-                buf = NewBuffer(len, new byte[] { 0x8c, 0x02 });
+                buf = Report(len, CmdColorSet);
                 pos = 4;
             }
             buf[pos] = (byte)(k.id + 1); buf[pos + 1] = k.r; buf[pos + 2] = k.g; buf[pos + 3] = k.b;
             pos += 4;
         }
         if (pos > 4) ok &= HidD_SetFeature(dev, buf, len);
-        ok &= Send(dev, len, new byte[] { 0x8c, 0x13 });           // loop
-        ok &= Send(dev, len, new byte[] { 0x8b, 0x01, 0xff });     // update: commit the frame
+        ok &= Send(dev, len, CmdLoop);                              // loop
+        ok &= Send(dev, len, CmdUpdate);                            // update: commit the frame
         return ok;
     }
+
+    private static readonly byte[] CmdTurnOn = { 0x83, 0x38, 0x9c };
 
     public bool SetBrightness(int brightness) => WithDevice((dev, len) => SetBrightness(dev, len, brightness));
 
     private static bool SetBrightness(SafeFileHandle dev, int len, int brightness)
     {
-        bool ok = Send(dev, len, new byte[] { 0x94 });
-        var buf = NewBuffer(len, new byte[] { 0x83, 0x38, 0x9c });  // turnOnSet
+        bool ok = Send(dev, len, CmdReset);
+        var buf = Report(len, CmdTurnOn);                           // turnOnSet
         buf[4] = (byte)Math.Clamp(brightness, 0, 255);
         return ok & HidD_SetFeature(dev, buf, len);
     }
 
-    /// <summary>
-    /// 1.3.1-beta.2 F7 probe (Settings > Advanced > Watch F7): reads what the lighting collection hands back, without
-    /// writing anything. Returns the feature report and the input report (report id 0xcc) as hex, or "fail" for one the
-    /// device refuses. If a byte follows F7, the app can show F7's level; if nothing changes, the firmware keeps it.
-    /// </summary>
-    public string ReadState()
-    {
-        string feat = "fail", input = "fail";
-        WithDevice((dev, len) =>
-        {
-            var b = new byte[len]; b[0] = ReportId;
-            if (HidD_GetFeature(dev, b, len)) feat = BitConverter.ToString(b, 0, Math.Min(len, 34));
-            var c = new byte[len]; c[0] = ReportId;
-            if (HidD_GetInputReport(dev, c, len)) input = BitConverter.ToString(c, 0, Math.Min(len, 34));
-            return true;   // a refused read is a result, not a dropped device
-        });
-        return $"feature {feat} | input {input}";
-    }
-
-    private static byte[] NewBuffer(int len, byte[] cmd)
-    {
-        var b = new byte[len];
-        b[0] = ReportId;
-        Array.Copy(cmd, 0, b, 1, cmd.Length);
-        return b;
-    }
-
-    private static bool Send(SafeFileHandle dev, int len, byte[] cmd) => HidD_SetFeature(dev, NewBuffer(len, cmd), len);
+    private static bool Send(SafeFileHandle dev, int len, byte[] cmd) => HidD_SetFeature(dev, Report(len, cmd), len);
 
     // ---------- device lookup ----------
 
@@ -265,8 +265,6 @@ public sealed class KeyboardHid
     [DllImport("hid.dll")] private static extern bool HidD_FreePreparsedData(IntPtr p);
     [DllImport("hid.dll")] private static extern int HidP_GetCaps(IntPtr p, out HIDP_CAPS c);
     [DllImport("hid.dll")] private static extern bool HidD_SetFeature(SafeFileHandle h, byte[] b, int len);
-    [DllImport("hid.dll")] private static extern bool HidD_GetFeature(SafeFileHandle h, byte[] b, int len);
-    [DllImport("hid.dll")] private static extern bool HidD_GetInputReport(SafeFileHandle h, byte[] b, int len);
     [DllImport("setupapi.dll")] private static extern IntPtr SetupDiGetClassDevs(ref Guid g, IntPtr e, IntPtr w, int f);
     [DllImport("setupapi.dll")] private static extern bool SetupDiEnumDeviceInterfaces(IntPtr s, IntPtr d, ref Guid g, uint i, ref SP_DEVICE_INTERFACE_DATA data);
     [DllImport("setupapi.dll", CharSet = CharSet.Unicode)] private static extern bool SetupDiGetDeviceInterfaceDetail(IntPtr s, ref SP_DEVICE_INTERFACE_DATA d, IntPtr detail, int size, out int req, IntPtr info);

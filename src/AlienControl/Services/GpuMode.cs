@@ -249,12 +249,9 @@ public static class GpuMode
         catch (Exception ex) { return "Couldn't open the NVIDIA Control Panel: " + ex.Message; }
     }
 
-    /// <summary>Processes holding dedicated GPU memory (the RTX; the Intel iGPU uses shared memory).</summary>
-    /// <summary>Names only (1.3.0-beta.1: one loop, review #15).</summary>
-    public static List<string> AppsUsingDgpu() =>
-        AppsUsingDgpuDetailed().Select(a => a.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
-
-    /// <summary>1.2.0-beta.2: like AppsUsingDgpu, with each app's dedicated memory in MB, biggest first.</summary>
+    /// <summary>Processes holding dedicated GPU memory (the RTX; the Intel iGPU uses shared memory), each with its
+    /// dedicated memory in MB, biggest first (1.2.0-beta.2). 2.0.0-beta1.4: the names-only AppsUsingDgpu and the
+    /// debug Report() are gone (no caller).</summary>
     public static List<(string Name, long Mb)> AppsUsingDgpuDetailed()
     {
         var by = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
@@ -282,24 +279,114 @@ public static class GpuMode
         return by.OrderByDescending(x => x.Value).Select(x => (x.Key, x.Value / (1024 * 1024))).ToList();
     }
 
-    /// <summary>After the RTX comes back: if NVIDIA's tray process (nvcontainer in this session) isn't running,
-    /// restart NVIDIA's Display Container service so its tray icon and display-mode popup return without a reboot.</summary>
-    public static async Task EnsureNvidiaTrayAsync()
+    /// <summary>After the RTX comes back: restarts NVIDIA's Display Container service so its tray icon and
+    /// display-mode popup return without a reboot. Returns a short outcome for the log.
+    /// 2.0.0-beta1.4 (Amine, bug: the icon never came back after iGPU only, 1.3.x brought it back): beta1.3 ran
+    /// "net stop" through ProcessRunner with kill:true and 60 s, then "net start" right away. The container's stop is slow
+    /// while the driver is still coming up; when it ran past 60 s net.exe was killed mid-stop and "net start" hit a
+    /// service still in STOP_PENDING and failed, so the service ended up stopped until a reboot (1.3.x waited for net
+    /// stop however long it took). It was also skipped whenever any nvcontainer ran in the session, and a stale one can
+    /// outlive its icon. Now: wait for the RTX to report OK, then always stop the service through the service manager
+    /// (no net.exe to kill), wait until it is really STOPPED, start it, wait for RUNNING, and log what happened.
+    /// Blocking (up to about 2 minutes in the worst case): call it off the UI thread and outside the command gate.</summary>
+    public static async Task<string> EnsureNvidiaTrayAsync()
     {
+        const string svc = "NVDisplay.ContainerLocalSystem";
         try
         {
-            int session = Process.GetCurrentProcess().SessionId;
-            bool tray = Process.GetProcessesByName("nvcontainer").Any(p => { try { return p.SessionId == session; } catch { return false; } });
-            if (tray) return;
-            // 2.0.0-beta1.3 (services review #7): 60 s timeout per net call, output read (it used to be redirected and never read)
-            foreach (var verb in new[] { "stop", "start" })
+            // 1. the RTX must be up first (pnputil returns before the driver has finished starting)
+            var sw = Stopwatch.StartNew();
+            while (!(Adapters().FirstOrDefault(x => x.IsNvidia)?.Ok ?? false))
             {
-                var r = await ProcessRunner.RunAsync(SysExe.Get("net.exe"), $"{verb} NVDisplay.ContainerLocalSystem", 60000, kill: true);
-                if (r.TimedOut || r.ExitCode != 0) Log.Info("NvidiaTray", $"net {verb}: {(r.TimedOut ? "timed out" : $"exit {r.ExitCode}")} {r.Output}");
+                if (sw.Elapsed.TotalSeconds > 30) return Done("RTX not ready after 30 s, service not restarted");
+                await Task.Delay(1000).ConfigureAwait(false);
             }
+            IntPtr scm = OpenSCManager(null, null, SC_MANAGER_CONNECT);
+            if (scm == IntPtr.Zero) return Done($"service manager: error {Marshal.GetLastWin32Error()}");
+            try
+            {
+                IntPtr h = OpenService(scm, svc, SERVICE_QUERY_STATUS | SERVICE_STOP | SERVICE_START);
+                if (h == IntPtr.Zero) return Done($"{svc} not opened: error {Marshal.GetLastWin32Error()}");
+                try
+                {
+                    // 2. let a start or stop already in progress settle
+                    await WaitState(h, s => s is SERVICE_RUNNING or SERVICE_STOPPED or SERVICE_PAUSED, 30).ConfigureAwait(false);
+                    // 3. stop, and wait until it is really stopped
+                    if (SvcState(h) != SERVICE_STOPPED)
+                    {
+                        var st = new SERVICE_STATUS();
+                        if (!ControlService(h, SERVICE_CONTROL_STOP, ref st))
+                        {
+                            int e = Marshal.GetLastWin32Error();
+                            if (e == ERROR_DEPENDENT_SERVICES_RUNNING)
+                            {
+                                // dependents: net stop /y stops them too. Never killed: it is left to finish.
+                                var r = await ProcessRunner.RunAsync(SysExe.Get("net.exe"), $"stop {svc} /y", 90000, kill: false).ConfigureAwait(false);
+                                Log.Info("NvidiaTray", $"net stop /y: {(r.TimedOut ? "still running" : $"exit {r.ExitCode}")} {r.Output}");
+                            }
+                            else if (e != ERROR_SERVICE_NOT_ACTIVE) Log.Info("NvidiaTray", $"stop: error {e}");
+                        }
+                        if (!await WaitState(h, s => s == SERVICE_STOPPED, 90).ConfigureAwait(false))
+                            return Done($"{svc} didn't stop in 90 s (state {SvcState(h)}), not started again");
+                    }
+                    // 4. start, and wait until it runs
+                    if (!StartService(h, 0, null) && Marshal.GetLastWin32Error() is int se && se != ERROR_SERVICE_ALREADY_RUNNING)
+                        return Done($"{svc} start: error {se}");
+                    if (!await WaitState(h, s => s == SERVICE_RUNNING, 30).ConfigureAwait(false))
+                        return Done($"{svc} not running 30 s after start (state {SvcState(h)})");
+                }
+                finally { CloseServiceHandle(h); }
+            }
+            finally { CloseServiceHandle(scm); }
+            // 5. the tray process is started by the service in this session a few seconds later
+            int session = Process.GetCurrentProcess().SessionId;
+            for (int i = 0; i < 15; i++)
+            {
+                if (Process.GetProcessesByName("nvcontainer").Any(p => { try { return p.SessionId == session; } catch { return false; } }))
+                    return Done($"{svc} restarted, tray process up after {sw.Elapsed.TotalSeconds:0} s");
+                await Task.Delay(1000).ConfigureAwait(false);
+            }
+            return Done($"{svc} restarted, but no nvcontainer in this session yet");
         }
-        catch (System.Exception __e) { AlienControl.Services.Log.Warn("GpuMode.cs:264", __e); }
+        catch (Exception ex) { Log.Warn("NvidiaTray", ex); return "failed: " + ex.Message; }
+
+        static string Done(string what) { Log.Info("NvidiaTray", what); return what; }
     }
+
+    private static int SvcState(IntPtr h)
+    {
+        var st = new SERVICE_STATUS();
+        return QueryServiceStatus(h, ref st) ? st.dwCurrentState : 0;
+    }
+
+    private static async Task<bool> WaitState(IntPtr h, Func<int, bool> ok, int seconds)
+    {
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            if (ok(SvcState(h))) return true;
+            if (sw.Elapsed.TotalSeconds > seconds) return false;
+            await Task.Delay(500).ConfigureAwait(false);
+        }
+    }
+
+    private const uint SC_MANAGER_CONNECT = 0x1, SERVICE_QUERY_STATUS = 0x4, SERVICE_START = 0x10, SERVICE_STOP = 0x20;
+    private const int SERVICE_CONTROL_STOP = 1;
+    private const int SERVICE_STOPPED = 1, SERVICE_RUNNING = 4, SERVICE_PAUSED = 7;
+    private const int ERROR_DEPENDENT_SERVICES_RUNNING = 1051, ERROR_SERVICE_NOT_ACTIVE = 1062, ERROR_SERVICE_ALREADY_RUNNING = 1056;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SERVICE_STATUS
+    {
+        public int dwServiceType, dwCurrentState, dwControlsAccepted, dwWin32ExitCode, dwServiceSpecificExitCode, dwCheckPoint, dwWaitHint;
+    }
+
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)] private static extern IntPtr OpenSCManager(string? machine, string? db, uint access);
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)] private static extern IntPtr OpenService(IntPtr scm, string name, uint access);
+    [DllImport("advapi32.dll", SetLastError = true)] private static extern bool ControlService(IntPtr h, int control, ref SERVICE_STATUS status);
+    [DllImport("advapi32.dll", SetLastError = true)] private static extern bool QueryServiceStatus(IntPtr h, ref SERVICE_STATUS status);
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)] private static extern bool StartService(IntPtr h, int argc, string[]? argv);
+    [DllImport("advapi32.dll", SetLastError = true)] private static extern bool CloseServiceHandle(IntPtr h);
 
     /// <summary>2.0.0-beta1.3 (services review #7): how long the RTX switch waits for pnputil. After that the app stops
     /// waiting and reports it, but pnputil is never killed mid-operation: PnpIdle completes once it has exited.</summary>
@@ -372,38 +459,5 @@ public static class GpuMode
         if (value is null) return $"Unknown values for {attr.Name}: {string.Join(", ", attr.Possible)}";
         if (value.Equals(attr.Current, StringComparison.OrdinalIgnoreCase)) return null;
         return HardwareController.Run(() => DellBios.SetAttribute(attr.Name, value));
-    }
-
-    /// <summary>Text report of display adapters and BIOS attributes, copied for debugging.</summary>
-    public static string Report()
-    {
-        var sb = new StringBuilder("Alien Controls GPU report\n");
-        foreach (var a in Adapters()) sb.AppendLine($"Adapter: {a.Name} | code {a.ErrorCode} | {a.PnpId}");
-        sb.AppendLine($"Mode: {Current(Adapters())}");
-        sb.AppendLine($"Internal panel on NVIDIA (Advanced Optimus 'NVIDIA GPU only'): {InternalPanelOnNvidia()?.ToString() ?? "unknown"}");
-        var (fa, fm) = ReadNvidiaFlags();
-        sb.AppendLine($"NVIDIA flags: InternalMuxIsAutomaticMode={fa?.ToString() ?? "missing"}, InternalMuxState={fm?.ToString() ?? "missing"}");
-        var g = FindGraphicsAttribute();
-        sb.AppendLine(g is null
-            ? "Ultimate (MUX) from Windows: NOT possible - no hybrid/MUX attribute in Dell BIOS WMI."
-            : $"Ultimate (MUX) from Windows: possible via '{g.Name}' = {g.Current} [{string.Join("/", g.Possible)}]");
-        var x = DellBios.FindExpressCharge();
-        sb.AppendLine(x is null ? "ExpressCharge: not exposed" : $"ExpressCharge: '{x.Name}' = {x.Current} [{string.Join("/", x.Possible)}]");
-        sb.AppendLine($"BIOS passwords: {DellBios.PasswordState() ?? "unknown (wmisecurity not exposed)"}");
-        sb.AppendLine(PowerMeter.Describe());
-        try
-        {
-            using var s = new ManagementObjectSearcher(BiosNs, "SELECT * FROM EnumerationAttribute");
-            int n = 0;
-            foreach (ManagementObject o in s.Get())
-                using (o)
-                {
-                    n++;
-                    sb.AppendLine($"BIOS: {o["AttributeName"]} = {DellBios.First(o["CurrentValue"])} [{string.Join("/", (o["PossibleValue"] as string[]) ?? Array.Empty<string>())}]");
-                }
-            if (n == 0) sb.AppendLine("BIOS WMI: no attributes");
-        }
-        catch (Exception ex) { sb.AppendLine("BIOS WMI: " + ex.Message); }
-        return sb.ToString();
     }
 }

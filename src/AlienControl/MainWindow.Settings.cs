@@ -27,8 +27,6 @@ public partial class MainWindow
         ChimeClassic.IsChecked = !ChimeSoft.IsChecked;
         ToastPill.IsChecked = Toast.Style == Toast.ToastStyle.Pill;
         ToastClassic.IsChecked = !ToastPill.IsChecked;
-        FrameLogToggle.IsChecked = _settings.FrameLog;
-        WindowSlide.LogFrames = _settings.FrameLog;
         UpdateSettingsDims();
         PreviewKeyDown += SettingsKeyDown;
     }
@@ -43,7 +41,8 @@ public partial class MainWindow
         SettingsHintText.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         SettingsPage.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         // the gear stays lit while the page is open (mockup)
-        if (on) { SettingsButton.SetResourceReference(BorderBrushProperty, "AccentBrush"); SettingsButton.SetResourceReference(ForegroundProperty, "AccentBrush"); SettingsButton.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x06, 0x30, 0x3A)); }
+        // 2.0.0-beta1.4 (Amine): the lit gear's fill is the lighting-colour tint (was a fixed teal #06303A)
+        if (on) { SettingsButton.SetResourceReference(BorderBrushProperty, "AccentBrush"); SettingsButton.SetResourceReference(ForegroundProperty, "AccentBrush"); SettingsButton.SetResourceReference(BackgroundProperty, "AccentPillBg"); }
         else { SettingsButton.ClearValue(BorderBrushProperty); SettingsButton.ClearValue(ForegroundProperty); SettingsButton.ClearValue(BackgroundProperty); }
         UpdatePolling();   // no sensor reads behind the settings page
         if (!on) { if (IsVisible) _ = RefreshSensorsAsync(); return; }
@@ -58,7 +57,7 @@ public partial class MainWindow
     private void SettingsBack_Click(object sender, RoutedEventArgs e) => CloseSettings();
 
     /// <summary>Back to the main view.</summary>
-    private void CloseSettings(bool instant = false)
+    private void CloseSettings()
     {
         if (!SettingsShown) return;
         SetSettingsShown(false);
@@ -160,16 +159,30 @@ public partial class MainWindow
 
     private void ToastTest_Click(object sender, RoutedEventArgs e)
     {
-        Toast.Show(true, new Toast.Info(TrayProfile.Balanced, Profiles.IconKey(TrayProfile.Balanced),
+        Toast.Show(new Toast.Info(TrayProfile.Balanced, Profiles.IconKey(TrayProfile.Balanced),
             Profiles.Label(TrayProfile.Balanced), PresetSub(TrayProfile.Balanced), Toast.Right.Pills), Motion.Enabled);
     }
 
-    // ---------- 2.0: log frame gaps (the 1.3 debug switch, back in Advanced) ----------
+    // 2.0.0-beta1.4 (Amine): the Log frame gaps switch was removed
 
-    private void FrameLog_Click(object sender, RoutedEventArgs e)
+    // ---------- 2.0.0-beta1.4 (ui review, MainWindow split): settings toggles moved here unchanged from MainWindow.xaml.cs ----------
+
+    private void Taskbar_Click(object sender, RoutedEventArgs e)
     {
-        _settings.FrameLog = FrameLogToggle.IsChecked == true;
+        _settings.ShowInTaskbar = TaskbarToggle.IsChecked == true;
         _settings.Save();
-        WindowSlide.LogFrames = _settings.FrameLog;
+        ShowInTaskbar = _settings.ShowInTaskbar;
+    }
+
+    private void F3Opens_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.F3Opens = F3OpensToggle.IsChecked == true;
+        _settings.Save();
+    }
+
+    private void F4Overlay_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.F4Overlay = F4OverlayToggle.IsChecked == true;
+        _settings.Save();
     }
 }

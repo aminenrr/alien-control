@@ -83,20 +83,15 @@ public sealed class AlienFx
         return Run(Chassis(i => $"setone={_s.ChassisDevice},{i},{c[0]},{c[1]},{c[2]}"));
     }
 
-    /// <summary>v0.9.10: per-key colors on top of the base color (F2 preset tint). Status keys still win.</summary>
-    public System.Collections.Generic.Dictionary<int, byte[]> KeyOverrides { get; } = new();
-
-    private byte[] Base(int i, byte[] fallback) => KeyOverrides.TryGetValue(i, out var o) ? o : fallback;
-
     /// <summary>All keyboard keys in one frame, colors scaled by brightness. False if the HID path failed.</summary>
     public Task<bool> SetKeyboardAsync(byte[] baseColor, IReadOnlyDictionary<int, bool>? indicatorsOn, int brightness)
     {
         var w = Dim(_s.IndicatorOnColor, brightness);
         var bc = Dim(baseColor, brightness);
+        // 2.0.0-beta1.4 (services review #23): the F2 tint overrides (KeyOverrides, always empty since 1.0.0-rc1) are gone
         var keys = Enumerable.Range(0, _s.KeyboardLightCount).Select(i =>
         {
-            var c = indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on ? w
-                  : KeyOverrides.TryGetValue(i, out var o) ? Dim(o, brightness) : bc;
+            var c = indicatorsOn is not null && indicatorsOn.TryGetValue(i, out var on) && on ? w : bc;
             return ((byte)i, c[0], c[1], c[2]);
         }).ToList();
         return Task.Run(() => { try { return _hid.SetKeys(keys); } catch { return false; } });
@@ -111,17 +106,6 @@ public sealed class AlienFx
         await Task.Run(() => { try { _hid.SetBrightness(_s.OffKeyboard ? 0 : 255); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("AlienFx.cs:77", __e); } });
         await Run($"setdim={_s.ChassisDevice},255");
     }
-
-    /// <summary>One keyboard key.</summary>
-    public Task<CliResult> SetKeyAsync(int id, byte r, byte g, byte b) =>
-        Run($"setone={_s.KeyboardDevice},{id},{r},{g},{b}");
-
-    /// <summary>
-    /// APIv5 keyboard effect. Types: 0 Color, 2 Breathing, 3 Single-color wave, 4 Dual-color wave,
-    /// 8 Pulse, 9 Mixed pulse, 10 Night Rider, 11 Laser. (No spectrum on APIv5.)
-    /// </summary>
-    public Task<CliResult> SetKeyboardEffectAsync(int type, byte r, byte g, byte b) =>
-        Run($"setglobal={_s.KeyboardDevice},{type},1,{r},{g},{b}");
 
     /// <summary>Second color for the two-color effects: purple, or cyan when the main color is purple.</summary>
     public static byte[] SecondColor(byte[] c) =>
@@ -160,18 +144,26 @@ public sealed class AlienFx
         return await Run(_s.OffKeyboard ? chassis : $"setglobal={_s.KeyboardDevice},0,1 " + chassis);
     }
 
-    /// <summary>One software-animation frame: every key its own color (status keys white if on).</summary>
-    public bool SendFrame(System.Func<int, byte[]> colorOf, IReadOnlyDictionary<int, bool> indicatorsOn, int brightness)
-    {
-        var w = Dim(_s.IndicatorOnColor, brightness);
-        var keys = new List<(byte, byte, byte, byte)>(_s.KeyboardLightCount);
-        for (int i = 0; i < _s.KeyboardLightCount; i++)
-        {
-            var c = indicatorsOn.TryGetValue(i, out var on) && on ? w : Dim(Base(i, colorOf(i)), brightness);
-            keys.Add(((byte)i, c[0], c[1], c[2]));
-        }
-        try { return _hid.SetKeys(keys); } catch { return false; }
-    }
+    // 2.0.0-beta1.4 (ui review #12, services #22): the Spectrum / Rainbow loop sends 20 frames a second for as long as
+    // the effect is on. It used to allocate ~500 objects per frame (a dictionary copy, a list, a byte[] per key from
+    // HsvToRgb and Dim's LINQ). Now one frame array is reused and the colours are structs; only the animation thread
+    // calls this.
+    private (byte id, byte r, byte g, byte b)[]? _frame;
 
-    public Task<CliResult> StatusAsync() => Run("status");
+    /// <summary>One software-animation frame: every key its own color (status keys white if on). indicatorsOn is an
+    /// immutable snapshot indexed by key id (null = none on).</summary>
+    public bool SendFrame(System.Func<int, (byte R, byte G, byte B)> colorOf, bool[]? indicatorsOn, int brightness)
+    {
+        int n = _s.KeyboardLightCount, br = System.Math.Clamp(brightness, 0, 255);
+        if (_frame is null || _frame.Length != n) _frame = new (byte, byte, byte, byte)[n];
+        var on = _s.IndicatorOnColor;
+        byte wr = (byte)(on[0] * br / 255), wg = (byte)(on[1] * br / 255), wb = (byte)(on[2] * br / 255);
+        for (int i = 0; i < n; i++)
+        {
+            if (indicatorsOn is not null && i < indicatorsOn.Length && indicatorsOn[i]) { _frame[i] = ((byte)i, wr, wg, wb); continue; }
+            var c = colorOf(i);
+            _frame[i] = ((byte)i, (byte)(c.R * br / 255), (byte)(c.G * br / 255), (byte)(c.B * br / 255));
+        }
+        try { return _hid.SetKeys(_frame); } catch { return false; }
+    }
 }

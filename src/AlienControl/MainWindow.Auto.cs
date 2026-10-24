@@ -56,7 +56,7 @@ public partial class MainWindow
         {
             if (!ac)
             {
-                bool wasG = _gmodeOn || await _fan.GetGModeAsync() == true;
+                bool wasG = _gmodeOn;   // 2.0.0-beta1.4 (ui review #8): trusted, no getgmode spawn on unplug
                 var cur = CurrentProfile;
                 _settings.AcPreset = Profiles.RememberOnUnplug(cur, wasG).ToString();
                 _settings.Save();
@@ -86,7 +86,7 @@ public partial class MainWindow
         var since = (DateTime.UtcNow - _rateChangedUtc).TotalMilliseconds;
         bool modeSwitch = since < 1500;
         if (modeSwitch) await Task.Delay((int)(1500 - since));
-        if (_settings.Toasts) Toast.Show(true, info, Motion.Enabled, modeSwitch ? 2200 : 1600);
+        if (_settings.Toasts) Toast.Show(info, Motion.Enabled, modeSwitch ? 2200 : 1600);
         if (_settings.ToastSound) Sounds.Play(sound);
         if (!IsVisible) _ = TrimSoonAsync(_showGen);   // v0.9.13: the toast window's memory goes back once it's gone
     }

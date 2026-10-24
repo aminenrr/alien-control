@@ -1,3 +1,6 @@
+# RETIRED in 2.0.0-beta1.4: Themes/Legend.xaml is hand-edited now (69 dead keys were pruned and the WPF-UI styles
+# moved to Legend2.xaml by hand), so running this would undo that. Kept only for reference (icon path data, the old
+# palette). Check theme keys with dev/check_xaml_keys.py instead.
 """Generates Themes/Legend.xaml for Alien Controls (2.0: Legend is the only theme, the Fluent generator was removed).
 Both dictionaries define the SAME keys; MainWindow.xaml only references keys (DynamicResource)."""
 import json, re, os

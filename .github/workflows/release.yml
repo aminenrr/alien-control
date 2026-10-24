@@ -12,18 +12,23 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # 2.0.0-beta1.4 (build review #13): fail before building when the tag doesn't match the csproj version (the
+      # footer would show the old one) or the release notes are missing (they were only read at the last step)
+      - name: Check tag, version and release notes
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          [xml]$proj = Get-Content src/AlienControl/AlienControl.csproj
+          $ver = ($proj.Project.PropertyGroup | ForEach-Object { $_.InformationalVersion } | Where-Object { $_ } | Select-Object -First 1)
+          if (-not $ver) { Write-Host "::error::no InformationalVersion in AlienControl.csproj"; exit 1 }
+          if ("v$ver" -ne $tag) { Write-Host "::error::tag $tag does not match InformationalVersion $ver"; exit 1 }
+          if (-not (Test-Path "docs/releases/$tag.md")) { Write-Host "::error::docs/releases/$tag.md is missing"; exit 1 }
+          Write-Host "tag $tag, version $ver, notes docs/releases/$tag.md"
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
-      - name: XAML duplicate keys
-        shell: pwsh
-        run: |
-          $bad = $false
-          Get-ChildItem src -Recurse -Filter *.xaml | ForEach-Object {
-            $keys = [regex]::Matches((Get-Content $_.FullName -Raw), 'x:Key="([^"]+)"') | ForEach-Object { $_.Groups[1].Value }
-            $keys | Group-Object | Where-Object Count -gt 1 | ForEach-Object { Write-Host "::error::duplicate x:Key '$($_.Name)'"; $bad = $true }
-          }
-          if ($bad) { exit 1 }
+      - name: XAML resource keys
+        run: python dev/check_xaml_keys.py
       - name: Test
         run: dotnet test tests/AlienControl.Tests -c Release
       - name: Publish
@@ -32,7 +37,8 @@ jobs:
         shell: pwsh
         run: |
           $v = "${{ github.ref_name }}".TrimStart('v')
-          Copy-Item README.md publish/
+          # 2.0.0-beta1.4 (build review #13): the MIT LICENSE ships in the zip too
+          Copy-Item README.md, LICENSE publish/
           Compress-Archive -Path publish/* -DestinationPath "AlienControl-$v-win-x64.zip"
           $zip = "AlienControl-$v-win-x64.zip"
           (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() + "  " + $zip | Out-File -Encoding ascii SHA256SUMS

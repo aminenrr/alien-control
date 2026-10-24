@@ -35,14 +35,18 @@ public partial class MainWindow
         ShowPage(HomePage);
     }
 
-    private (RadioButton Tile, TrayProfile Profile)[] HomeTiles() => new[]
+    // 2.0.0-beta1.4 (ui review #21): built once (they were new arrays on every access)
+    private (RadioButton Tile, TrayProfile Profile)[]? _homeTiles;
+    private (RadioButton Tile, TrayProfile Profile)[] HomeTiles() => _homeTiles ??= new[]
     {
         (HomeBattery, TrayProfile.Battery), (HomeQuiet, TrayProfile.Quiet), (HomeBalanced, TrayProfile.Balanced),
         (HomePerformance, TrayProfile.Performance), (HomeCustom, TrayProfile.Custom),
     };
 
-    private Grid[] Pages => new[] { HomePage, TuningPage, LightsPage, OverlayPage };
-    private RadioButton[] PageTabs => new[] { TabHome, TabTuning, TabLights, TabOverlay };
+    private Grid[]? _pages;
+    private RadioButton[]? _pageTabs;
+    private Grid[] Pages => _pages ??= new[] { HomePage, TuningPage, LightsPage, OverlayPage };
+    private RadioButton[] PageTabs => _pageTabs ??= new[] { TabHome, TabTuning, TabLights, TabOverlay };
 
     private void Tab_Click(object sender, RoutedEventArgs e)
     {
@@ -64,6 +68,7 @@ public partial class MainWindow
         if (page == HomePage) PresetPopup.IsOpen = false;
         if (page != LightsPage && page != HomePage) CustomPopup.IsOpen = false;
         UpdatePolling();
+        if (page == TuningPage) RefreshGpuIfShown();   // 2.0.0-beta1.4: the GPU MODE row is read when it shows
         // fresh values right away on a sensor page (the timer would take up to 2 s)
         if (SensorsShown) Dispatcher.BeginInvoke(new Action(async () => await RefreshSensorsAsync()), System.Windows.Threading.DispatcherPriority.Background);
     }
@@ -80,6 +85,9 @@ public partial class MainWindow
         {
             _poll.Stop();
             _powerTimer.Stop();
+            // 2.0.0-beta1.4 (services review #9): nothing reads GPU power now, so the NVML session closes too (hidden,
+            // minimized, Lights / Overlay / Settings). The next power read opens it again.
+            _ = Task.Run(_power.CloseGpu);   // no-op when it isn't open
         }
     }
 
@@ -121,7 +129,9 @@ public partial class MainWindow
         if (HomeGModeSub is null) return;
         bool oc = _settings.OcOn && (_settings.OcCore | _settings.OcMem) != 0;
         // 2.0.0-beta1.2: the G-MODE / + PERF switches decide where the kept overclock runs
-        HomeGModeSub.Text = !oc ? "No GPU overclock kept (Tuning)"
+        // 2.0.0-beta1.4 (Amine, bug B): no offsets shown while the RTX is off (iGPU only) or there is no NVML
+        HomeGModeSub.Text = OcUnavailable ? (_gpu.Kind == GpuModeKind.IGpuOnly || _rtxSwitching ? "GPU overclock off while the RTX is off" : "No GPU overclock (NVIDIA driver missing)")
+            : !oc ? "No GPU overclock kept (Tuning)"
             : !_settings.OcInGMode && !_settings.OcInPerformance ? "GPU overclock off (Tuning)"
             : !_settings.OcInGMode ? "GPU overclock in Performance only (Tuning)"
             : $"GPU overclock +{_settings.OcCore} / +{_settings.OcMem} on AC";
@@ -139,7 +149,7 @@ public partial class MainWindow
         _f4Last = now;
         Log.Info("F4", "overlay key pressed (overlay comes in beta 2)");
         if (_settings.Toasts)
-            Toast.Show(true, new Toast.Info(CurrentProfile, "Icon.ChartBar", "Overlay", "Comes in beta 2", Toast.Right.None, Lit: false,
-                Accent: (Application.Current.Resources["AccentBrush"] as SolidColorBrush)?.Color), Motion.Enabled);
+            Toast.Show(new Toast.Info(CurrentProfile, "Icon.ChartBar", "Overlay", "Comes in beta 2", Toast.Right.None, Lit: false,
+                Accent: AccentColor), Motion.Enabled);   // 2.0.0-beta1.4 (ui review #17): the accent field, not a resource read
     }
 }

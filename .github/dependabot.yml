@@ -3,6 +3,8 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
+  # 2.0.0-beta1.4 (build review #3): "/" has no project file, so the NuGet updater found nothing. Point it at both
+  # projects.
   - package-ecosystem: nuget
-    directory: /
+    directories: ["/src/AlienControl", "/tests/AlienControl.Tests"]
     schedule: { interval: monthly }

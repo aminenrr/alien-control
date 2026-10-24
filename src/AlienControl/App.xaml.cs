@@ -39,7 +39,7 @@ public partial class App : Application
         // 1.2.0-beta.4: local crash log (%AppData%\AlienControl\crash.log), never sent anywhere
         // 2.0.0-beta1.3 (services review #2): the two fatal ones also put the GPU OC back to +0 and clear the CPU cap
         // (best effort, bounded), so a crash can't leave a kept overclock running on battery until reboot
-        DispatcherUnhandledException += (_, a) => { CrashLog("UI", a.Exception); CrashCleanup(); };
+        DispatcherUnhandledException += OnUiException;
         AppDomain.CurrentDomain.UnhandledException += (_, a) => { CrashLog("Domain", a.ExceptionObject as Exception); CrashCleanup(); };
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, a) => { CrashLog("Task", a.Exception); a.SetObserved(); };
         // 1.3.0-beta.1 (review #1): single instance. A second copy wakes the first one's window and exits, so there's
@@ -73,9 +73,35 @@ public partial class App : Application
 
     private static void CrashLog(string where, Exception? ex) => Log.Error(where, ex);
 
+    private readonly Queue<long> _uiErrors = new();
+
+    /// <summary>2.0.0-beta1.4 (ui review #6): an exception that escapes a UI handler (every async void click, timer and
+    /// BeginInvoke lambda ends up here) used to kill the app, skipping Quit's cleanup. A non-fatal one is now logged,
+    /// shown in the status line and handled, so the app keeps running. A fatal one (out of memory, corrupted state) or
+    /// a burst of more than 5 in 10 s still ends the app, after the bounded crash cleanup (OC +0, CPU cap cleared).</summary>
+    private void OnUiException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs a)
+    {
+        CrashLog("UI", a.Exception);
+        long now = Environment.TickCount64;
+        _uiErrors.Enqueue(now);
+        while (_uiErrors.Count > 0 && now - _uiErrors.Peek() > 10_000) _uiErrors.Dequeue();
+        bool fatal = a.Exception is OutOfMemoryException or InsufficientExecutionStackException or AccessViolationException
+            or InvalidProgramException or System.Runtime.InteropServices.SEHException or TypeInitializationException;
+        if (!fatal && _uiErrors.Count <= 5 && !_quitting)
+        {
+            a.Handled = true;
+            try { _window?.ShowError("Something went wrong (details in crash.log). " + a.Exception.Message); }
+            catch (Exception ex) { Log.Warn("UI error status", ex); }
+            return;
+        }
+        CrashCleanup();
+    }
+
     private void CrashCleanup()
     {
         try { _window?.EmergencyExitCleanup(3000); } catch (Exception ex) { Log.Warn("CrashCleanup", ex); }
+        // 2.0.0-beta1.4: also one last write of settings a locked settings.json held back
+        try { Settings.FlushPending(); } catch (Exception ex) { Log.Warn("CrashCleanup.Settings", ex); }
     }
 
     /// <summary>2.0.0-beta1.3 (services review #2): logoff, user switch to sign-out, restart or shutdown. Quit's async
@@ -131,7 +157,7 @@ public partial class App : Application
             if (_window is not null && _profileItems.TryGetValue(TrayProfile.Battery, out var bat)) bat.Enabled = !_window.BatteryLocked;
         };
         _menu = menu;
-        if (_window is not null) UpdateTrayMenu(true, _window.AccentColor);
+        if (_window is not null) UpdateTrayMenu(_window.AccentColor);
 
         _baseIcon = LoadTrayIcon();
         _tray = new WinForms.NotifyIcon
@@ -160,19 +186,20 @@ public partial class App : Application
         else ShowMain();
     }
 
-    /// <summary>v0.8.7: restyles the tray menu for the theme and accent (called by MainWindow on every change).</summary>
-    public void UpdateTrayMenu(bool legend, System.Windows.Media.Color accent)
+    /// <summary>v0.8.7: restyles the tray menu for the accent (called by MainWindow when the accent changes).
+    /// 2.0.0-beta1.4: Legend only, so the theme flag is gone.</summary>
+    public void UpdateTrayMenu(System.Windows.Media.Color accent)
     {
-        _menuStyle.Set(legend, Color.FromArgb(accent.R, accent.G, accent.B));
+        _menuStyle.Set(Color.FromArgb(accent.R, accent.G, accent.B));
         if (_menu is null) return;
         var old = _menuFont;
         _menuFont = _menuStyle.MakeFont();
         _menu.Font = _menuFont;
         old?.Dispose();   // only fonts we made; never the shared default menu font
-        var pad = legend ? new WinForms.Padding(0, 3, 0, 3) : new WinForms.Padding(0, 5, 0, 5);
+        var pad = new WinForms.Padding(0, 3, 0, 3);
         foreach (var (item, text) in _menuTexts)
         {
-            item.Text = text;   // 1.3.1: the app's text font in normal case in both themes (was Legend caps)
+            item.Text = text;   // 1.3.1: the app's text font in normal case (was Legend caps)
             item.Padding = pad;
         }
         _menu.BackColor = _menuStyle.Back;
@@ -233,6 +260,8 @@ public partial class App : Application
     /// <summary>Checks the profile in the tray menu and tints the tray icon with its color.</summary>
     private void ShowProfile(TrayProfile p)
     {
+        // 2.0.0-beta1.4 (ui review #10): nothing to redraw when the shown profile is the same
+        if (_shownProfile == p && _tintHandle != IntPtr.Zero) return;
         _shownProfile = p;
         RefreshProfileIcons();
         if (_tray is null || _baseIcon is null) return;

@@ -12,23 +12,32 @@ namespace AlienControl.Services;
 public static class InputThread
 {
     private static Dispatcher? _dispatcher;
+    private static readonly object StartLock = new();
 
+    /// <summary>2.0.0-beta1.4 (services review #25): started once under a lock, so two first callers can't start two
+    /// input threads.</summary>
     public static Dispatcher Dispatcher
     {
         get
         {
-            if (_dispatcher is not null) return _dispatcher;
-            using var ready = new ManualResetEventSlim();
-            var t = new Thread(() =>
+            if (Volatile.Read(ref _dispatcher) is { } d) return d;
+            lock (StartLock)
             {
-                _dispatcher = Dispatcher.CurrentDispatcher;
-                ready.Set();
-                Dispatcher.Run();
-            }) { IsBackground = true, Name = "AlienControl input" };
-            t.SetApartmentState(ApartmentState.STA);
-            t.Start();
-            ready.Wait();
-            return _dispatcher!;
+                if (_dispatcher is not null) return _dispatcher;
+                using var ready = new ManualResetEventSlim();
+                Dispatcher? created = null;
+                var t = new Thread(() =>
+                {
+                    created = Dispatcher.CurrentDispatcher;
+                    ready.Set();
+                    Dispatcher.Run();
+                }) { IsBackground = true, Name = "AlienControl input" };
+                t.SetApartmentState(ApartmentState.STA);
+                t.Start();
+                ready.Wait();
+                Volatile.Write(ref _dispatcher, created);
+                return created!;
+            }
         }
     }
 
