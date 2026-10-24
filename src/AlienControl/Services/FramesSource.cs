@@ -14,7 +14,11 @@ namespace AlienControl.Services;
 ///
 /// Lifecycle: Start when the overlay goes from off to a level, Stop when it goes off. Nothing runs while off.
 /// The child is put in a kill-on-close job object, so it dies with the app even on a crash or a Task Manager kill,
-/// and every start passes --stop_existing_session for our fixed session name, so a stale ETW session is cleaned up.
+/// ov.4 (Defender flagged ov.3 as Behavior:Win32/DefenseEvasion.A!ml): we never stop an ETW session ourselves any more.
+/// Stop asks PresentMon to quit the way its own Ctrl+C handler does (WM_QUIT to its "PresentMon" message window), so
+/// PresentMon closes its own session. No second PresentMon with --terminate_existing_session, and --stop_existing_session
+/// is passed only after PresentMon reported a leftover session of our name (it was killed: crash, Task Manager).
+/// Going off is debounced (StopSoon), so flipping F4 or the toggle doesn't churn processes.
 /// </summary>
 public sealed class FramesSource : IDisposable
 {
@@ -55,15 +59,17 @@ public sealed class FramesSource : IDisposable
     {
         if (on == Extended) return;
         Extended = on;
-        if (_running) { Stop(); Start(); }
+        _tier = 0;
+        if (_running && !StopPending) { Stop(); Start(); }
+        else if (_running) Stop();   // was about to go off anyway: next Start uses the new mode
     }
 
     /// <summary>PresentMon command line for a mode. Off = the lean set (no display, GPU or input tracking).
     /// Extended keeps GPU and input off and adds display, frame type and PC latency; tier 1 drops the two
     /// instrumentation flags (fallback if this PresentMon build rejects them).</summary>
-    internal static string Args(bool extended, int tier = 0)
+    internal static string Args(bool extended, int tier = 0, bool stopExisting = false)
     {
-        var a = $"--output_stdout --no_console_stats --session_name {SessionName} --stop_existing_session " +
+        var a = $"--output_stdout --no_console_stats --session_name {SessionName} " + (stopExisting ? "--stop_existing_session " : "") +
                 "--no_track_gpu --no_track_input --exclude dwm.exe --exclude AlienControl.exe";
         if (!extended) return a + " --no_track_display";
         return tier == 0 ? a + " --track_frame_type --track_pc_latency" : a;
@@ -80,21 +86,33 @@ public sealed class FramesSource : IDisposable
     /// <summary>PresentMon's PresentRuntime for the target (DXGI, D3D9, Other). The overlay maps it to an engine label.</summary>
     public string Runtime { get { lock (_lock) return _runtime; } }
 
-    public bool Start()
+    private readonly object _life = new();
+
+    public bool Start() { lock (_life) return StartCore(); }
+
+    private bool StartCore()
     {
+        CancelStopSoon();
         if (_running) return true;
+        WaitForStopping();
         Error = null;
         if (!Available) { Error = "PresentMon is missing (tools\\PresentMon)."; Log.Info("Frames", Error); return false; }
         try
         {
-            var psi = new ProcessStartInfo(ExePath, Args(Extended, _tier))
+            _sawStale = false;
+            var psi = new ProcessStartInfo(ExePath, Args(Extended, _tier, _staleSession))
             {
                 CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
                 WorkingDirectory = Path.GetDirectoryName(ExePath)!,
             };
             var p = Process.Start(psi)!;
             AttachToJob(p);
-            p.ErrorDataReceived += (_, e) => { if (!string.IsNullOrWhiteSpace(e.Data)) Log.Info("PresentMon", e.Data!); };
+            p.ErrorDataReceived += (_, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(e.Data)) return;
+                Log.Info("PresentMon", e.Data!);
+                if (e.Data!.Contains("already running", StringComparison.OrdinalIgnoreCase)) _sawStale = true;
+            };
             p.BeginErrorReadLine();
             _proc = p;
             _running = true;
@@ -102,34 +120,119 @@ public sealed class FramesSource : IDisposable
             lock (_lock) { _head = 0; _count = 0; _targetPid = 0; _targetApp = ""; _runtime = ""; }
             _reader = new Thread(() => ReadLoop(p)) { IsBackground = true, Name = "PresentMon reader", Priority = ThreadPriority.BelowNormal };
             _reader.Start();
-            Log.Info("Frames", Extended ? $"PresentMon started (latency and frame gen, tier {_tier})" : "PresentMon started");
+            Log.Info("Frames", (Extended ? $"PresentMon started (latency and frame gen, tier {_tier})" : "PresentMon started")
+                + (_staleSession ? ", replacing a leftover session" : ""));
+            _staleSession = false;
             return true;
         }
         catch (Exception ex) { Error = "PresentMon didn't start: " + ex.Message; Log.Warn("Frames.Start", ex); _running = false; return false; }
     }
 
-    public void Stop()
+    /// <summary>Stops now: PresentMon is asked to quit and closes its own ETW session; the wait for it runs in the
+    /// background (a later Start waits for it). If it doesn't quit in time it is killed, and the next start replaces
+    /// the session it left behind.</summary>
+    public void Stop() => Stop(wait: false);
+
+    /// <summary>App exit: same as Stop but waits (bounded) so PresentMon closes its session before the job object
+    /// would kill it.</summary>
+    public void StopAndWait() => Stop(wait: true);
+
+    private void Stop(bool wait) { lock (_life) StopCore(wait); }
+
+    private void StopCore(bool wait)
     {
-        if (!_running && _proc is null) return;
+        CancelStopSoon();
+        if (!_running && _proc is null) { if (wait) WaitForStopping(); return; }
         _running = false;
         var p = _proc;
         _proc = null;
-        try { if (p is { HasExited: false }) p.Kill(true); } catch (Exception e) { Log.Warn("Frames.Kill", e); }
-        try { p?.Dispose(); } catch { /* gone */ }
-        StopSessionQuietly();
         lock (_lock) { _count = 0; _targetPid = 0; _targetApp = ""; _runtime = ""; }
+        if (p is not null)
+        {
+            var t = System.Threading.Tasks.Task.Run(() => Shutdown(p));
+            _stopping = t;
+            if (wait) t.Wait(3000);
+        }
         Log.Info("Frames", "PresentMon stopped");
     }
 
-    /// <summary>Ends our ETW session if one is still around (killed PresentMon). Bounded, fire and forget.</summary>
-    private static void StopSessionQuietly()
+    private System.Threading.Tasks.Task? _stopping;
+    private static volatile bool _staleSession;   // a PresentMon of ours was killed, or one reported our session exists
+    private volatile bool _sawStale;
+
+    private void WaitForStopping()
     {
-        if (!Available) return;
+        var t = _stopping;
+        if (t is null) return;
+        try { t.Wait(3000); } catch { /* logged inside */ }
+        _stopping = null;
+    }
+
+    /// <summary>Asks PresentMon to quit through its own message window (what its Ctrl+C handler does), then waits.
+    /// Kill only as the last resort.</summary>
+    private static void Shutdown(Process p)
+    {
         try
         {
-            ProcessRunner.Run(ExePath, $"--session_name {SessionName} --terminate_existing_session", 3000);
+            if (p.HasExited) return;
+            bool asked = false;
+            for (int i = 0; i < 10 && !asked && !p.HasExited; i++)   // the window appears right after launch
+            {
+                asked = PostQuit(p.Id);
+                if (!asked) Thread.Sleep(50);
+            }
+            if (p.WaitForExit(2500)) return;
+            Log.Info("Frames", asked ? "PresentMon didn't quit in time, killed" : "PresentMon window not found, killed");
+            p.Kill(true);
+            _staleSession = true;
         }
-        catch (Exception e) { Log.Warn("Frames.StopSession", e); }
+        catch (Exception e) { Log.Warn("Frames.Shutdown", e); _staleSession = true; }
+        finally { try { p.Dispose(); } catch { /* gone */ } }
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string cls, string? title);
+    [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr w, IntPtr l);
+    private static readonly IntPtr HWND_MESSAGE = new(-3);
+    private const uint WM_QUIT = 0x0012;
+
+    private static bool PostQuit(int pid)
+    {
+        IntPtr h = IntPtr.Zero;
+        while ((h = FindWindowEx(HWND_MESSAGE, h, "PresentMon", null)) != IntPtr.Zero)
+        {
+            GetWindowThreadProcessId(h, out int owner);
+            if (owner == pid) return PostMessage(h, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+        }
+        return false;
+    }
+
+    // ---------- debounced off ----------
+
+    private Timer? _stopSoon;
+    private bool StopPending => _stopSoon is not null;
+
+    /// <summary>Overlay went off: stop after a short grace period, so F4 on / off / on keeps one PresentMon.</summary>
+    public void StopSoon(int ms = 2000)
+    {
+        if (!_running) return;
+        lock (_lock)
+        {
+            if (_stopSoon is not null) return;
+            Timer? me = null;
+            me = new Timer(_ =>
+            {
+                lock (_lock) { if (!ReferenceEquals(_stopSoon, me)) return; _stopSoon = null; }   // cancelled by a Start
+                me!.Dispose();
+                Stop();
+            }, null, Timeout.Infinite, Timeout.Infinite);
+            _stopSoon = me;
+            me.Change(ms, Timeout.Infinite);
+        }
+    }
+
+    private void CancelStopSoon()
+    {
+        lock (_lock) { _stopSoon?.Dispose(); _stopSoon = null; }
     }
 
     // ---------- CSV ----------
@@ -145,8 +248,10 @@ public sealed class FramesSource : IDisposable
             var reader = p.StandardOutput;
             string? line;
             bool header = false;
-            while (_running && (line = reader.ReadLine()) is not null)
+            // read to EOF even after Stop, so PresentMon never blocks on a full pipe while it shuts down
+            while ((line = reader.ReadLine()) is not null)
             {
+                if (!_running || !ReferenceEquals(_proc, p)) continue;
                 if (!header)
                 {
                     if (!line.StartsWith("Application", StringComparison.OrdinalIgnoreCase)) continue;
@@ -156,9 +261,19 @@ public sealed class FramesSource : IDisposable
                 }
                 OnLine(line);
             }
-            if (_running)
+            if (_running && ReferenceEquals(_proc, p))
             {
                 Log.Info("Frames", $"PresentMon exited ({SafeExit(p)})");
+                // a session of our name was left behind (an earlier PresentMon was killed): start once more replacing it
+                try { p.WaitForExit(500); } catch { /* gone */ }
+                if (!header && _sawStale && Stopwatch.GetTimestamp() - _startedAt < Stopwatch.Frequency * 5)
+                {
+                    _staleSession = true;
+                    _running = false;
+                    _proc = null;
+                    ThreadPool.QueueUserWorkItem(_ => Start());
+                    return;
+                }
                 // extended mode died right away: this build may not know the instrumentation flags, retry without them once
                 if (Extended && _tier == 0 && !header && Stopwatch.GetTimestamp() - _startedAt < Stopwatch.Frequency * 5)
                 {

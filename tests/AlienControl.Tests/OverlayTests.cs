@@ -109,6 +109,11 @@ public class OverlayTests
         Assert.Contains("--track_frame_type", on);
         Assert.Contains("--track_pc_latency", on);
         Assert.DoesNotContain("--track_frame_type", FramesSource.Args(true, 1));
+        // ov.4: never stop an ETW session unless PresentMon reported a leftover one of ours
+        Assert.DoesNotContain("--stop_existing_session", off);
+        Assert.DoesNotContain("--stop_existing_session", on);
+        Assert.DoesNotContain("--terminate_existing_session", on);
+        Assert.Contains("--stop_existing_session", FramesSource.Args(false, 0, stopExisting: true));
         Assert.Equal(OverlayLevels.Items(1), OverlayLevels.Items(1, true));   // level 1 stays FPS only
         Assert.True(OverlayLevels.Items(2, true).HasFlag(Item.FrameGen));
         Assert.False(OverlayLevels.Items(3, false).HasFlag(Item.Latency));

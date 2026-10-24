@@ -12,7 +12,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>2.0.0</Version>
     <!-- 2.0.0-beta1.3: the footer and Settings show the informational version (v2.0.0-beta1.3) -->
-    <InformationalVersion>2.0.0-beta1.3-ov.3</InformationalVersion>
+    <InformationalVersion>2.0.0-beta1.3-ov.4</InformationalVersion>
     <Product>Alien Controls</Product>
     <AssemblyTitle>Alien Controls</AssemblyTitle>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>

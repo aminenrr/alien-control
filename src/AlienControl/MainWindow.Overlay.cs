@@ -112,7 +112,7 @@ public partial class MainWindow
         // the latency / frame gen toggle: a hard switch, PresentMon collects none of it unless on (and a level 2+ shows it)
         _frames.SetExtended(OverlayLevels.WantsExtended(level, _settings.OverlayLatencyFg));
         if (level > 0) { if (!_frames.Running) _frames.Start(); }
-        else _frames.Stop();
+        else _frames.StopSoon();   // ov.4: debounced, F4 spam keeps one PresentMon
 
         _overlay ??= level > 0 ? new OverlayHost(_frames) : null;
         var look = OvLook;
@@ -413,7 +413,7 @@ public partial class MainWindow
     private void StopOverlayOnExit()
     {
         try { _ovExtra.Stop(); _ovPreviewTimer.Stop(); } catch { /* wrong thread on the crash path */ }
-        try { _frames.Stop(); } catch (Exception e) { Log.Warn("Overlay exit frames", e); }
+        try { _frames.StopAndWait(); } catch (Exception e) { Log.Warn("Overlay exit frames", e); }
         try { _overlay?.Dispose(); } catch (Exception e) { Log.Warn("Overlay exit window", e); }
     }
 }
