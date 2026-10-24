@@ -88,6 +88,14 @@ public partial class MainWindow
 
             var cpu = s.Temps.FirstOrDefault(t => t.Name.Contains("CPU", StringComparison.OrdinalIgnoreCase));
             var gpu = s.Temps.FirstOrDefault(t => t.Name.Contains("GPU", StringComparison.OrdinalIgnoreCase));
+            // 2.0.0-beta1.4 (Amine): in iGPU only the AWCC GPU sensor (0x06) is the board sensor by the RTX, not the Intel
+            // GPU: read the Intel GPU through IGCL instead, or the CPU package (same die) when IGCL can't
+            UpdateGpuSourceTags();
+            if (IgpuTilesActive)
+            {
+                var cpuNow = cpu;
+                gpu = await Task.Run(() => ReadIgpuTemp(cpuNow));
+            }
             SetTemp(CpuTempText, CpuTempBar, cpu);
             SetTemp(GpuTempText, GpuTempBar, gpu);
             TuneCpuTemp.Text = cpu is null ? "--" : $"{cpu.Celsius}°C";   // 2.0 Tuning live strip (same read)
@@ -103,14 +111,15 @@ public partial class MainWindow
 
             // 2.0.0-beta1.4 (ui review #5): RAM / VRAM / CPU % / GPU % are read on a worker thread (one PDH query, see
             // SystemStats); the UI thread only assigns the numbers
-            bool igpu = _gpu.Kind == GpuModeKind.IGpuOnly;
+            bool igpu = IgpuTilesActive;   // 2.0.0-beta1.4 (Amine): then GPU USE reads the Intel GPU
             var h = await Task.Run(() => ReadHomeStats(igpu));
             if (!HomePage.IsVisible) return;
             if (h.Ram is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
             if (h.Vram is { } vram) SetMem(VramText, VramTextUnit, VramBar, vram.Used, vram.Total);
             // 1.3.0-beta.1 CPU % / GPU %
             if (h.Cpu is { } cpuUse) { CpuUseText.Text = cpuUse.ToString("0"); CpuUseBar.Value = cpuUse; }
-            if (igpu) { GpuUseText.Text = "Off"; GpuUseUnit.Text = ""; GpuUseBar.Value = 0; }
+            // 2.0.0-beta1.4 (Amine): iGPU only shows the Intel GPU's 3D use (was "Off"); "--" until two samples exist
+            if (igpu && h.Gpu is null) { GpuUseText.Text = "--"; GpuUseUnit.Text = " %"; GpuUseBar.Value = 0; }
             else if (h.Gpu is { } gpuUse) { GpuUseText.Text = gpuUse.ToString("0"); GpuUseUnit.Text = " %"; GpuUseBar.Value = gpuUse; }
         }
         finally { _polling = false; }
@@ -121,7 +130,68 @@ public partial class MainWindow
     /// <summary>Worker thread: the Home numbers in one go. _stats has one caller at a time (RefreshSensorsAsync's
     /// _polling guard), which its CPU % delta needs.</summary>
     private HomeStats ReadHomeStats(bool igpuOnly) =>
-        new(SystemStats.Ram(), _stats.Vram(), _stats.CpuUsage(), igpuOnly ? null : _stats.GpuUsage());
+        new(SystemStats.Ram(), _stats.Vram(), _stats.CpuUsage(), igpuOnly ? _stats.IntelGpuUsage() : _stats.GpuUsage());   // 2.0.0-beta1.4 (Amine)
+
+    // ---------- 2.0.0-beta1.4 (Amine): which GPU the GPU tiles read ----------
+
+    private readonly IntelGpuTemp _igpuTemp = new();
+    private string? _igpuTempLogged;     // the source last written to crash.log (once per source)
+    private bool _igpuTempFromCpu;       // the GPU temp tile shows the CPU package (IGCL missing / failed)
+
+    /// <summary>iGPU only and not mid switch: the GPU tiles read the Intel GPU.</summary>
+    private bool IgpuTilesActive => _gpu.Kind == GpuModeKind.IGpuOnly && !_rtxSwitching && !_gpuSourceUnsure;
+
+    /// <summary>Worker thread (one call at a time, RefreshSensorsAsync's _polling guard): the Intel GPU temperature from
+    /// IGCL, or the CPU package reading when IGCL is unavailable (disabled for the session after its first failure).</summary>
+    private TempReading? ReadIgpuTemp(TempReading? cpu)
+    {
+        double? t = _igpuTemp.Read();
+        if (t is double c)
+        {
+            _igpuTempFromCpu = false;
+            LogIgpuTempSource("IGCL");
+            return new TempReading("Intel GPU (IGCL)", (int)Math.Round(c));
+        }
+        _igpuTempFromCpu = true;
+        LogIgpuTempSource("CPU package" + (_igpuTemp.DisabledReason is { } why ? $" (IGCL: {why})" : ""));
+        return cpu is null ? null : cpu with { Name = "CPU package (iGPU)" };
+    }
+
+    private void LogIgpuTempSource(string source)
+    {
+        if (_igpuTempLogged == source) return;
+        _igpuTempLogged = source;
+        Log.Info("Sensors", "iGPU temp: " + source);
+    }
+
+    private const string TagIntelTip = "Reading the Intel GPU (RTX is off)";
+    private const string TagNvidiaTip = "Reading the NVIDIA RTX";
+
+    /// <summary>The INTEL / NVIDIA chips next to the GPU and GPU USE labels (Home) and the Tuning strip's GPU: INTEL in
+    /// iGPU only, NVIDIA in Advanced Optimus / Ultimate, hidden while the mode is unknown or the RTX is switching.</summary>
+    private void UpdateGpuSourceTags()
+    {
+        string? tag = _rtxSwitching || _gpuSourceUnsure ? null : _gpu.Kind switch
+        {
+            GpuModeKind.IGpuOnly => "INTEL",
+            GpuModeKind.Optimus or GpuModeKind.DGpuOnly or GpuModeKind.Ultimate => "NVIDIA",
+            _ => null,
+        };
+        string tip = tag == "INTEL" ? TagIntelTip : TagNvidiaTip;
+        string tempTip = tag == "INTEL" && _igpuTempFromCpu ? TagIntelTip + ". Temperature: CPU package (the Intel GPU is on the same die)" : tip;
+        SetGpuTag(GpuTag, GpuTagText, tag, tempTip);
+        SetGpuTag(GpuUseTag, GpuUseTagText, tag, tip);
+        SetGpuTag(TuneGpuTag, TuneGpuTagText, tag, tempTip);
+    }
+
+    private static void SetGpuTag(Border chip, TextBlock text, string? tag, string tip)
+    {
+        chip.Visibility = tag is null ? Visibility.Collapsed : Visibility.Visible;
+        if (tag is null) return;
+        if (text.Text != tag) text.Text = tag;
+        if (!Equals(chip.ToolTip, tip)) chip.ToolTip = tip;
+        System.Windows.Automation.AutomationProperties.SetName(chip, tip);
+    }
 
     // v0.8.5: power has its own 1 s timer (perf counter + NVML are cheap; the 2 s sensor poll reads WMI since 1.1, alienfan-cli as fallback).
     private bool _powerBusy;
