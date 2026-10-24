@@ -36,7 +36,11 @@ public partial class MainWindow
     /// <summary>2.0.0-beta1.2: true when G-Mode is on and its scope switch (G-MODE) is lit.</summary>
     private bool OcGActive => _settings.OcInGMode && _gmodeOn;
 
-    private bool OcAllowed => OnAc && (OcGActive || OcPerfActive);
+    private bool OcAllowed => OnAc && (OcGActive || OcPerfActive) && !OcUnavailable;
+
+    /// <summary>2.0.0-beta1.4 (Amine, bug B): the RTX is off (iGPU only), being switched, or there is no NVML. The OC card
+    /// is greyed with a hint, Home and the toasts show no OC line, and nothing writes to the driver.</summary>
+    private bool OcUnavailable => _gpu.Kind == GpuModeKind.IGpuOnly || _rtxSwitching || !GpuOc.NvmlPresent;
 
     /// <summary>Called once from the constructor.</summary>
     private void InitOc()
@@ -72,7 +76,9 @@ public partial class MainWindow
             _settings.OcPending = false;
             _settings.OcOn = false;
             _settings.Save();
-            var err = await Task.Run(() => GpuOc.Set(0, 0));
+            // 2.0.0-beta1.4 (bug B): no NVML write while the RTX is disabled (it is at stock when it comes back)
+            bool rtxOff = await Task.Run(() => GpuMode.Adapters().Find(a => a.IsNvidia)?.Disabled == true || !GpuOc.NvmlPresent);
+            var err = rtxOff ? null : await Task.Run(() => GpuOc.Set(0, 0));
             _ocApplied = err is null ? (0, 0) : null;
             // 2.0.0-beta1.3: settings fell back to defaults (first start, reset, both files torn): the same +0, silent
             if (err is not null || !_settings.LoadedDefaults) Status(err ?? "GPU OC: the last test wasn't kept, clocks are back to stock.");
@@ -84,9 +90,15 @@ public partial class MainWindow
             _ocApplied = (0, 0);
             _ocUnverified = true;
         }
-        _gmodeOn = await _fan.GetGModeAsync() == true;
+        _gmodeOn = await StartupGModeAsync() == true;
         await SyncOcAsync();
     }
+
+    private Task<bool?>? _startupGMode;
+
+    /// <summary>2.0.0-beta1.4 (ui review #8): one getgmode at startup, shared by the startup lighting and the startup OC
+    /// sync (each used to spawn its own alienfan-cli run). The open read (every 20 s at most) and the resume read stay.</summary>
+    private Task<bool?> StartupGModeAsync() => _startupGMode ??= _fan.GetGModeAsync();
 
     private bool _boostForced;   // v0.9.9: G-Mode put CPU boost on Aggressive; undo when it ends
     private int? _preGBoost;      // AC boost level shown before G-Mode, for Custom
@@ -177,7 +189,7 @@ public partial class MainWindow
             bool presetLost = !g && wantIdx is int i && raw is int r && _settings.PowerRawByIndex.TryGetValue(i, out var exp) && exp != r;
             Services.Log.Info("Resume", $"preset {want}, power raw {(raw is int v ? v.ToString("x") : "?")}, G-Mode {g}, re-apply {presetLost}");
             if (presetLost) await ApplyProfileAsync(want);
-            if (_lightsManaged) { _f2Dirty = true; await ApplyLightingAsync(_lastColor); }
+            if (_lightsManaged) { _frameDirty = true; await ApplyLightingAsync(_lastColor); }
             await SyncIndicatorsAsync();
         }
         catch (Exception ex) { Services.Log.Warn("Resume", ex); }
@@ -200,7 +212,7 @@ public partial class MainWindow
         if (!Dispatcher.CheckAccess()) { await Dispatcher.InvokeAsync(SyncOcAsync).Task.Unwrap(); return; }
         await SyncGModeAsync();
         // 1.2.0-beta.4: never touch NVML while the RTX is off or being switched (iGPU only)
-        if (_rtxSwitching || _gpu.Kind == GpuModeKind.IGpuOnly) { UpdateOcUi(); return; }
+        if (OcUnavailable) { UpdateOcUi(); return; }   // 2.0.0-beta1.4: also when there is no NVML
         if (_ocTesting)
         {
             if (!OcAllowed) await EndOcTestAsync(keep: false);
@@ -244,7 +256,7 @@ public partial class MainWindow
     {
         _ocTimer.Stop();
         if (_ocTesting) { _settings.OcPending = false; _settings.Save(); }
-        if (_ocApplied is (0, 0)) return;
+        if (_ocApplied is (0, 0) || OcUnavailable) return;   // 2.0.0-beta1.4: never NVML while the RTX is off
         // 2.0.0-beta1.3: bounded wait for the shared NVML lock, so a stuck driver call can't hang the exit
         try { GpuOc.Set(0, 0, lockTimeoutMs: 2000); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Oc.cs:207", __e); /* exiting anyway */ }
     }
@@ -287,7 +299,7 @@ public partial class MainWindow
     private async void OcApply_Click(object sender, RoutedEventArgs e)
     {
         if (_ocTesting) { await EndOcTestAsync(keep: true); return; }   // the button reads Keep during a test
-        if (!OcAllowed || _ocBusy) return;
+        if (!OcAllowed || _ocBusy || OcUnavailable) return;   // 2.0.0-beta1.4: OcAllowed covers it, kept explicit
         int core = (int)OcCoreSlider.Value, mem = (int)OcMemSlider.Value;
         _ocBusy = true;
         try
@@ -324,6 +336,7 @@ public partial class MainWindow
     private async void OcReset_Click(object sender, RoutedEventArgs e)
     {
         if (_ocTesting) { await EndOcTestAsync(keep: false); return; }   // the button reads Revert during a test
+        if (OcUnavailable) return;   // 2.0.0-beta1.4 (bug B): the kept offsets stay for when the RTX is back
         _settings.OcOn = false;
         _settings.Save();
         await SyncOcAsync();
@@ -351,6 +364,7 @@ public partial class MainWindow
     /// preset on AC. Either one, both, or neither (no overclock at all). Each click flips its own switch, saves, re-syncs.</summary>
     private async void OcScope_Click(object sender, RoutedEventArgs e)
     {
+        if (OcUnavailable) { ShowOcPerfToggle(); return; }   // 2.0.0-beta1.4 (bug B): pills are disabled then
         if (sender == OcScopePerf) _settings.OcInPerformance = !_settings.OcInPerformance;
         else _settings.OcInGMode = !_settings.OcInGMode;
         _settings.Save();
@@ -369,8 +383,9 @@ public partial class MainWindow
 
     /// <summary>1.3.4: OC tag for a toast. scopeOk = the mode being entered runs the OC (G-Mode, or Performance with the
     /// toggle lit). On = kept offsets, on AC, not +0.</summary>
-    private (string Text, bool On) OcToastTag(bool scopeOk)
+    private (string? Text, bool On) OcToastTag(bool scopeOk)
     {
+        if (OcUnavailable) return (null, false);   // 2.0.0-beta1.4 (Amine, bug B): no OC tag while the RTX is off
         bool on = scopeOk && _settings.OcOn && OnAc && (_settings.OcCore | _settings.OcMem) != 0;
         return on ? ($"OC +{_settings.OcCore} / +{_settings.OcMem}", true) : ("OC off", false);
     }
@@ -393,10 +408,12 @@ public partial class MainWindow
         OcMemValue.Text = $"+{mem} MHz";
 
         bool allowed = OcAllowed;
+        bool off = OcUnavailable;   // 2.0.0-beta1.4 (Amine, bug B): RTX off or no NVML = whole card greyed
         OcBody.IsEnabled = allowed && !_ocTesting;
         OcBody.Opacity = allowed ? 1 : 0.45;
         OcApplyButton.IsEnabled = allowed;
-        OcResetButton.IsEnabled = _ocTesting || _settings.OcOn || _ocApplied is not (0, 0);
+        OcResetButton.IsEnabled = !off && (_ocTesting || _settings.OcOn || _ocApplied is not (0, 0));
+        OcScopeTrack.IsEnabled = !off;   // the pills dim through their IsEnabled trigger
 
         OcApplyButton.Content = _ocTesting ? "Keep" : "Apply";
         OcResetButton.Content = _ocTesting ? "Revert" : "Reset";
@@ -409,6 +426,18 @@ public partial class MainWindow
         UpdateHomeGModeSub();   // 2.0: the Home G-Mode card names the kept overclock
 
         ShowOcPerfToggle();
+        if (off)
+        {
+            // 2.0.0-beta1.4 (Amine, bug B): short hint in the card, the full sentence in the tooltip
+            bool rtxOff = _gpu.Kind == GpuModeKind.IGpuOnly || _rtxSwitching;
+            OcActive.Text = rtxOff ? "RTX IS OFF" : "NO NVIDIA DRIVER";
+            OcHint.ClearValue(TextBlock.ForegroundProperty);
+            SetHint(OcHint, rtxOff ? "OC in Advanced Optimus" : "OC needs NVML");
+            OcActivePanel.ToolTip = rtxOff ? "RTX is off. Overclock is available in Advanced Optimus."
+                : "NVIDIA driver (NVML) not found. Overclock needs it.";
+            return;
+        }
+        OcActivePanel.ToolTip = null;
         bool g = _settings.OcInGMode, perf = _settings.OcInPerformance;
         // 1.3.4-beta.2 (Amine): with + PERF lit the hint names both and turns the lighting (accent) colour
         if (perf) OcHint.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush");
