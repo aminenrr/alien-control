@@ -43,8 +43,7 @@ public sealed class WindowSlide
     // A short-lived thread steps the slide once per composition (DwmFlush), placing each frame for the vblank it'll
     // show on, with async SetWindowPos (240 steps/s on the 240 Hz panel, never stalled by the UI thread). The 1.2
     // UI-thread stepper was removed in 1.3.0 after the beta A/B (the user: the new engine feels better).
-    /// <summary>Debug: log steps/s and the biggest gap of every slide to crash.log.</summary>
-    public static bool LogFrames { get; set; }
+    // 2.0.0-beta1.4 (Amine): the "Log frame gaps" debug switch (LogFrames, a Slide line per slide in crash.log) is gone
 
     [DllImport("dwmapi.dll")] private static extern int DwmFlush();
     [DllImport("dwmapi.dll")] private static extern int DwmGetCompositionTimingInfo(IntPtr h, ref DWM_TIMING_INFO info);
@@ -75,7 +74,6 @@ public sealed class WindowSlide
         _ui = Dispatcher.CurrentDispatcher;
         int x = _x, fromY = _fromY, toY = _toY, ms = _ms;
         var ease = _ease;
-        bool log = LogFrames;
         NoGcStart();
         var t = new System.Threading.Thread(() =>
         {
@@ -84,7 +82,6 @@ public sealed class WindowSlide
             // the first DwmFlush for 60-100 ms (its first frame); starting the clock before it made the slide jump.
             DwmFlush();
             var sw = Stopwatch.StartNew();
-            double last = 0, maxGap = 0; int steps = 0;
             var ti = new DWM_TIMING_INFO { cbSize = (uint)Marshal.SizeOf<DWM_TIMING_INFO>() };
             while (gen == System.Threading.Volatile.Read(ref _gen))
             {
@@ -104,10 +101,8 @@ public sealed class WindowSlide
                 int y = (int)Math.Round(fromY + (toY - fromY) * ease.Solve(p));
                 if (gen != System.Threading.Volatile.Read(ref _gen)) break;
                 SetWindowPos(h, IntPtr.Zero, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_ASYNCWINDOWPOS);
-                steps++; maxGap = Math.Max(maxGap, now - last); last = now;
                 if (p >= 1.0)
                 {
-                    if (log) Log.Info("Slide", $"thread {ms} ms: {steps} steps, {steps * 1000.0 / Math.Max(1, now):0}/s, biggest gap {maxGap:0.0} ms");
                     _ui?.BeginInvoke(new Action(() =>
                     {
                         if (gen != _gen) return;
