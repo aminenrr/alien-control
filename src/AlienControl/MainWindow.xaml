@@ -59,8 +59,8 @@
                                 <StackPanel x:Name="PresetList" />
                             </Border>
                         </Popup>
-                        <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Minimize}" Click="Minimize_Click" ToolTip="Minimize" />
-                        <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Close}" Click="Close_Click" ToolTip="Hide to tray" />
+                        <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Minimize}" Click="Minimize_Click" AutomationProperties.Name="Minimize" ToolTip="Minimize" />
+                        <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Close}" Click="Close_Click" AutomationProperties.Name="Hide to tray" ToolTip="Hide to tray" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -236,7 +236,7 @@
                                     <TextBlock x:Name="HomeGModeSub" Text="No GPU overclock" Style="{DynamicResource RowSub2}" Margin="0,2,0,0" />
                                 </StackPanel>
                                 <CheckBox x:Name="HomeGModeToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="HomeGMode_Click"
-                                          ToolTip="G-Mode. The G-key (F1) toggles it too" />
+                                          AutomationProperties.Name="G-Mode. The G-key (F1) toggles it too" ToolTip="G-Mode. The G-key (F1) toggles it too" />
                             </Grid>
                         </Border>
                     </StackPanel>
@@ -254,13 +254,13 @@
                             <TextBlock Grid.Column="4" Text="F4" Style="{DynamicResource SecHint2}" />
                         </Grid>
                         <Grid Height="50" Margin="16,0,16,0" Opacity="0.45" IsEnabled="False">
-                            <Border Height="4" CornerRadius="2" VerticalAlignment="Top" Margin="0,12,0,0" Background="#1C2127" />
+                            <Border Height="4" CornerRadius="2" VerticalAlignment="Top" Margin="0,12,0,0" Background="{StaticResource Line2}" />
                             <UniformGrid Columns="5" Margin="-47,0,-47,0">
-                                <Grid><Ellipse Width="20" Height="20" VerticalAlignment="Top" Margin="0,4,0,0" Fill="#E9EEF2" /><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{DynamicResource AccentBrush}" /><TextBlock Text="OFF" Style="{DynamicResource SecHint2}" Foreground="#F2F6F9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="1" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="2" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="3" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="4" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
+                                <Grid><Ellipse Width="20" Height="20" VerticalAlignment="Top" Margin="0,4,0,0" Fill="#E9EEF2" /><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{DynamicResource AccentBrush}" /><TextBlock Text="OFF" Style="{DynamicResource SecHint2}" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="1" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="2" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="3" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="4" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
                             </UniformGrid>
                         </Grid>
                     </StackPanel>
@@ -281,15 +281,15 @@
                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="44" />
                             </Grid.ColumnDefinitions>
                             <StackPanel x:Name="HomeSwatches" Orientation="Horizontal">
-                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#00E5FF" Tag="0,229,255" Click="Color_Click" ToolTip="Cyan" />
-                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#7C4DFF" Tag="124,77,255" Click="Color_Click" ToolTip="Purple" />
-                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#FF4D6A" Tag="255,77,106" Click="Color_Click" ToolTip="Red" />
-                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#40DC78" Tag="60,255,122" Click="Color_Click" ToolTip="Green" />
-                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#FFFFFF" Tag="255,255,255" Click="Color_Click" ToolTip="White" />
-                                <RadioButton x:Name="HomeCustomSwatch" GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Click="CustomSwatch_Click" ToolTip="Custom color" Background="{DynamicResource CustomSwatchBrush}" />
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#00E5FF" Tag="0,229,255" Click="Color_Click" AutomationProperties.Name="Cyan" ToolTip="Cyan" />
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#7C4DFF" Tag="124,77,255" Click="Color_Click" AutomationProperties.Name="Purple" ToolTip="Purple" />
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#FF4D6A" Tag="255,77,106" Click="Color_Click" AutomationProperties.Name="Red" ToolTip="Red" />
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#3CFF7A" Tag="60,255,122" Click="Color_Click" AutomationProperties.Name="Green" ToolTip="Green" />
+                                <RadioButton GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Background="#FFFFFF" Tag="255,255,255" Click="Color_Click" AutomationProperties.Name="White" ToolTip="White" />
+                                <RadioButton x:Name="HomeCustomSwatch" GroupName="SwatchHome" Style="{DynamicResource Swatch2}" Click="CustomSwatch_Click" AutomationProperties.Name="Custom color" ToolTip="Custom color" Background="{DynamicResource CustomSwatchBrush}" />
                             </StackPanel>
                             <Slider x:Name="HomeBrightnessSlider" Grid.Column="1" Margin="22,0,8,0" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="80"
-                                    IsMoveToPointEnabled="True" PreviewMouseUp="Brightness_Commit" ValueChanged="Brightness_Changed" VerticalAlignment="Center" ToolTip="Lighting brightness" />
+                                    IsMoveToPointEnabled="True" PreviewMouseUp="Brightness_Commit" KeyUp="Brightness_KeyUp" ValueChanged="Brightness_Changed" VerticalAlignment="Center" AutomationProperties.Name="Lighting brightness" ToolTip="Lighting brightness" />
                             <TextBlock x:Name="HomeBrightnessValue" Grid.Column="2" Text="80%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" />
                         </Grid>
                     </StackPanel>
@@ -409,12 +409,12 @@
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
                                         <Grid>
-                                            <TextBlock Text="Core" FontSize="12" Foreground="#A9B4BF" />
+                                            <TextBlock Text="Core" FontSize="12" Foreground="{StaticResource TextBody}" />
                                             <TextBlock x:Name="OcCoreValue" Text="+200 MHz" FontSize="12" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
                                         </Grid>
                                         <Slider x:Name="OcCoreSlider" Style="{DynamicResource LightSlider}" Margin="0,2,0,0" Minimum="0" Maximum="300" Value="200"
                                                 TickFrequency="25" IsSnapToTickEnabled="True" SmallChange="25" LargeChange="25" IsMoveToPointEnabled="True"
-                                                ValueChanged="Oc_Changed" ToolTip="Core offset, 0 to +300 MHz in 25 MHz steps" />
+                                                ValueChanged="Oc_Changed" AutomationProperties.Name="Core offset, 0 to +300 MHz in 25 MHz steps" ToolTip="Core offset, 0 to +300 MHz in 25 MHz steps" />
                                         <Grid>
                                             <TextBlock Text="0" Style="{DynamicResource SecHint2}" FontSize="9.5" />
                                             <TextBlock Text="300" HorizontalAlignment="Right" Style="{DynamicResource SecHint2}" FontSize="9.5" />
@@ -422,12 +422,12 @@
                                     </StackPanel>
                                     <StackPanel Grid.Column="2">
                                         <Grid>
-                                            <TextBlock Text="Memory" FontSize="12" Foreground="#A9B4BF" />
+                                            <TextBlock Text="Memory" FontSize="12" Foreground="{StaticResource TextBody}" />
                                             <TextBlock x:Name="OcMemValue" Text="+200 MHz" FontSize="12" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
                                         </Grid>
                                         <Slider x:Name="OcMemSlider" Style="{DynamicResource LightSlider}" Margin="0,2,0,0" Minimum="0" Maximum="300" Value="200"
                                                 TickFrequency="25" IsSnapToTickEnabled="True" SmallChange="25" LargeChange="25" IsMoveToPointEnabled="True"
-                                                ValueChanged="Oc_Changed" ToolTip="Memory offset, 0 to +300 MHz in 25 MHz steps (AWCC scale)" />
+                                                ValueChanged="Oc_Changed" AutomationProperties.Name="Memory offset, 0 to +300 MHz in 25 MHz steps (AWCC scale)" ToolTip="Memory offset, 0 to +300 MHz in 25 MHz steps (AWCC scale)" />
                                         <Grid>
                                             <TextBlock Text="0" Style="{DynamicResource SecHint2}" FontSize="9.5" />
                                             <TextBlock Text="300" HorizontalAlignment="Right" Style="{DynamicResource SecHint2}" FontSize="9.5" />
@@ -567,12 +567,12 @@
                         </Grid>
                         <Border Grid.Row="1" Style="{DynamicResource Card2}" Padding="14,0">
                             <StackPanel x:Name="LightsSwatches" Orientation="Horizontal" VerticalAlignment="Center">
-                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#00E5FF" Tag="0,229,255" Click="Color_Click" ToolTip="Cyan" />
-                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#7C4DFF" Tag="124,77,255" Click="Color_Click" ToolTip="Purple" />
-                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#FF4D6A" Tag="255,77,106" Click="Color_Click" ToolTip="Red" />
-                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#40DC78" Tag="60,255,122" Click="Color_Click" ToolTip="Green" />
-                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#FFFFFF" Tag="255,255,255" Click="Color_Click" ToolTip="White" />
-                                <RadioButton x:Name="CustomSwatch" GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Click="CustomSwatch_Click" ToolTip="Custom color" Background="{DynamicResource CustomSwatchBrush}" />
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#00E5FF" Tag="0,229,255" Click="Color_Click" AutomationProperties.Name="Cyan" ToolTip="Cyan" />
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#7C4DFF" Tag="124,77,255" Click="Color_Click" AutomationProperties.Name="Purple" ToolTip="Purple" />
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#FF4D6A" Tag="255,77,106" Click="Color_Click" AutomationProperties.Name="Red" ToolTip="Red" />
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#3CFF7A" Tag="60,255,122" Click="Color_Click" AutomationProperties.Name="Green" ToolTip="Green" />
+                                <RadioButton GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Background="#FFFFFF" Tag="255,255,255" Click="Color_Click" AutomationProperties.Name="White" ToolTip="White" />
+                                <RadioButton x:Name="CustomSwatch" GroupName="Swatch" Style="{DynamicResource Swatch2}" Width="46" Height="46" Click="CustomSwatch_Click" AutomationProperties.Name="Custom color" ToolTip="Custom color" Background="{DynamicResource CustomSwatchBrush}" />
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -593,7 +593,7 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="170" /><ColumnDefinition Width="*" /><ColumnDefinition Width="44" />
                                 </Grid.ColumnDefinitions>
-                                <ComboBox x:Name="EffectBox" Style="{DynamicResource FxCombo}" Height="30" ToolTip="Lighting effect" SelectionChanged="Effect_Changed">
+                                <ComboBox x:Name="EffectBox" Style="{DynamicResource FxCombo}" Height="30" AutomationProperties.Name="Lighting effect" ToolTip="Lighting effect" SelectionChanged="Effect_Changed">
                                     <ComboBoxItem Content="Static" Tag="0" />
                                     <ComboBoxItem Content="Breathing" Tag="2" />
                                     <ComboBoxItem Content="Wave" Tag="3" />
@@ -606,7 +606,7 @@
                                     <ComboBoxItem Content="Rainbow wave" Tag="101" />
                                 </ComboBox>
                                 <Slider x:Name="BrightnessSlider" Grid.Column="1" Margin="18,0,8,0" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="80"
-                                        IsMoveToPointEnabled="True" PreviewMouseUp="Brightness_Commit" ValueChanged="Brightness_Changed" VerticalAlignment="Center" ToolTip="Lighting brightness" />
+                                        IsMoveToPointEnabled="True" PreviewMouseUp="Brightness_Commit" KeyUp="Brightness_KeyUp" ValueChanged="Brightness_Changed" VerticalAlignment="Center" AutomationProperties.Name="Lighting brightness" ToolTip="Lighting brightness" />
                                 <TextBlock x:Name="BrightnessValue" Grid.Column="2" Text="80%" Style="{DynamicResource SecHint2}" FontSize="11" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AccentBrush}" HorizontalAlignment="Right" />
                             </Grid>
@@ -645,13 +645,13 @@
                                             <TextBlock Text="On battery only" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock Text="Stay lit on AC" Style="{DynamicResource RowSub2}" Margin="0,1,0,0" />
                                         </StackPanel>
-                                        <CheckBox x:Name="KbdBatteryToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="KbdOption_Click" ToolTip="Off: on AC too" />
+                                        <CheckBox x:Name="KbdBatteryToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="KbdOption_Click" AutomationProperties.Name="Off: on AC too" ToolTip="Off: on AC too" />
                                     </Grid>
                                 </Border>
                                 <Border x:Name="KbdFullscreenRow" Grid.Row="2" Style="{DynamicResource RowLine2}" Margin="14,0" Padding="0">
                                     <Grid>
                                         <TextBlock Text="Not in fullscreen games" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                        <CheckBox x:Name="KbdFullscreenToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="KbdOption_Click" ToolTip="Keeps the keys lit while you play (pauses the timeout in fullscreen)" />
+                                        <CheckBox x:Name="KbdFullscreenToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="KbdOption_Click" AutomationProperties.Name="Keeps the keys lit while you play (pauses the timeout in fullscreen)" ToolTip="Keeps the keys lit while you play (pauses the timeout in fullscreen)" />
                                     </Grid>
                                 </Border>
                             </Grid>
@@ -670,7 +670,7 @@
                             <TextBlock Grid.Column="3" Text="AUTO" Style="{DynamicResource SecHint2}" />
                         </Grid>
                         <Border Style="{DynamicResource Card2}" Height="44" Padding="14,0">
-                            <TextBlock Text="G-Mode, mute, mic and touchpad keys light up white" FontSize="11.5" Foreground="#A9B4BF" VerticalAlignment="Center"
+                            <TextBlock Text="G-Mode, mute, mic and touchpad keys light up white" FontSize="11.5" Foreground="{StaticResource TextBody}" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" ToolTip="With the Static effect. Effects own the keys" />
                         </Border>
                     </StackPanel>
@@ -698,13 +698,13 @@
                             <TextBlock Grid.Column="4" Text="F4 · OFF / LAST LEVEL" Style="{DynamicResource SecHint2}" />
                         </Grid>
                         <Grid Height="44" Margin="16,0,16,0" Opacity="0.45" IsEnabled="False">
-                            <Border Height="4" CornerRadius="2" VerticalAlignment="Top" Margin="0,12,0,0" Background="#1C2127" />
+                            <Border Height="4" CornerRadius="2" VerticalAlignment="Top" Margin="0,12,0,0" Background="{StaticResource Line2}" />
                             <UniformGrid Columns="5" Margin="-47,0,-47,0">
-                                <Grid><Ellipse Width="20" Height="20" VerticalAlignment="Top" Margin="0,4,0,0" Fill="#E9EEF2" /><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{DynamicResource AccentBrush}" /><TextBlock Text="OFF" Style="{DynamicResource SecHint2}" Foreground="#F2F6F9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="1" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="2" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="3" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="#2A3138" /><TextBlock Text="4" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                                <Grid><Ellipse Width="20" Height="20" VerticalAlignment="Top" Margin="0,4,0,0" Fill="#E9EEF2" /><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{DynamicResource AccentBrush}" /><TextBlock Text="OFF" Style="{DynamicResource SecHint2}" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="1" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="2" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="3" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
+                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="4" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
                             </UniformGrid>
                         </Grid>
                     </StackPanel>
@@ -733,7 +733,7 @@
                             <Border Style="{DynamicResource Badge2}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="14,6" Background="#E6090A0C">
                                 <StackPanel>
                                     <TextBlock Text="COMING IN BETA 2" Style="{DynamicResource BadgeText2}" FontSize="12" HorizontalAlignment="Center" />
-                                    <TextBlock Text="The in-game overlay is not in this build" FontSize="11" Foreground="#A9B4BF" HorizontalAlignment="Center" Margin="0,3,0,0" />
+                                    <TextBlock Text="The in-game overlay is not in this build" FontSize="11" Foreground="{StaticResource TextBody}" HorizontalAlignment="Center" Margin="0,3,0,0" />
                                 </StackPanel>
                             </Border>
                             <TextBlock Text="PREVIEW" Style="{DynamicResource SecHint2}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,6,4" />
@@ -758,14 +758,14 @@
                                         <TextBlock Text="Position" Style="{DynamicResource RowTitle2}" />
                                         <TextBlock Text="Top left, like SteamOS" Style="{DynamicResource RowSub2}" />
                                     </StackPanel>
-                                    <Border Width="100" Height="46" HorizontalAlignment="Right" Background="#0B0D10" BorderBrush="{DynamicResource Line2}" BorderThickness="1" CornerRadius="4" Padding="6,5">
+                                    <Border Width="100" Height="46" HorizontalAlignment="Right" Background="{StaticResource Track2Brush}" BorderBrush="{DynamicResource Line2}" BorderThickness="1" CornerRadius="4" Padding="6,5">
                                         <UniformGrid Columns="3" Rows="2">
                                             <Border Margin="1,1,4,3" CornerRadius="2" Background="{DynamicResource AccentBrush}" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
+                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
@@ -803,7 +803,7 @@
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
-                                <UniformGrid Columns="2" Margin="0,8,0,0" TextElement.FontSize="11.5" TextElement.Foreground="#A9B4BF">
+                                <UniformGrid Columns="2" Margin="0,8,0,0" TextElement.FontSize="11.5" TextElement.Foreground="{StaticResource TextBody}">
                                     <TextBlock Text="☑  GPU load, temp" Margin="0,1" />
                                     <TextBlock Text="☑  CPU load, temp" Margin="0,1" />
                                     <TextBlock Text="☑  Clocks" Margin="0,1" />
@@ -834,11 +834,11 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Button x:Name="SettingsBack" Style="{DynamicResource HeaderButton2}" Foreground="#F2F6F9" Content="{DynamicResource Icon.Back}" Click="SettingsBack_Click" ToolTip="Back (Esc)" />
+                        <Button x:Name="SettingsBack" Style="{DynamicResource HeaderButton2}" Foreground="{StaticResource TextPrimary}" Content="{DynamicResource Icon.Back}" Click="SettingsBack_Click" AutomationProperties.Name="Back (Esc)" ToolTip="Back (Esc)" />
                         <TextBlock Grid.Column="1" Text="{DynamicResource Str.Settings}" Style="{DynamicResource Brand2}" Margin="8,0,0,0" />
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Minimize}" Click="Minimize_Click" ToolTip="Minimize" />
-                            <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Close}" Click="Close_Click" ToolTip="Hide to tray" />
+                            <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Minimize}" Click="Minimize_Click" AutomationProperties.Name="Minimize" ToolTip="Minimize" />
+                            <Button Style="{DynamicResource HeaderButton2}" Content="{DynamicResource Icon.Close}" Click="Close_Click" AutomationProperties.Name="Hide to tray" ToolTip="Hide to tray" />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -870,7 +870,7 @@
                                             <TextBlock Text="Show in taskbar" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock Text="Off: the app only lives in the tray" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="TaskbarToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="Taskbar_Click" ToolTip="Show the window's button on the taskbar" />
+                                        <CheckBox x:Name="TaskbarToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="Taskbar_Click" AutomationProperties.Name="Show the window's button on the taskbar" ToolTip="Show the window's button on the taskbar" />
                                     </Grid>
                                 </Border>
                                 <Border Style="{DynamicResource RowLine2}">
@@ -879,7 +879,7 @@
                                             <TextBlock Text="Reduce motion" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock Text="Turns off all animations" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="ReduceMotionToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="ReduceMotion_Click" ToolTip="On: no animations" />
+                                        <CheckBox x:Name="ReduceMotionToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="ReduceMotion_Click" AutomationProperties.Name="On: no animations" ToolTip="On: no animations" />
                                     </Grid>
                                 </Border>
                                 <Border Style="{DynamicResource RowLine2}">
@@ -888,7 +888,7 @@
                                             <TextBlock Text="Auto preset" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock Text="Battery when unplugged, last preset back on AC" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="AutoPresetToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="AutoPreset_Click" ToolTip="Unplug: Battery. Plug in: back to Quiet / Balanced / Performance (never G-Mode)" />
+                                        <CheckBox x:Name="AutoPresetToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="AutoPreset_Click" AutomationProperties.Name="Unplug: Battery. Plug in: back to Quiet / Balanced / Performance (never G-Mode)" ToolTip="Unplug: Battery. Plug in: back to Quiet / Balanced / Performance (never G-Mode)" />
                                     </Grid>
                                 </Border>
                             </UniformGrid>
@@ -917,7 +917,7 @@
                                             <TextBlock Text="F2 cycles presets" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock Text="Quiet, Balanced, Performance" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="F2PresetsToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F2Presets_Click" ToolTip="F2 (media mode, no Fn) cycles Quiet / Balanced / Performance" />
+                                        <CheckBox x:Name="F2PresetsToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F2Presets_Click" AutomationProperties.Name="F2 (media mode, no Fn) cycles Quiet / Balanced / Performance" ToolTip="F2 (media mode, no Fn) cycles Quiet / Balanced / Performance" />
                                     </Grid>
                                 </Border>
                                 <Border Style="{DynamicResource RowLine2}">
@@ -926,7 +926,7 @@
                                             <TextBlock Text="F3 opens the app" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock Text="Press again to hide it" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="F3OpensToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F3Opens_Click" ToolTip="F3 (media mode, no Fn) opens / hides Alien Controls. Works over borderless games" />
+                                        <CheckBox x:Name="F3OpensToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F3Opens_Click" AutomationProperties.Name="F3 (media mode, no Fn) opens / hides Alien Controls. Works over borderless games" ToolTip="F3 (media mode, no Fn) opens / hides Alien Controls. Works over borderless games" />
                                     </Grid>
                                 </Border>
                                 <Border Style="{DynamicResource RowLine2}">
@@ -935,7 +935,7 @@
                                             <TextBlock Text="F4 toggles the overlay" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock Text="Off, or back to your last level. Overlay comes in beta 2" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="F4OverlayToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F4Overlay_Click" ToolTip="F4 (media mode, no Fn) is reserved for the overlay" />
+                                        <CheckBox x:Name="F4OverlayToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F4Overlay_Click" AutomationProperties.Name="F4 (media mode, no Fn) is reserved for the overlay" ToolTip="F4 (media mode, no Fn) is reserved for the overlay" />
                                     </Grid>
                                 </Border>
                             </UniformGrid>
@@ -945,7 +945,8 @@
                     <!-- tab 2: ALERTS · ADVANCED -->
                     <Grid x:Name="SetPage2" Visibility="Collapsed">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" /><RowDefinition Height="4*" /><RowDefinition Height="18" /><RowDefinition Height="Auto" /><RowDefinition Height="2*" />
+                            <!-- 2.0.0-beta1.4: Advanced has one row now (1*), so the freed height spreads over all five rows, no gap -->
+                            <RowDefinition Height="Auto" /><RowDefinition Height="4*" /><RowDefinition Height="18" /><RowDefinition Height="Auto" /><RowDefinition Height="1*" />
                             <RowDefinition Height="18" /><RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid Style="{DynamicResource Sec2}">
@@ -962,7 +963,7 @@
                                             <TextBlock Text="Notifications" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock x:Name="ToastsSub" Text="Pill toast for F1, F2 and plug / unplug" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="ToastsToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="Toasts_Click" ToolTip="Window and tray clicks never show one" />
+                                        <CheckBox x:Name="ToastsToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="Toasts_Click" AutomationProperties.Name="Window and tray clicks never show one" ToolTip="Window and tray clicks never show one" />
                                     </Grid>
                                 </Border>
                                 <Border x:Name="ToastStyleRow" Style="{DynamicResource RowLine2}">
@@ -989,7 +990,7 @@
                                             <TextBlock Text="Notification sound" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock Text="Plays even with toasts off" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="ToastSoundToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="ToastSound_Click" ToolTip="Chime with F1, F2 and plug / unplug" />
+                                        <CheckBox x:Name="ToastSoundToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="ToastSound_Click" AutomationProperties.Name="Chime with F1, F2 and plug / unplug" ToolTip="Chime with F1, F2 and plug / unplug" />
                                     </Grid>
                                 </Border>
                                 <Border x:Name="ChimeRow" Style="{DynamicResource RowLine2}">
@@ -1006,7 +1007,7 @@
                                                     <RadioButton x:Name="ChimeClassic" GroupName="Chime" Content="Classic" Style="{DynamicResource PillItemText2}" Click="ChimePack_Click" />
                                                 </UniformGrid>
                                             </Border>
-                                            <Button Style="{DynamicResource Button2}" Margin="8,0,0,0" Width="52" Padding="0" Click="ChimePreview_Click" ToolTip="Preview: Balanced, then G-Mode on">
+                                            <Button Style="{DynamicResource Button2}" Margin="8,0,0,0" Width="52" Padding="0" Click="ChimePreview_Click" AutomationProperties.Name="Preview: Balanced, then G-Mode on" ToolTip="Preview: Balanced, then G-Mode on">
                                                 <ContentControl Width="13" Height="13" Focusable="False" IsTabStop="False" Content="{DynamicResource Icon.Play}" />
                                             </Button>
                                         </StackPanel>
@@ -1022,16 +1023,8 @@
                         </Grid>
                         <Border Grid.Row="4" Style="{DynamicResource Card2}">
                             <UniformGrid Columns="1">
+                                <!-- 2.0.0-beta1.4 (Amine): Log frame gaps removed, Reset settings is the first row -->
                                 <Border Style="{DynamicResource RowFirst2}">
-                                    <Grid>
-                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
-                                            <TextBlock Text="Log frame gaps" Style="{DynamicResource RowTitle2}" />
-                                            <TextBlock Text="Each slide's steps to crash.log" Style="{DynamicResource RowSub2}" />
-                                        </StackPanel>
-                                        <CheckBox x:Name="FrameLogToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="FrameLog_Click" ToolTip="Debug: logs steps per second and the biggest gap of every window slide" />
-                                    </Grid>
-                                </Border>
-                                <Border Style="{DynamicResource RowLine2}">
                                     <Grid>
                                         <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
                                             <TextBlock Text="Reset settings" Style="{DynamicResource RowTitle2}" />
@@ -1067,14 +1060,14 @@
             <Border x:Name="MainFooter" Grid.Row="4" BorderBrush="{DynamicResource Line2}" BorderThickness="0,1,0,0" Background="#07080A" CornerRadius="0,0,10,10" Padding="18,0,18,0">
                 <Grid>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <CheckBox x:Name="StartupToggle" Style="{DynamicResource Toggle2}" Click="Startup_Click" ToolTip="Starts Alien Controls when you sign in" />
-                        <TextBlock Text="Run on startup" Margin="10,0,0,0" FontSize="12.5" Foreground="#F2F6F9" VerticalAlignment="Center" />
+                        <CheckBox x:Name="StartupToggle" Style="{DynamicResource Toggle2}" Click="Startup_Click" AutomationProperties.Name="Starts Alien Controls when you sign in" ToolTip="Starts Alien Controls when you sign in" />
+                        <TextBlock Text="Run on startup" Margin="10,0,0,0" FontSize="12.5" Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <Button x:Name="SettingsButton" Style="{DynamicResource Button2}" Width="34" Padding="0" Margin="0,0,8,0" Click="Settings_Click" ToolTip="Settings">
+                        <Button x:Name="SettingsButton" Style="{DynamicResource Button2}" Width="34" Padding="0" Margin="0,0,8,0" Click="Settings_Click" AutomationProperties.Name="Settings" ToolTip="Settings">
                             <ContentControl Width="15" Height="15" Focusable="False" IsTabStop="False" Content="{DynamicResource Icon.Settings}" />
                         </Button>
-                        <Button Style="{DynamicResource Button2}" Width="68" Padding="0" Click="Quit_Click" ToolTip="Quit Alien Controls">
+                        <Button Style="{DynamicResource Button2}" Width="68" Padding="0" Click="Quit_Click" AutomationProperties.Name="Quit Alien Controls" ToolTip="Quit Alien Controls">
                             <StackPanel Orientation="Horizontal">
                                 <ContentControl Width="14" Height="14" Margin="0,0,7,0" Focusable="False" IsTabStop="False" Content="{DynamicResource Icon.Power}" />
                                 <TextBlock Text="Quit" VerticalAlignment="Center" />
@@ -1117,11 +1110,11 @@
                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="R" Style="{DynamicResource BodyText}" Margin="0,0,6,0" />
-                            <TextBox x:Name="RBox" Grid.Column="1" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
+                            <TextBox x:Name="RBox" AutomationProperties.Name="Red, 0 to 255" Grid.Column="1" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
                             <TextBlock Grid.Column="2" Text="G" Style="{DynamicResource BodyText}" Margin="0,0,6,0" />
-                            <TextBox x:Name="GBox" Grid.Column="3" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
+                            <TextBox x:Name="GBox" AutomationProperties.Name="Green, 0 to 255" Grid.Column="3" MaxLength="3" Margin="0,0,8,0" TextChanged="Rgb_Changed" />
                             <TextBlock Grid.Column="4" Text="B" Style="{DynamicResource BodyText}" Margin="0,0,6,0" />
-                            <TextBox x:Name="BBox" Grid.Column="5" MaxLength="3" TextChanged="Rgb_Changed" />
+                            <TextBox x:Name="BBox" AutomationProperties.Name="Blue, 0 to 255" Grid.Column="5" MaxLength="3" TextChanged="Rgb_Changed" />
                         </Grid>
                         <Button Content="Apply" HorizontalAlignment="Stretch" Margin="0,10,0,0" Click="CustomApply_Click" Style="{DynamicResource ButtonPrimary2}" />
                     </StackPanel>
