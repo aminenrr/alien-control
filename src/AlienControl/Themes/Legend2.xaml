@@ -321,6 +321,29 @@
         <Setter Property="FontSize" Value="9.5" />
         <Setter Property="Foreground" Value="{StaticResource TextMuted}" />
     </Style>
+    <!-- 2.0.0-beta1.4 (Amine, mockup 6-gpu-source.png): the INTEL / NVIDIA chip next to the GPU tile labels. Accent text
+         and 1 px accent border on the dark accent tint (both follow the lighting colour), mono semibold, 3 px corners.
+         Collapsed until the GPU mode is known (MainWindow.UpdateGpuSourceTags). -->
+    <Style x:Key="GpuSourceChip2" TargetType="Border">
+        <Setter Property="Visibility" Value="Collapsed" />
+        <Setter Property="Margin" Value="6,0,0,0" />
+        <Setter Property="Padding" Value="3,0,3,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentPillBg}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+    </Style>
+    <Style x:Key="GpuSourceChipText2" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+        <Setter Property="FontSize" Value="8" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Typography.Capitals" Value="SmallCaps" />
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="LineHeight" Value="11" />
+        <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+    </Style>
     <Style x:Key="CellValue2" TargetType="Run">
         <Setter Property="FontSize" Value="24" />
         <Setter Property="FontWeight" Value="SemiBold" />
