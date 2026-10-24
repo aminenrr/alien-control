@@ -231,4 +231,37 @@ public class OverlayTests
         Assert.Equal(Item.None, OverlayLevels.Hidden(true, true));
         Assert.True(OverlayLevels.Items(3, false, Item.None).HasFlag(Item.Battery));
     }
+
+    [Fact]
+    public void Swapchain_filter_keeps_the_busiest_one()
+    {
+        var f = new FramesSource();
+        f.ParseHeader(Header);
+        f.SetForegroundForTest(42);
+        string L(string swap, int i) => $"game.exe,42,{swap},DXGI,0,0,{(i * 0.004).ToString(System.Globalization.CultureInfo.InvariantCulture)},0,4.0,0,0.1";
+        // first present picks its swapchain until the counts say otherwise
+        Assert.True(f.OnLine(L("0x00000226A1B2C3D0", 0)));
+        Assert.False(f.OnLine(L("0x00000226FFFF0000", 1)));
+        Assert.True(f.OnLine(L("0x00000226A1B2C3D0", 2)));
+        Assert.Equal("game.exe", f.TargetApp);
+    }
+
+    [Fact]
+    public void Parser_handles_spaces_and_short_lines()
+    {
+        var f = new FramesSource();
+        f.ParseHeader(Header);
+        f.SetForegroundForTest(5);
+        Assert.True(f.OnLine("game.exe, 5 ,0x1,DXGI,0,0,1.0,0, 8.5 ,0,0.1"));
+        Assert.False(f.OnLine("game.exe,5"));
+        Assert.False(f.OnLine(""));
+    }
+
+    [Fact]
+    public void Gsync_preset_is_three_under_refresh()
+    {
+        Assert.Equal(237, NvDrs.GsyncCap(240));
+        Assert.Equal(141, NvDrs.GsyncCap(144));
+        Assert.Equal(NvDrs.MinFps, NvDrs.GsyncCap(10));
+    }
 }

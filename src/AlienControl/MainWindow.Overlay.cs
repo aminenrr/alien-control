@@ -61,13 +61,16 @@ public partial class MainWindow
         _ovPreviewTimer.Tick += (_, _) => UpdateOverlayPreview();
         OverlayPage.IsVisibleChanged += (_, _) =>
         {
-            if (OverlayPage.IsVisible) { UpdateOverlayPreview(); _ovPreviewTimer.Start(); }
+            if (OverlayPage.IsVisible) { UpdateOverlayPreview(); _ovPreviewTimer.Start(); _ = RefreshFpsCapAsync(); }
             else _ovPreviewTimer.Stop();
         };
         SyncOverlayLookUi();
         OvExtraToggle.IsChecked = _settings.OverlayLatencyFg;
         OvShowRefresh.IsChecked = _settings.OverlayShowRefresh;
         OvShowBattery.IsChecked = _settings.OverlayShowBattery;
+        PaintShowSub();
+        InitFpsCap();
+        _frames.TargetChanged += (app, pid) => Dispatcher.BeginInvoke(new Action(() => NoteCapGame(app, pid)));
         (_settings.OverlaySmoothGraph ? OvUpdLive : _settings.OverlayUpdateMs switch { 250 => OvUpd250, 1000 => OvUpd1000, _ => OvUpd500 }).IsChecked = true;
         // after the constructor: the window's services are ready, and the app may start hidden in the tray
         Dispatcher.BeginInvoke(new Action(ApplyOverlay), DispatcherPriority.Background);
@@ -118,7 +121,13 @@ public partial class MainWindow
         if (level > 0) _frames.Start();   // ov.7: always call, Start cancels a pending debounced stop (F4 off / on within 2 s)
         else _frames.StopSoon();   // ov.4: debounced, F4 spam keeps one PresentMon
 
-        _overlay ??= level > 0 ? new OverlayHost(_frames) : null;
+        if (_overlay is null && level > 0)
+        {
+            _overlay = new OverlayHost(_frames);
+            // ov.11: 30 s after off the overlay window and its thread are gone; give that memory back (Amine saw
+            // 50 -> 75 MB stay after using the overlay)
+            _overlay.TornDown += () => Task.Run(TrimMemory);
+        }
         var look = OvLook;
         _overlay?.Apply(level, look.Position, look.Size / 100.0, look.Bg / 100.0, _settings.OverlayUpdateMs,
             look.X, look.Y, _settings.OverlayLatencyFg, _settings.OverlaySmoothGraph, OvHidden);
@@ -143,6 +152,7 @@ public partial class MainWindow
         int shown = level == 0 ? _settings.OverlayLastLevel : level;
         OvLevelInfo.Text = level == 0 ? $"Off (F4 brings back level {_settings.OverlayLastLevel})" : $"Level {level}: {LevelName(level)}";
         OvLevelItems.Text = LevelItems(level);
+        OvTabSlider.ToolTip = (level == 0 ? OvLevelInfo.Text : LevelName(level)) + "\n" + LevelItems(level);
         OvState.Text = level == 0 ? $"OFF · PREVIEW OF LEVEL {shown}"
             : !FramesSource.Available ? "PRESENTMON MISSING: NO FPS (tools\\PresentMon)"
             : _frames.Error is { } err ? err.ToUpperInvariant()
@@ -355,7 +365,8 @@ public partial class MainWindow
         if (OvBgValue is null) return;
         OvBgValue.Text = $"{(int)e.NewValue}%";
         if ((int)e.NewValue == OvLook.Bg) return;
-        OvLook.Bg = (int)e.NewValue;
+        // ov.11: lives in Settings now (Amine), one value for every level
+        for (int lv = 1; lv <= OverlayLevels.Max; lv++) _settings.LookFor(lv).Bg = (int)e.NewValue;
         _settings.Save();
         ApplyOverlay();
     }
@@ -392,6 +403,7 @@ public partial class MainWindow
         _settings.OverlayShowRefresh = OvShowRefresh.IsChecked == true;
         _settings.OverlayShowBattery = OvShowBattery.IsChecked == true;
         _settings.Save();
+        PaintShowSub();
         Log.Info("Overlay", $"show refresh {(_settings.OverlayShowRefresh ? "on" : "off")}, battery {(_settings.OverlayShowBattery ? "on" : "off")}");
         ApplyOverlay();
     }
@@ -400,8 +412,19 @@ public partial class MainWindow
     {
         _settings.OverlayLatencyFg = OvExtraToggle.IsChecked == true;
         _settings.Save();
+        PaintShowSub();
         Log.Info("Overlay", $"latency and frame gen {(_settings.OverlayLatencyFg ? "on" : "off")}");
         ApplyOverlay();
+    }
+
+    /// <summary>ov.11: the Show on overlay sub line says what's on, like the mockup.</summary>
+    private void PaintShowSub()
+    {
+        var on = new System.Collections.Generic.List<string>(3);
+        if (_settings.OverlayLatencyFg) on.Add("latency");
+        if (_settings.OverlayShowRefresh) on.Add("refresh");
+        if (_settings.OverlayShowBattery) on.Add("battery");
+        OvShowSub.Text = on.Count == 0 ? "All off: none of it is read" : "On: " + string.Join(", ", on);
     }
 
     private static string OffsetText(int v) => v == 0 ? "0" : v > 0 ? $"+{v}%" : $"{v}%";

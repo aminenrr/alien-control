@@ -84,6 +84,8 @@ public sealed class FramesSource : IDisposable
     /// <summary>Exe name of the process the frames belong to (the foreground window's), empty when none presents.</summary>
     public string TargetApp { get { lock (_lock) return _targetApp; } }
     public int TargetPid { get { lock (_lock) return _targetPid; } }
+    /// <summary>ov.11: the frames now belong to another process (exe, pid). Raised on the reader thread, rarely.</summary>
+    public event Action<string, int>? TargetChanged;
     /// <summary>PresentMon's PresentRuntime for the target (DXGI, D3D9, Other). The overlay maps it to an engine label.</summary>
     public string Runtime { get { lock (_lock) return _runtime; } }
     /// <summary>ov.6: PresentMon's PresentMode for the target ("Hardware: Independent Flip", "Composed: Flip", ...). Only
@@ -242,7 +244,7 @@ public sealed class FramesSource : IDisposable
     // ---------- CSV ----------
 
     private int _colApp = -1, _colPid = -1, _colRuntime = -1, _colMs = -1, _colT = -1;
-    private int _colType = -1, _colPcLat = -1, _colDispLat = -1, _colMode = -1;
+    private int _colType = -1, _colPcLat = -1, _colDispLat = -1, _colMode = -1, _colSwap = -1, _colMax = -1;
 
     /// <summary>Reads the header once, then one frame per line. Lines that don't belong to the foreground process are dropped.</summary>
     private void ReadLoop(Process p)
@@ -301,7 +303,7 @@ public sealed class FramesSource : IDisposable
     {
         var cols = line.Split(',');
         _colApp = _colPid = _colRuntime = _colMs = _colT = -1;
-        _colType = _colPcLat = _colDispLat = _colMode = -1;
+        _colType = _colPcLat = _colDispLat = _colMode = _colSwap = -1;
         for (int i = 0; i < cols.Length; i++)
         {
             var c = cols[i].Trim();
@@ -315,51 +317,132 @@ public sealed class FramesSource : IDisposable
             else if (c.Equals("PresentMode", StringComparison.OrdinalIgnoreCase)) _colMode = i;
             else if (c.Equals("MsPCLatency", StringComparison.OrdinalIgnoreCase)) _colPcLat = i;
             else if (c.Equals("DisplayLatency", StringComparison.OrdinalIgnoreCase) || c.Equals("MsDisplayLatency", StringComparison.OrdinalIgnoreCase)) _colDispLat = i;
+            else if (c.Equals("SwapChainAddress", StringComparison.OrdinalIgnoreCase)) _colSwap = i;
         }
+        _colMax = Math.Max(Math.Max(Math.Max(_colApp, _colPid), Math.Max(_colRuntime, _colMs)), Math.Max(Math.Max(_colT, _colType),
+                  Math.Max(Math.Max(_colPcLat, _colDispLat), Math.Max(_colMode, _colSwap))));
+        _starts = new int[_colMax + 2];
         return _colPid >= 0 && _colMs >= 0;
     }
 
-    /// <summary>Parses one CSV line (no allocation for skipped lines beyond the split). Returns true when a frame was kept.</summary>
+    private int[] _starts = new int[2];
+
+    // ov.11 swapchain filter: a game can present on more than one swapchain (launcher overlay, a video in a menu, a
+    // second window). Mixing them inflated the fps and jumbled the frametimes, so only the busiest one counts.
+    private readonly ulong[] _swAddr = new ulong[4];
+    private readonly int[] _swCount = new int[4];
+    private ulong _swPrimary;
+    private long _swPicked;
+
+    /// <summary>Parses one CSV line without allocating (the columns are spans of the line; strings are only made when
+    /// the target or its present mode changes). Returns true when a frame was kept.</summary>
     internal bool OnLine(string line)
     {
         long now = Stopwatch.GetTimestamp();
         if (now - _lastFgCheck > Stopwatch.Frequency / 4) { _lastFgCheck = now; RefreshForeground(); }
-        var cols = line.Split(',');
-        if (cols.Length <= Math.Max(_colPid, _colMs)) return false;
-        if (!int.TryParse(cols[_colPid], out int pid)) return false;
+        var span = line.AsSpan();
+        int n = Split(span, _starts);
+        if (n <= Math.Max(_colPid, _colMs)) return false;
+        if (!int.TryParse(Col(span, _colPid, n), out int pid)) return false;
         int fg;
         lock (_lock) fg = _fgPid;
         if (pid != fg) return false;
-        if (!float.TryParse(cols[_colMs], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float ms)) return false;
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var flt = System.Globalization.NumberStyles.Float;
+        if (!float.TryParse(Col(span, _colMs, n), flt, inv, out float ms)) return false;
         if (ms <= 0 || ms > 5000) return false;
+        if (!PrimarySwapchain(Col(span, _colSwap, n), pid, now)) return false;
         double t = double.NaN;
-        if (_colT >= 0 && _colT < cols.Length) double.TryParse(cols[_colT], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out t);
+        if (_colT >= 0 && _colT < n) double.TryParse(Col(span, _colT, n), flt, inv, out t);
         // extended columns (only present when the toggle is on)
-        bool gen = _colType >= 0 && _colType < cols.Length && IsGenerated(cols[_colType]);
-        float lat = float.NaN; bool pcLat = false;
-        if (_colPcLat >= 0 && _colPcLat < cols.Length && TryMs(cols[_colPcLat], out float pl)) { lat = pl; pcLat = true; }
-        else if (_colDispLat >= 0 && _colDispLat < cols.Length && TryMs(cols[_colDispLat], out float dl)) lat = dl;
+        bool gen = _colType >= 0 && _colType < n && IsGenerated(Col(span, _colType, n));
+        float lat = float.NaN; bool pcLat = false, changed = false;
+        string app = "";
+        if (_colPcLat >= 0 && _colPcLat < n && TryMs(Col(span, _colPcLat, n), out float pl)) { lat = pl; pcLat = true; }
+        else if (_colDispLat >= 0 && _colDispLat < n && TryMs(Col(span, _colDispLat, n), out float dl)) lat = dl;
         lock (_lock)
         {
             if (_targetPid != pid)
             {
                 _targetPid = pid;
-                _targetApp = _colApp >= 0 && _colApp < cols.Length ? cols[_colApp] : "";
-                _runtime = _colRuntime >= 0 && _colRuntime < cols.Length ? cols[_colRuntime] : "";
+                _targetApp = _colApp >= 0 && _colApp < n ? Col(span, _colApp, n).ToString() : "";
+                _runtime = _colRuntime >= 0 && _colRuntime < n ? Col(span, _colRuntime, n).ToString() : "";
                 _count = 0;
+                changed = true;
+                app = _targetApp;
             }
-            if (_colMode >= 0 && _colMode < cols.Length && !gen) _presentMode = cols[_colMode];   // the game's own frames
+            if (_colMode >= 0 && _colMode < n && !gen)   // the game's own frames
+            {
+                var mode = Col(span, _colMode, n);
+                if (!mode.SequenceEqual(_presentMode.AsSpan())) _presentMode = mode.ToString();
+            }
             if (double.IsNaN(t)) t = (_count > 0 ? _ring[(_head - 1 + _ring.Length) % _ring.Length].T : 0) + ms / 1000.0;
             _ring[_head] = new Frame(now, t, ms, gen, lat, pcLat);
             _head = (_head + 1) % _ring.Length;
             if (_count < _ring.Length) _count++;
         }
+        if (changed) { try { TargetChanged?.Invoke(app, pid); } catch (Exception e) { Log.Warn("Frames.TargetChanged", e); } }
         return true;
+    }
+
+    /// <summary>Comma positions of the line into starts (starts[i] = first char of column i, starts[n] = end + 1).
+    /// Stops after the last column we read. Returns the number of columns found.</summary>
+    private int Split(ReadOnlySpan<char> s, int[] starts)
+    {
+        int max = starts.Length - 1, n = 0, pos = 0;
+        starts[0] = 0;
+        while (n < max)
+        {
+            int c = s[pos..].IndexOf(',');
+            n++;
+            if (c < 0) { starts[n] = s.Length + 1; break; }
+            pos += c + 1;
+            starts[n] = pos;
+        }
+        return n;
+    }
+
+    private ReadOnlySpan<char> Col(ReadOnlySpan<char> s, int col, int n)
+    {
+        if (col < 0 || col >= n) return ReadOnlySpan<char>.Empty;
+        int a = _starts[col], b = Math.Min(_starts[col + 1] - 1, s.Length);
+        return b > a ? s[a..b].Trim() : ReadOnlySpan<char>.Empty;
+    }
+
+    /// <summary>Counts presents per swapchain of the target and keeps only the busiest one (re-picked twice a second,
+    /// counts halve each time so a switch of window is followed within a second). No column = no filter.</summary>
+    private bool PrimarySwapchain(ReadOnlySpan<char> col, int pid, long now)
+    {
+        if (col.IsEmpty) return true;
+        if (col.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) col = col[2..];
+        if (!ulong.TryParse(col, System.Globalization.NumberStyles.HexNumber, null, out ulong addr) || addr == 0) return true;
+        if (pid != _targetPid) { Array.Clear(_swAddr); Array.Clear(_swCount); _swPrimary = 0; }
+        int slot = -1, empty = -1, least = 0;
+        for (int i = 0; i < _swAddr.Length; i++)
+        {
+            if (_swAddr[i] == addr) { slot = i; break; }
+            if (_swAddr[i] == 0 && empty < 0) empty = i;
+            if (_swCount[i] < _swCount[least]) least = i;
+        }
+        if (slot < 0) { slot = empty >= 0 ? empty : least; _swAddr[slot] = addr; _swCount[slot] = 0; }
+        _swCount[slot]++;
+        if (_swPrimary == 0) { _swPrimary = addr; _swPicked = now; }
+        else if (now - _swPicked > Stopwatch.Frequency / 2)
+        {
+            int best = 0;
+            for (int i = 1; i < _swAddr.Length; i++) if (_swCount[i] > _swCount[best]) best = i;
+            _swPrimary = _swAddr[best];
+            for (int i = 0; i < _swCount.Length; i++) _swCount[i] /= 2;
+            _swPicked = now;
+        }
+        return addr == _swPrimary;
     }
 
     /// <summary>PresentMon's FrameType: Application (rendered by the game), Repeated, NotSet, or the name of whatever
     /// generated it (Intel XeFG, AMD AFMF, ...). Anything that isn't the game's own or a repeat counts as generated.</summary>
-    internal static bool IsGenerated(string type)
+    internal static bool IsGenerated(string type) => IsGenerated(type.AsSpan());
+
+    internal static bool IsGenerated(ReadOnlySpan<char> type)
     {
         var x = type.Trim();
         if (x.Length == 0) return false;
@@ -368,7 +451,7 @@ public sealed class FramesSource : IDisposable
               || x.Equals("Unknown", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool TryMs(string s, out float v) =>
+    private static bool TryMs(ReadOnlySpan<char> s, out float v) =>
         float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v) && v > 0 && v < 2000;
 
     // ---------- foreground process ----------

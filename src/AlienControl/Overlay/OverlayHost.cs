@@ -40,9 +40,21 @@ public sealed class OverlayHost : IDisposable
 
     public bool Shown => _level > 0;
 
+    /// <summary>ov.11: raised on the overlay thread once the window and its thread are gone (30 s after off), so the app
+    /// can give the memory back.</summary>
+    public event Action? TornDown;
+
+    /// <summary>How long the window and its thread stay parked after off before they're torn down. F4 off / on within
+    /// this keeps the warm window.</summary>
+    public static TimeSpan IdleTeardown { get; set; } = TimeSpan.FromSeconds(30);
+
+    private readonly object _life = new();
+    private DispatcherTimer? _idle;
+
     public void Push(Sensors s) => _sensors = s;
 
-    /// <summary>Applies level and look. Level 0 hides the window (the thread stays parked, it costs nothing).</summary>
+    /// <summary>Applies level and look. Level 0 hides the window; 30 s later the window and its thread are torn down
+    /// (ov.11, gives the WPF render memory back). The next level starts them again.</summary>
     public void Apply(int level, int position, double scale, double bg, int updateMs, int offsetX = 0, int offsetY = 0, bool extended = false, bool smooth = false, Item hidden = Item.None)
     {
         _extended = extended;
@@ -51,16 +63,42 @@ public sealed class OverlayHost : IDisposable
         _offX = offsetX; _offY = offsetY;
         _level = level; _position = position; _scale = scale; _bg = bg; _updateMs = Math.Clamp(updateMs, 100, 2000);
         if (level > 0) EnsureThread();
-        _disp?.BeginInvoke(new Action(ApplyOnThread));
+        if (_disp is { HasShutdownStarted: false } d) d.BeginInvoke(new Action(ApplyOnThread));
     }
 
     private void EnsureThread()
     {
-        if (_thread is not null) return;
-        _thread = new Thread(Run) { IsBackground = true, Name = "AlienControls overlay" };
-        _thread.SetApartmentState(ApartmentState.STA);
-        _thread.Start();
-        _ready.Wait(3000);
+        lock (_life)
+        {
+            if (_thread is { IsAlive: true } && _disp is { HasShutdownStarted: false }) return;
+            _thread?.Join(2000);   // a teardown is finishing: let it, then start fresh
+            _disp = null;
+            _ready.Reset();
+            _thread = new Thread(Run) { IsBackground = true, Name = "AlienControls overlay" };
+            _thread.SetApartmentState(ApartmentState.STA);
+            _thread.Start();
+            _ready.Wait(3000);
+        }
+    }
+
+    /// <summary>On the overlay thread, IdleTeardown after off: close the window, stop the dispatcher. Skipped when a
+    /// level came back meanwhile or the app thread is starting a new one (never blocks on it).</summary>
+    private void TearDown()
+    {
+        _idle?.Stop();
+        if (_level > 0 || !Monitor.TryEnter(_life)) return;
+        try
+        {
+            if (_level > 0) return;
+            _timer?.Stop();
+            _graphTimer?.Stop();
+            _win?.Close();
+            _win = null;
+            _panel = null;
+            Dispatcher.CurrentDispatcher.BeginInvokeShutdown(DispatcherPriority.Background);
+            Log.Info("Overlay", "window torn down after idle");
+        }
+        finally { Monitor.Exit(_life); }
     }
 
     private void Run()
@@ -82,8 +120,11 @@ public sealed class OverlayHost : IDisposable
             // ov.7: LIVE mode, the graph alone at ~30 Hz between the number updates
             _graphTimer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
             _graphTimer.Tick += (_, _) => GraphTick();
+            _idle = new DispatcherTimer(DispatcherPriority.Background) { Interval = IdleTeardown };
+            _idle.Tick += (_, _) => TearDown();
             _ready.Set();
             Dispatcher.Run();
+            if (_level <= 0) TornDown?.Invoke();
         }
         catch (Exception ex) { Log.Warn("Overlay.Run", ex); _ready.Set(); }
     }
@@ -97,8 +138,10 @@ public sealed class OverlayHost : IDisposable
             _timer.Stop();
             _graphTimer?.Stop();
             if (_win.IsVisible) _win.Hide();
+            if (_idle is { IsEnabled: false }) { _idle.Interval = IdleTeardown; _idle.Start(); }
             return;
         }
+        _idle?.Stop();
         _panel.Level = level;
         _panel.Items = OverlayLevels.Items(level, _extended, _hidden);
         _panel.Scale = _scale;
@@ -273,7 +316,7 @@ public sealed class OverlayHost : IDisposable
     {
         _level = 0;
         var d = _disp;
-        if (d is null) return;
+        if (d is null || d.HasShutdownStarted) return;
         try
         {
             d.Invoke(() => { _timer?.Stop(); _win?.Close(); }, DispatcherPriority.Send, CancellationToken.None, TimeSpan.FromSeconds(1));

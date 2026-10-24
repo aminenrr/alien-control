@@ -671,9 +671,11 @@
                 <Grid x:Name="OverlayPage" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="18" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="18" />
+                        <RowDefinition Height="14" />
+                        <RowDefinition Height="*" MinHeight="56" />
+                        <RowDefinition Height="14" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="14" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
@@ -708,8 +710,82 @@
                         </Grid>
                     </Border>
 
-                    <!-- ADVANCED -->
+                    <!-- ov.11 FPS CAP: the NVIDIA driver's Max Frame Rate and V-Sync for the last game the overlay saw (or all games) -->
                     <StackPanel Grid.Row="4">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Gauge}" />
+                            <TextBlock Grid.Column="1" Text="FPS CAP" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock Grid.Column="3" Text="NVIDIA DRIVER · NO INJECTION" Style="{DynamicResource SecHint2}"
+                                       ToolTip="Writes the game's NVIDIA profile (the same one the NVIDIA app edits). Nothing runs in the game and nothing keeps running here. The driver reads it when the game starts" />
+                        </Grid>
+                        <Border x:Name="OvCapCard" Style="{DynamicResource Card2}" Padding="14,8,14,6">
+                            <StackPanel>
+                                <Grid Height="38">
+                                    <StackPanel VerticalAlignment="Center" Margin="0,0,170,0">
+                                        <TextBlock Text="Cap frame rate" Style="{DynamicResource RowTitle2}" />
+                                        <TextBlock x:Name="OvCapSub" Text="Play a game with the overlay on" Style="{DynamicResource RowSub2}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <Border Style="{DynamicResource PillTrack2}" Width="160" Height="24" HorizontalAlignment="Right">
+                                        <UniformGrid Columns="2">
+                                            <RadioButton x:Name="OvCapGame" GroupName="OvCapScope" Content="THIS GAME" Style="{DynamicResource PillItem2}" Click="OvCapScope_Click"
+                                                         ToolTip="Only the last game the overlay saw" />
+                                            <RadioButton x:Name="OvCapAll" GroupName="OvCapScope" Content="ALL" Style="{DynamicResource PillItem2}" Click="OvCapScope_Click"
+                                                         ToolTip="Every game (NVIDIA's global profile). A game's own cap still wins" />
+                                        </UniformGrid>
+                                    </Border>
+                                </Grid>
+                                <Grid Height="28" Margin="0,8,0,0">
+                                    <Border x:Name="OvCapChips" Style="{DynamicResource PillTrack2}" Height="28">
+                                        <UniformGrid Columns="6">
+                                            <RadioButton x:Name="OvCapOff" GroupName="OvCap" Content="OFF" Tag="0" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" ToolTip="No cap (removes ours, NVIDIA's default comes back)" />
+                                            <RadioButton x:Name="OvCap60" GroupName="OvCap" Content="60" Tag="60" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                            <RadioButton x:Name="OvCap120" GroupName="OvCap" Content="120" Tag="120" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                            <RadioButton x:Name="OvCap144" GroupName="OvCap" Content="144" Tag="144" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                            <RadioButton x:Name="OvCapGsync" GroupName="OvCap" Content="G-SYNC" Tag="gsync" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click"
+                                                         ToolTip="Refresh rate minus 3 (237 at 240 Hz): stays inside the G-Sync range, no tearing and no V-Sync lag. Turns driver V-Sync on" />
+                                            <RadioButton x:Name="OvCapMore" GroupName="OvCap" Content="···" Tag="custom" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" ToolTip="Your own number" />
+                                        </UniformGrid>
+                                    </Border>
+                                    <Grid x:Name="OvCapCustom" Visibility="Collapsed">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Border Style="{DynamicResource PillTrack2}" Height="28">
+                                            <UniformGrid Columns="2">
+                                                <RadioButton GroupName="OvCapC" Content="OFF" Tag="0" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                                <RadioButton GroupName="OvCapC" Content="G-SYNC" Tag="gsync" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                            </UniformGrid>
+                                        </Border>
+                                        <Border Grid.Column="2" Background="{DynamicResource SelBg}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4"
+                                                MouseWheel="OvCapWheel" ToolTip="Click - / +, or scroll. Shift = 10 at a time">
+                                            <Grid>
+                                                <TextBlock Text="−" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="12,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="-1" MouseLeftButtonUp="OvCapStep_Click" Background="Transparent" />
+                                                <TextBlock x:Name="OvCapValue" Text="165 FPS" Style="{DynamicResource SecHint2}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <TextBlock Text="+" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="12,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="1" MouseLeftButtonUp="OvCapStep_Click" Background="Transparent" />
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                                <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,8,0,0" />
+                                <Grid Height="34">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="V-Sync in driver" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                        <TextBlock Text="on with G-Sync" Style="{DynamicResource RowSub2}" VerticalAlignment="Center" Margin="8,1,0,0" />
+                                    </StackPanel>
+                                    <CheckBox x:Name="OvCapVsync" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="OvCapVsync_Click"
+                                              ToolTip="NVIDIA's Vertical sync: On for this game. With G-Sync and the cap it never kicks in, it just catches a frame that would tear. Turn V-Sync off in the game" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ADVANCED -->
+                    <StackPanel Grid.Row="6">
                         <Grid Style="{DynamicResource Sec2}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
@@ -720,7 +796,7 @@
                             <TextBlock x:Name="OvReset" Grid.Column="3" Text="RESET TO STEAMOS" Style="{DynamicResource SecHint2}" Cursor="Hand"
                                        MouseLeftButtonUp="OvReset_Click" ToolTip="Resets this level&#x27;s look: top left, SteamOS size, 50 % background, no move. Other levels keep theirs" />
                         </Grid>
-                        <Border Style="{DynamicResource Card2}" Height="380" Padding="14,10,14,10">
+                        <Border Style="{DynamicResource Card2}" Padding="14,8,14,10">
                             <StackPanel>
                                 <Grid Height="50">
                                     <StackPanel VerticalAlignment="Center">
@@ -738,19 +814,12 @@
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
-                                <Grid Height="30" Margin="0,8,0,0">
+                                <Grid Height="28" Margin="0,4,0,0">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
                                     <TextBlock Text="Size" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
                                     <Slider x:Name="OvSizeSlider" Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="50" Maximum="150" Value="100" TickFrequency="5" IsSnapToTickEnabled="True"
                                             IsMoveToPointEnabled="True" ValueChanged="OvSize_Changed" VerticalAlignment="Center" Margin="0,0,10,0" ToolTip="100 % = SteamOS size" />
                                     <TextBlock x:Name="OvSizeValue" Grid.Column="2" Text="100%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
-                                </Grid>
-                                <Grid Height="30">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="Background" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                    <Slider x:Name="OvBgSlider" Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="50" TickFrequency="5" IsSnapToTickEnabled="True"
-                                            IsMoveToPointEnabled="True" ValueChanged="OvBg_Changed" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                    <TextBlock x:Name="OvBgValue" Grid.Column="2" Text="50%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
                                 </Grid>
                                 <Grid Height="30">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
@@ -816,7 +885,8 @@
                                         </Style>
                                     </StackPanel.Resources>
                                     <TextBlock Text="Show on overlay" Style="{DynamicResource RowTitle2}" />
-                                    <TextBlock Text="Lit = shown. Off = gone from every level and not read" Style="{DynamicResource RowSub2}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="OvShowSub" Text="On: refresh, battery" Style="{DynamicResource RowSub2}" TextTrimming="CharacterEllipsis"
+                                               ToolTip="Lit = shown. Off = gone from every level and not read" />
                                     <UniformGrid Columns="3" Margin="0,8,0,0">
                                         <CheckBox x:Name="OvExtraToggle" Style="{StaticResource OvShowTile}" Content="LATENCY" Margin="0,0,4,0" Click="OvExtra_Click"
                                                   Tag="{StaticResource OvIcLat}"
@@ -829,10 +899,10 @@
                                                   ToolTip="Battery % and AC / watts on levels 2, 3 and 4. Off: not shown and not read" />
                                     </UniformGrid>
                                 </StackPanel>
-                                <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,6,0,6" />
-                                <TextBlock x:Name="OvLevelInfo" Style="{DynamicResource RowTitle2}" Text="Level 3"
+                                <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,6,0,6" Visibility="Collapsed" />
+                                <TextBlock x:Name="OvLevelInfo" Style="{DynamicResource RowTitle2}" Text="Level 3" Visibility="Collapsed"
                                            ToolTip="Frametimes from PresentMon (ETW, no injection, anti cheat safe). Shows over windowed and borderless games." />
-                                <TextBlock x:Name="OvLevelItems" Style="{DynamicResource RowSub2}" TextWrapping="Wrap" Margin="0,3,0,0" MaxHeight="34" TextTrimming="CharacterEllipsis" />
+                                <TextBlock x:Name="OvLevelItems" Style="{DynamicResource RowSub2}" TextWrapping="Wrap" Margin="0,3,0,0" MaxHeight="34" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -872,7 +942,7 @@
                     <!-- tab 1: GENERAL · KEYS -->
                     <Grid x:Name="SetPage1">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" /><RowDefinition Height="3*" /><RowDefinition Height="18" /><RowDefinition Height="Auto" /><RowDefinition Height="4*" />
+                            <RowDefinition Height="Auto" /><RowDefinition Height="4*" /><RowDefinition Height="18" /><RowDefinition Height="Auto" /><RowDefinition Height="4*" />
                         </Grid.RowDefinitions>
                         <Grid Style="{DynamicResource Sec2}">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -898,6 +968,18 @@
                                             <TextBlock Text="Turns off all animations" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
                                         <CheckBox x:Name="ReduceMotionToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="ReduceMotion_Click" ToolTip="On: no animations" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="150" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="Overlay background" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="50 % = SteamOS, every level" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <Slider x:Name="OvBgSlider" Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="50" TickFrequency="5" IsSnapToTickEnabled="True"
+                                                IsMoveToPointEnabled="True" ValueChanged="OvBg_Changed" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="How dark the overlay's panel is. 0 = no panel, text only" />
+                                        <TextBlock x:Name="OvBgValue" Grid.Column="2" Text="50%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}" />
                                     </Grid>
                                 </Border>
                                 <Border Style="{DynamicResource RowLine2}">

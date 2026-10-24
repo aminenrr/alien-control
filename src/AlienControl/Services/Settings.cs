@@ -135,6 +135,14 @@ public sealed class Settings
     /// <summary>Latency and frame gen (real / generated fps). Off by default: PresentMon collects none of it while off.</summary>
     public bool OverlayLatencyFg { get; set; } = false;
 
+    /// <summary>ov.11 FPS cap (NVIDIA driver profile): the last game the overlay saw (exe and a readable name), the scope
+    /// (false = this game, true = all games) and the last custom value. The cap and V-Sync themselves live in the
+    /// driver's profile, never here, so the NVIDIA app and this card always agree.</summary>
+    public string? FpsCapGame { get; set; }
+    public string? FpsCapTitle { get; set; }
+    public bool FpsCapAll { get; set; } = false;
+    public int FpsCapCustom { get; set; } = 165;
+
     /// <summary>ov.3 (Amine): each level remembers its own look: position, size, background, move X / Y.
     /// Index 0 = level 1 ... 3 = level 4. The single OverlayPosition / Size / Bg / OffsetX / OffsetY above are only
     /// the seed for settings files from ov.1 / ov.2.</summary>
@@ -271,6 +279,8 @@ public sealed class Settings
             l.X = C(l.X, -50, 50, 0);
             l.Y = C(l.Y, -50, 50, 0);
         }
+        FpsCapCustom = C(FpsCapCustom, NvDrs.MinFps, NvDrs.MaxFps, d.FpsCapCustom);
+        if (FpsCapGame is { Length: > 260 }) FpsCapGame = null;
         KeyboardLightCount = C(KeyboardLightCount, 1, 136, d.KeyboardLightCount);
         ChassisDevice = C(ChassisDevice, 0, 3, d.ChassisDevice);
         ChassisLights = (ChassisLights ?? d.ChassisLights).Where(id => id is >= 0 and <= 15 && id != PowerButtonLight).Distinct().ToArray();
