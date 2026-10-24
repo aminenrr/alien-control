@@ -13,6 +13,10 @@ namespace AlienControl.Services;
 /// </summary>
 public static class GpuOc
 {
+    /// <summary>2.0.0-beta1.4 (Amine, bug B): false when nvml.dll isn't in System32 (no NVIDIA driver), so the OC card
+    /// is greyed instead of failing on Apply.</summary>
+    public static bool NvmlPresent => System.IO.File.Exists(System.IO.Path.Combine(Environment.SystemDirectory, "nvml.dll"));
+
     /// <summary>UI limit for both sliders, like AWCC.</summary>
     public const int MaxUi = 300;
 
