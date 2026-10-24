@@ -4,6 +4,9 @@ Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Unt
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
 
+## 2.0.0-beta1.3-ov.3 (overlay preview, branch beta1.3-ov)
+- Each overlay level remembers its own position, size, background and move left / right / up / down. The Overlay tab edits the level that's on (or the last one while off). Reset to SteamOS resets only that level. Update speed and the latency toggle stay shared. Old settings seed all four levels.
+
 ## 2.0.0-beta1.3-ov.2 (overlay preview, branch beta1.3-ov)
 - Level 4: one row per CPU core, P cores then E cores (P1..P6, E1..E8 on the i7-12700H), each thread's load and the core's real clock (PDH % Processor Performance). The CPU MHz on level 3 is the real clock too, not the 2300 MHz base.
 - Overlay tab: Move left / right and Move up / down sliders (-50..+50 % of the screen from the chosen spot, double click = 0, never leaves the screen).

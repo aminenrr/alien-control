@@ -718,7 +718,7 @@
                             <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Advanced}" Style="{DynamicResource SecTitle2}" />
                             <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
                             <TextBlock x:Name="OvReset" Grid.Column="3" Text="RESET TO STEAMOS" Style="{DynamicResource SecHint2}" Cursor="Hand"
-                                       MouseLeftButtonUp="OvReset_Click" ToolTip="Top left, SteamOS size, 50 % background, 500 ms" />
+                                       MouseLeftButtonUp="OvReset_Click" ToolTip="Resets this level&#x27;s look: top left, SteamOS size, 50 % background, no move. Other levels keep theirs" />
                         </Grid>
                         <Border Style="{DynamicResource Card2}" Height="380" Padding="14,10,14,10">
                             <StackPanel>

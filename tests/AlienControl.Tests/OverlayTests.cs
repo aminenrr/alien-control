@@ -179,4 +179,21 @@ public class OverlayTests
         Assert.Null(CpuCores.Combine(cores, null, null)[0].Mhz);
         Assert.Equal(4300, CpuCores.MaxMhz(new[] { 4100, 4300, 3200 }));
     }
+
+    [Fact]
+    public void Each_level_keeps_its_own_look()
+    {
+        var s = new Settings { OverlayPosition = 2, OverlaySize = 120 };   // an ov.2 file: one look for all levels
+        Assert.Equal(2, s.LookFor(1).Position);                          // seeded from the old single values
+        Assert.Equal(120, s.LookFor(4).Size);
+        s.LookFor(3).Position = 5; s.LookFor(3).X = -10; s.LookFor(3).Bg = 80;
+        Assert.Equal(2, s.LookFor(2).Position);                          // level 2 untouched
+        Assert.Equal(0, s.LookFor(2).X);
+        Assert.Equal(5, s.LookFor(3).Position);
+        var back = System.Text.Json.JsonSerializer.Deserialize<Settings>(System.Text.Json.JsonSerializer.Serialize(s))!;
+        Assert.Equal(-10, back.LookFor(3).X);
+        Assert.Equal(80, back.LookFor(3).Bg);
+        back.LookFor(1).Size = 999; back.Clamp();
+        Assert.Equal(100, back.LookFor(1).Size);                         // out of range back to SteamOS
+    }
 }

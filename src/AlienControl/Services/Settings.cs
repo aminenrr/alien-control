@@ -126,9 +126,28 @@ public sealed class Settings
     /// <summary>Nudge from the chosen spot, in % of the screen: X -50 (left) .. 50 (right), Y -50 (up) .. 50 (down).
     /// The overlay always stays on screen.</summary>
     public int OverlayOffsetX { get; set; } = 0;
+    public int OverlayOffsetY { get; set; } = 0;
     /// <summary>Latency and frame gen (real / generated fps). Off by default: PresentMon collects none of it while off.</summary>
     public bool OverlayLatencyFg { get; set; } = false;
-    public int OverlayOffsetY { get; set; } = 0;
+
+    /// <summary>ov.3 (Amine): each level remembers its own look: position, size, background, move X / Y.
+    /// Index 0 = level 1 ... 3 = level 4. The single OverlayPosition / Size / Bg / OffsetX / OffsetY above are only
+    /// the seed for settings files from ov.1 / ov.2.</summary>
+    public List<OverlayLook>? OverlayLooks { get; set; }
+
+    public OverlayLook LookFor(int level)
+    {
+        EnsureLooks();
+        return OverlayLooks![Math.Clamp(level, 1, 4) - 1];
+    }
+
+    private void EnsureLooks()
+    {
+        if (OverlayLooks is { Count: 4 } && !OverlayLooks.Contains(null!)) return;
+        OverlayLooks = new List<OverlayLook>();
+        for (int i = 0; i < 4; i++)
+            OverlayLooks.Add(new OverlayLook { Position = OverlayPosition, Size = OverlaySize, Bg = OverlayBg, X = OverlayOffsetX, Y = OverlayOffsetY });
+    }
     /// <summary>v1.1: off = no taskbar button, the app only lives in the tray (minimize hides to the tray).</summary>
     public bool ShowInTaskbar { get; set; } = true;
 
@@ -238,6 +257,15 @@ public sealed class Settings
         if (OverlayUpdateMs is not (250 or 500 or 1000)) OverlayUpdateMs = d.OverlayUpdateMs;
         OverlayOffsetX = C(OverlayOffsetX, -50, 50, 0);
         OverlayOffsetY = C(OverlayOffsetY, -50, 50, 0);
+        EnsureLooks();
+        foreach (var l in OverlayLooks!)
+        {
+            l.Position = C(l.Position, 0, 5, 0);
+            l.Size = C(l.Size, 50, 150, 100);
+            l.Bg = C(l.Bg, 0, 100, 50);
+            l.X = C(l.X, -50, 50, 0);
+            l.Y = C(l.Y, -50, 50, 0);
+        }
         KeyboardLightCount = C(KeyboardLightCount, 1, 136, d.KeyboardLightCount);
         ChassisDevice = C(ChassisDevice, 0, 3, d.ChassisDevice);
         ChassisLights = (ChassisLights ?? d.ChassisLights).Where(id => id is >= 0 and <= 15 && id != PowerButtonLight).Distinct().ToArray();
@@ -300,4 +328,14 @@ public sealed class Settings
         }
         catch (Exception ex) { Log.Warn("Settings.Save", ex); }
     }
+}
+
+/// <summary>ov.3: one overlay level's look. Defaults = SteamOS (top left, 100 %, 50 % background, no move).</summary>
+public sealed class OverlayLook
+{
+    public int Position { get; set; } = 0;
+    public int Size { get; set; } = 100;
+    public int Bg { get; set; } = 50;
+    public int X { get; set; } = 0;
+    public int Y { get; set; } = 0;
 }
