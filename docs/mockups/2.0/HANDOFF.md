@@ -60,7 +60,7 @@ Theme: **Legend only** (Fluent is gone). No em dashes or en dashes anywhere in t
 
 1. **ZONES** (was the 1.3.5 popup, now inline): Keyboard, Rear ring, Alienhead, divider, **Turn off**. Lit tile = zone on, tap to switch. Turn off kills all zones.
 2. **COLOR**: 5 swatches (cyan, violet, red, green, white). The app accent follows.
-3. **EFFECT AND BRIGHTNESS**: FX dropdown (Static, Breathing, Spectrum, Rainbow wave, Pulse, Wave) + brightness slider with %. Note: F7 sets keyboard level.
+3. **EFFECT AND BRIGHTNESS**: FX dropdown (Static, Breathing, Spectrum, Rainbow wave, Pulse, Wave) + brightness slider with %. Hint: CTRL + ALT + F · LIGHT LEVEL (F7 is not used; changed in 2.0.0-beta1.3). beta1.4 visual tweaks: see `../2.0-beta1.4/`.
 4. **BACKLIGHT TIMEOUT** (moved here from Settings): Off / 1 / 2 / 5 / 10 min, On battery only, Not in fullscreen games.
 5. **STATUS KEYS**: info line, G-Mode, mute, mic and touchpad keys light up white.
 
