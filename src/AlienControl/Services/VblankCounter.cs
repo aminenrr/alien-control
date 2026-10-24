@@ -44,6 +44,11 @@ public sealed class VblankCounter : IDisposable
 
     public bool Running => _run;
 
+    /// <summary>The display mode's Hz (ov.7.1). The panel can't refresh faster than this, so vblank events closer than
+    /// 60 % of its period are duplicates (the wait can return twice per refresh, seen as 428 Hz on a 240 Hz panel) and
+    /// are dropped, and the count never goes above it. 0 = unknown.</summary>
+    public int MaxHz { get; set; }
+
     public void Start()
     {
         if (_run) return;
@@ -78,7 +83,8 @@ public sealed class VblankCounter : IDisposable
                     if (_ring[(_head - i + _ring.Length) % _ring.Length] < from) break;
                     n++;
                 }
-                return n;
+                int max = MaxHz;
+                return max > 0 ? Math.Min(n, max) : n;
             }
         }
     }
@@ -117,8 +123,11 @@ public sealed class VblankCounter : IDisposable
                 fails = 0;
                 if (gen != _gen) break;
                 long t = Stopwatch.GetTimestamp();
+                int max = MaxHz;
+                long minGap = Stopwatch.Frequency * 6 / (10 * (max > 0 ? max : 1000));
                 lock (_lock)
                 {
+                    if (_count > 0 && t - _ring[(_head - 1 + _ring.Length) % _ring.Length] < minGap) continue;
                     _ring[_head] = t;
                     _head = (_head + 1) % _ring.Length;
                     if (_count < _ring.Length) _count++;

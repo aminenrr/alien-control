@@ -207,6 +207,7 @@ public partial class MainWindow
                 (int? core, int? mem) gpu = (need & Need.Clocks) != 0 && gpuOn ? GpuClocks() : (null, null);
                 CpuCores.CoreReading[]? cores = (need & Need.Cores) != 0 ? CpuCores.Combine(_cores.Topology, _cores.Loads(), perThreadMhz) : null;
                 int? hz = readRefresh ? DisplayRefresh.Read()?.CurrentHz : null;
+                if (hz is int modeHz) _vblank.MaxHz = modeHz;   // ov.7.1: caps and de-duplicates the vblank count
                 return (mhz, gpu, cores, hz);
             });
             var ps = System.Windows.Forms.SystemInformation.PowerStatus;
