@@ -119,7 +119,11 @@
                                 </Border>
                                 <Border Grid.Row="0" Grid.Column="2" BorderBrush="{DynamicResource Line2}" BorderThickness="1,0,0,0">
                                     <StackPanel Margin="12,12,12,0">
-                                        <TextBlock Text="{DynamicResource Str.Gpu}" Style="{DynamicResource CellLabel2}" />
+                                        <!-- 2.0.0-beta1.4 (Amine, mockup 6): INTEL / NVIDIA chip, which GPU the tile reads -->
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{DynamicResource Str.Gpu}" Style="{DynamicResource CellLabel2}" VerticalAlignment="Center" />
+                                            <Border x:Name="GpuTag" Style="{DynamicResource GpuSourceChip2}"><TextBlock x:Name="GpuTagText" Style="{DynamicResource GpuSourceChipText2}" /></Border>
+                                        </StackPanel>
                                         <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="GpuTempText" Text="--" Style="{DynamicResource CellValue2}" /><Run Text=" °C" Style="{DynamicResource CellUnit2}" /></TextBlock>
                                         <ProgressBar x:Name="GpuTempBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
                                     </StackPanel>
@@ -140,7 +144,10 @@
                                 </Border>
                                 <Border Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" BorderBrush="{DynamicResource Line2}" BorderThickness="1,1,0,0">
                                     <StackPanel Margin="12,12,12,0">
-                                        <TextBlock Text="{DynamicResource Str.GpuUse}" Style="{DynamicResource CellLabel2}" />
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{DynamicResource Str.GpuUse}" Style="{DynamicResource CellLabel2}" VerticalAlignment="Center" />
+                                            <Border x:Name="GpuUseTag" Style="{DynamicResource GpuSourceChip2}"><TextBlock x:Name="GpuUseTagText" Style="{DynamicResource GpuSourceChipText2}" /></Border>
+                                        </StackPanel>
                                         <TextBlock Margin="0,6,0,0" FontFamily="{DynamicResource MonoFont}"><Run x:Name="GpuUseText" Text="--" Style="{DynamicResource CellValue2}" /><Run x:Name="GpuUseUnit" Text=" %" Style="{DynamicResource CellUnit2}" /></TextBlock>
                                         <ProgressBar x:Name="GpuUseBar" Style="{DynamicResource StatBar}" Margin="0,6,0,0" />
                                     </StackPanel>
@@ -321,7 +328,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Style="{DynamicResource StripLabel2}">CPU  <Run x:Name="TuneCpuTemp" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
                             <Border Grid.Column="1" Style="{DynamicResource StripDivider2}" />
-                            <TextBlock Grid.Column="2" Style="{DynamicResource StripLabel2}">GPU  <Run x:Name="TuneGpuTemp" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
+                            <TextBlock Grid.Column="2" Style="{DynamicResource StripLabel2}">GPU<InlineUIContainer BaselineAlignment="Center"><Border x:Name="TuneGpuTag" Style="{DynamicResource GpuSourceChip2}"><TextBlock x:Name="TuneGpuTagText" Style="{DynamicResource GpuSourceChipText2}" /></Border></InlineUIContainer>  <Run x:Name="TuneGpuTemp" Text="--" Style="{DynamicResource StripValue2}" /></TextBlock>
                             <Border Grid.Column="3" Style="{DynamicResource StripDivider2}" />
                             <TextBlock Grid.Column="4" Style="{DynamicResource StripLabel2}">PWR  <Run x:Name="TunePwr" Text="--" Style="{DynamicResource StripAccent2}" /></TextBlock>
                             <Border Grid.Column="5" Style="{DynamicResource StripDivider2}" />
