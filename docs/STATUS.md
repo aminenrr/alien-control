@@ -1,6 +1,6 @@
 # Project status (for anyone picking this up)
 
-Last updated: 2026-10-24, **v2.0.0-beta1.4** (pre-release) on branch `v2.0`. The latest stable is v1.3.5 on `main`.
+Last updated: 2026-10-24, **v2.0.0-beta1.5** (pre-release) on branch `v2.0`. The latest stable is v1.3.5 on `main`.
 Read this first, then [DEVELOPMENT.md](DEVELOPMENT.md) (code layout, build), [DECISIONS.md](DECISIONS.md) (why),
 [HARDWARE.md](HARDWARE.md) (what was measured on the m15 R7) and the 2.0 spec in
 [mockups/2.0/HANDOFF.md](mockups/2.0/HANDOFF.md).
@@ -107,7 +107,7 @@ No third-party UI library since beta1.4 (WPF-UI removed).
 - **beta1.4**: Tier 2 and Tier 3, settings save fix, six visual changes (the sixth: INTEL / NVIDIA tags on the GPU
   tiles, `mockups/2.0-beta1.4/6-gpu-source.png`), startup task security fix (Program Files
   copy), Log frame gaps removed, NVIDIA tray icon after iGPU only, OC card greyed while the RTX is off. See
-  [releases/v2.0.0-beta1.4.md](releases/v2.0.0-beta1.4.md). Tested on the laptop 2026-10-24: all good. The NVIDIA tray icon missed once right after the update, then came back 3 out of 3 after a reboot. Open bug for the next build: the startup copy in Program Files skips alienfan-cli.exe / alienfx-cli.exe kept next to the exe (sensors and shortcuts dead after a reboot). IGCL has no GPU temperature sensor on the m15 R7, so iGPU temp is the CPU package.
+  [releases/v2.0.0-beta1.4.md](releases/v2.0.0-beta1.4.md). Tested on the laptop 2026-10-24: all good. The NVIDIA tray icon missed once right after the update, then came back 3 out of 3 after a reboot. Its startup copy skipped alienfan-cli.exe / alienfx-cli.exe kept next to the exe (sensors and shortcuts dead after a reboot): fixed in **v2.0.0-beta1.5** ([releases/v2.0.0-beta1.5.md](releases/v2.0.0-beta1.5.md)), which also makes the NVIDIA tray check wait for NVDisplay.Container. Untested on the laptop. IGCL has no GPU temperature sensor on the m15 R7, so iGPU temp is the CPU package.
 
 ## Still to do
 **Beta 2 (the in-game overlay)**, in this order:

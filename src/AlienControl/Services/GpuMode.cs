@@ -338,15 +338,20 @@ public static class GpuMode
                 finally { CloseServiceHandle(h); }
             }
             finally { CloseServiceHandle(scm); }
-            // 5. the tray process is started by the service in this session a few seconds later
+            // 5. the tray process is started by the service in this session a few seconds later. 2.0.0-beta1.5 (Amine's
+            // process list): the display container's own process is NVDisplay.Container.exe (driver store); nvcontainer.exe
+            // is the NVIDIA app's container and runs either way, so it said "up" before the new one existed. Only a
+            // process started after the restart counts.
             int session = Process.GetCurrentProcess().SessionId;
+            var restartedAt = DateTime.Now.AddSeconds(-1);
             for (int i = 0; i < 15; i++)
             {
-                if (Process.GetProcessesByName("nvcontainer").Any(p => { try { return p.SessionId == session; } catch { return false; } }))
+                if (Process.GetProcessesByName("NVDisplay.Container").Any(p =>
+                    { try { return p.SessionId == session && p.StartTime >= restartedAt; } catch { return false; } }))
                     return Done($"{svc} restarted, tray process up after {sw.Elapsed.TotalSeconds:0} s");
                 await Task.Delay(1000).ConfigureAwait(false);
             }
-            return Done($"{svc} restarted, but no nvcontainer in this session yet");
+            return Done($"{svc} restarted, but no new NVDisplay.Container in this session after 15 s");
         }
         catch (Exception ex) { Log.Warn("NvidiaTray", ex); return "failed: " + ex.Message; }
 

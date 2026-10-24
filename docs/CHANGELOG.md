@@ -3,6 +3,16 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta1.5 (2026-10-24, prerelease)
+Fix for beta1.4's startup copy, found by Amine on the laptop. Untested on the laptop.
+- **Startup copy missed the CLIs** (Amine): `Startup.AppFiles` only took the alienfx-tools CLIs from `tools\`. With
+  `alienfan-cli.exe` / `alienfx-cli.exe` next to the exe (Amine's `C:\AlienFX`), the Program Files copy had none, so
+  after a reboot `AlienFan.IsAvailable` was false: Home sensors showed `--` and presets, G-Mode and shortcuts did
+  nothing. Root-level CLIs are copied now (CliRunner still hash-checks them). Test `AppFiles_takes_root_clis`.
+- **NVIDIA tray check**: `EnsureNvidiaTrayAsync` waited for `nvcontainer` (the NVIDIA app's container, always running),
+  so it reported "up" at once. It now waits for an `NVDisplay.Container` process in the session started after the
+  restart. beta1.4's restart itself worked 3 out of 3 on the laptop after a reboot.
+
 ## v2.0.0-beta1.4 (2026-10-23, prerelease)
 Settings save fix, Tier 2 (performance) and Tier 3 (cleanup) from the 2.0 code review, and six visual changes
 (Amine's calls). Untested on the laptop.

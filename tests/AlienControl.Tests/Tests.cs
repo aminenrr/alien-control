@@ -207,6 +207,27 @@ public class StartupTask
     // 2.0.0-beta1.4: the admin-only check is passed in, so these run without touching the disk
     static bool OnlyPf(string exe) => exe.StartsWith(@"C:\Program Files\", System.StringComparison.OrdinalIgnoreCase);
 
+    // 2.0.0-beta1.5 (Amine, bug: sensors and shortcuts dead after a reboot): the alienfx-tools CLIs next to the exe are
+    // copied to Program Files too, and unrelated files in the folder are not
+    [Fact]
+    public void AppFiles_takes_root_clis()
+    {
+        var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ac-appfiles-" + System.Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(dir);
+        try
+        {
+            foreach (var n in new[] { "AlienControl.exe", "alienfan-cli.exe", "alienfx-cli.exe", "notes.txt", "other.exe" })
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, n), "x");
+            var files = Startup.AppFiles(dir);
+            Assert.Contains("AlienControl.exe", files);
+            Assert.Contains("alienfan-cli.exe", files);
+            Assert.Contains("alienfx-cli.exe", files);
+            Assert.DoesNotContain("notes.txt", files);
+            Assert.DoesNotContain("other.exe", files);
+        }
+        finally { System.IO.Directory.Delete(dir, true); }
+    }
+
     [Fact]
     public void Xml_has_no_battery_conditions()
     {
