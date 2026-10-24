@@ -125,6 +125,9 @@ public sealed class Settings
     public int OverlayUpdateMs { get; set; } = 500;
     /// <summary>ov.7: LIVE update: the frametime graph redraws ~30 times a second. Off by default (costs a little CPU in this app).</summary>
     public bool OverlaySmoothGraph { get; set; } = false;
+    /// <summary>ov.9 Show on overlay: refresh rate / battery on every level that has them. On by default (as before).</summary>
+    public bool OverlayShowRefresh { get; set; } = true;
+    public bool OverlayShowBattery { get; set; } = true;
     /// <summary>Nudge from the chosen spot, in % of the screen: X -50 (left) .. 50 (right), Y -50 (up) .. 50 (down).
     /// The overlay always stays on screen.</summary>
     public int OverlayOffsetX { get; set; } = 0;

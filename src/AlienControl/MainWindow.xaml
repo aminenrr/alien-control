@@ -778,14 +778,57 @@
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
-                                <Grid Height="44">
-                                    <StackPanel VerticalAlignment="Center" Margin="0,0,56,0">
-                                        <TextBlock Text="Latency and frame gen" Style="{DynamicResource RowTitle2}" />
-                                        <TextBlock Text="Real / generated FPS and latency on levels 2 to 4. Off = not collected" Style="{DynamicResource RowSub2}" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                    <CheckBox x:Name="OvExtraToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="OvExtra_Click"
-                                              ToolTip="Off by default. On: PresentMon also tracks display, frame type and PC latency (a little more CPU in PresentMon, not in the game)" />
-                                </Grid>
+                                <!-- ov.9: Show on overlay, three lit / unlit buttons (Amine picked tiles, mockup A) -->
+                                <StackPanel Margin="0,6,0,0">
+                                    <StackPanel.Resources>
+                                        <Geometry x:Key="OvIcLat">M3 12h4l3 8l4 -16l3 8h4</Geometry>
+                                        <Geometry x:Key="OvIcHz">M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10a1 1 0 0 1 1 -1z M7 20h10 M9 16v4 M15 16v4</Geometry>
+                                        <Geometry x:Key="OvIcBatt">M6 7h11a2 2 0 0 1 2 2v1h1v4h-1v1a2 2 0 0 1 -2 2h-11a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2z M7 10v4 M10 10v4</Geometry>
+                                        <Style x:Key="OvShowTile" TargetType="CheckBox">
+                                            <Setter Property="Cursor" Value="Hand" />
+                                            <Setter Property="Height" Value="50" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="CheckBox">
+                                                        <Border x:Name="Bd" Background="#0B0D10" BorderBrush="{DynamicResource LineSoft}" BorderThickness="1" CornerRadius="5">
+                                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                                <Viewbox Width="18" Height="18">
+                                                                    <Path x:Name="Ic" Width="24" Height="24" Data="{TemplateBinding Tag}" Stroke="#4A535C" StrokeThickness="1.8"
+                                                                          StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                                </Viewbox>
+                                                                <TextBlock x:Name="Lb" Text="{TemplateBinding Content}" Style="{DynamicResource SecHint2}" FontSize="9.5" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelBg}" />
+                                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                <Setter TargetName="Ic" Property="Stroke" Value="{DynamicResource AccentBrush}" />
+                                                                <Setter TargetName="Lb" Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Bd" Property="Opacity" Value="0.85" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </StackPanel.Resources>
+                                    <TextBlock Text="Show on overlay" Style="{DynamicResource RowTitle2}" />
+                                    <TextBlock Text="Lit = shown. Off = gone from every level and not read" Style="{DynamicResource RowSub2}" TextTrimming="CharacterEllipsis" />
+                                    <UniformGrid Columns="3" Margin="0,8,0,0">
+                                        <CheckBox x:Name="OvExtraToggle" Style="{StaticResource OvShowTile}" Content="LATENCY" Margin="0,0,4,0" Click="OvExtra_Click"
+                                                  Tag="{StaticResource OvIcLat}"
+                                                  ToolTip="Latency and real / generated FPS on levels 2 to 4 (and flip mode on 4). Off by default: PresentMon also tracks display, frame type and PC latency (a little more CPU in PresentMon, not in the game)" />
+                                        <CheckBox x:Name="OvShowRefresh" Style="{StaticResource OvShowTile}" Content="REFRESH" Margin="4,0,4,0" Click="OvShow_Click"
+                                                  Tag="{StaticResource OvIcHz}"
+                                                  ToolTip="The panel's real refresh rate (follows G-Sync) on levels 2, 3 and 4. Off: not shown and not measured" />
+                                        <CheckBox x:Name="OvShowBattery" Style="{StaticResource OvShowTile}" Content="BATTERY" Margin="4,0,0,0" Click="OvShow_Click"
+                                                  Tag="{StaticResource OvIcBatt}"
+                                                  ToolTip="Battery % and AC / watts on levels 2, 3 and 4. Off: not shown and not read" />
+                                    </UniformGrid>
+                                </StackPanel>
                                 <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,6,0,6" />
                                 <TextBlock x:Name="OvLevelInfo" Style="{DynamicResource RowTitle2}" Text="Level 3"
                                            ToolTip="Frametimes from PresentMon (ETW, no injection, anti cheat safe). Shows over windowed and borderless games." />

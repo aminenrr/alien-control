@@ -33,6 +33,7 @@ public partial class MainWindow
     private int _ovRefreshTick;
 
     private bool OvNeeds(Need n) => (_ovNeed & n) != 0;
+    private Item OvHidden => OverlayLevels.Hidden(_settings.OverlayShowRefresh, _settings.OverlayShowBattery);   // ov.9
 
     /// <summary>The level the Overlay tab edits and previews: the current one, or the last one while off.</summary>
     private int OvShownLevel => _settings.OverlayLevel > 0 ? _settings.OverlayLevel : Math.Clamp(_settings.OverlayLastLevel, 1, OverlayLevels.Max);
@@ -65,6 +66,8 @@ public partial class MainWindow
         };
         SyncOverlayLookUi();
         OvExtraToggle.IsChecked = _settings.OverlayLatencyFg;
+        OvShowRefresh.IsChecked = _settings.OverlayShowRefresh;
+        OvShowBattery.IsChecked = _settings.OverlayShowBattery;
         (_settings.OverlaySmoothGraph ? OvUpdLive : _settings.OverlayUpdateMs switch { 250 => OvUpd250, 1000 => OvUpd1000, _ => OvUpd500 }).IsChecked = true;
         // after the constructor: the window's services are ready, and the app may start hidden in the tray
         Dispatcher.BeginInvoke(new Action(ApplyOverlay), DispatcherPriority.Background);
@@ -98,8 +101,8 @@ public partial class MainWindow
     {
         1 => "FPS and 1% low.",
         2 => "FPS, frametime and graph, CPU and GPU load and watts, RAM, VRAM, battery, refresh rate.",
-        3 => "GPU load, temp, watts, core and memory clock. CPU load, temp, watts, clock. VRAM, RAM, battery, engine, FPS, 1% low, frametime graph.",
-        4 => "Level 3 plus every core (P and E) with its threads' load and real clock, fan RPM, refresh rate, 0.1% low and max frametime. With Latency and frame gen on: flip mode (IFLIP or COMPOSED).",
+        3 => "GPU load, temp, watts, core and memory clock. CPU load, temp, watts, clock. VRAM, RAM, battery, refresh rate, engine, FPS, 1% low, frametime graph.",
+        4 => "Level 3 plus every core (P and E) with its threads' load and real clock, fan RPM, 0.1% low and max frametime. With Latency and frame gen on: flip mode (IFLIP or COMPOSED).",
         _ => "Nothing runs: PresentMon is stopped and no sensor is read for the overlay.",
     };
 
@@ -108,7 +111,7 @@ public partial class MainWindow
     {
         int level = _settings.OverlayLevel;
         var oldNeed = _ovNeed;
-        _ovNeed = OverlayLevels.Needs(level);
+        _ovNeed = OverlayLevels.Needs(level, OvHidden);
 
         // the latency / frame gen toggle: a hard switch, PresentMon collects none of it unless on (and a level 2+ shows it)
         _frames.SetExtended(OverlayLevels.WantsExtended(level, _settings.OverlayLatencyFg));
@@ -118,7 +121,7 @@ public partial class MainWindow
         _overlay ??= level > 0 ? new OverlayHost(_frames) : null;
         var look = OvLook;
         _overlay?.Apply(level, look.Position, look.Size / 100.0, look.Bg / 100.0, _settings.OverlayUpdateMs,
-            look.X, look.Y, _settings.OverlayLatencyFg, _settings.OverlaySmoothGraph);
+            look.X, look.Y, _settings.OverlayLatencyFg, _settings.OverlaySmoothGraph, OvHidden);
         if (OvNeeds(Need.Refresh)) _vblank.Start(); else _vblank.Stop();
 
         bool extra = OvNeeds(Need.Clocks) || OvNeeds(Need.Cores) || OvNeeds(Need.Battery) || OvNeeds(Need.Refresh);
@@ -278,7 +281,7 @@ public partial class MainWindow
             _previewGraph[i] = (float)(7.0 + 0.6 * Math.Sin(k * 0.21) + ((k * 37) % 97 == 0 ? 5 : 0) + new Random(k).NextDouble() * 0.5);
         }
         OvPreview.Level = level;
-        OvPreview.Items = OverlayLevels.Items(level, _settings.OverlayLatencyFg);
+        OvPreview.Items = OverlayLevels.Items(level, _settings.OverlayLatencyFg, OvHidden);
         OvPreview.Scale = look.Size / 100.0;
         OvPreview.BgAlpha = look.Bg / 100.0;
         OvPreview.Data = Sample;
@@ -381,6 +384,16 @@ public partial class MainWindow
     {
         if (sender == OvXSlider) OvXSlider.Value = 0; else OvYSlider.Value = 0;
         e.Handled = true;
+    }
+
+    /// <summary>ov.9: the refresh and battery buttons of Show on overlay. Off = gone from every level and not read.</summary>
+    private void OvShow_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.OverlayShowRefresh = OvShowRefresh.IsChecked == true;
+        _settings.OverlayShowBattery = OvShowBattery.IsChecked == true;
+        _settings.Save();
+        Log.Info("Overlay", $"show refresh {(_settings.OverlayShowRefresh ? "on" : "off")}, battery {(_settings.OverlayShowBattery ? "on" : "off")}");
+        ApplyOverlay();
     }
 
     private void OvExtra_Click(object sender, RoutedEventArgs e)

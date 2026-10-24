@@ -50,17 +50,26 @@ public static class OverlayLevels
     public const Item L3 = Item.Fps | Item.FrameTime | Item.FrameGraph | Item.Engine
                          | Item.Cpu | Item.CpuTemp | Item.CpuPower | Item.CpuMhz
                          | Item.Gpu | Item.GpuTemp | Item.GpuPower | Item.GpuClocks
-                         | Item.Ram | Item.Vram | Item.Battery | Item.Low1;   // ov.5: + 1 % low (Amine)
+                         | Item.Ram | Item.Vram | Item.Battery | Item.Low1   // ov.5: + 1 % low (Amine)
+                         | Item.Refresh;   // ov.9: + DISPLAY under BATT, like level 4 (Amine)
 
     /// <summary>MangoHud preset 4: level 3 + per core load and clock (P and E cores), fans, refresh rate, detailed frame timing.
     /// MangoHud's network row isn't copied (no source that's cheap enough on Windows).</summary>
-    public const Item L4 = L3 | Item.CoreLoads | Item.Fans | Item.Refresh | Item.FrameStats | Item.Low01;   // ov.5: + 0.1 % low
+    public const Item L4 = L3 | Item.CoreLoads | Item.Fans | Item.FrameStats | Item.Low01;   // ov.5: + 0.1 % low
 
     public static Item Items(int level) => level switch { 1 => L1, 2 => L2, 3 => L3, 4 => L4, _ => Item.None };
 
     /// <summary>Items with the latency and frame gen toggle: it adds FrameGen + Latency on levels 2 to 4, never on level 1.</summary>
     public static Item Items(int level, bool extended) =>
         extended && level >= 2 ? Items(level) | Item.FrameGen | Item.Latency | (level == 4 ? Item.PresentMode : Item.None) : Items(level);
+
+    /// <summary>ov.9: the Show on overlay toggles. Refresh or battery off drops it from every level (and it isn't read).</summary>
+    public static Item Hidden(bool showRefresh, bool showBattery) =>
+        (showRefresh ? Item.None : Item.Refresh) | (showBattery ? Item.None : Item.Battery);
+
+    public static Item Items(int level, bool extended, Item hidden) => Items(level, extended) & ~hidden;
+
+    public static Need Needs(int level, Item hidden) => NeedsOf(Items(level) & ~hidden);
 
     /// <summary>Does PresentMon need the extended tracking? Only when the toggle is on and the level shows it.</summary>
     public static bool WantsExtended(int level, bool toggle) => toggle && level >= 2;

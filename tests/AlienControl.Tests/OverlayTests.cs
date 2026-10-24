@@ -212,4 +212,23 @@ public class OverlayTests
         back.LookFor(1).Size = 999; back.Clamp();
         Assert.Equal(100, back.LookFor(1).Size);                         // out of range back to SteamOS
     }
+
+    [Fact]
+    public void Show_on_overlay_hides_refresh_and_battery_everywhere()
+    {
+        // ov.9: level 3 has refresh too; the toggles drop it (and battery) from every level and from what gets read
+        foreach (int lv in new[] { 2, 3, 4 }) Assert.True(OverlayLevels.Items(lv).HasFlag(Item.Refresh));
+        var hide = OverlayLevels.Hidden(showRefresh: false, showBattery: false);
+        for (int lv = 1; lv <= 4; lv++)
+        {
+            var it = OverlayLevels.Items(lv, true, hide);
+            Assert.False(it.HasFlag(Item.Refresh));
+            Assert.False(it.HasFlag(Item.Battery));
+            var n = OverlayLevels.Needs(lv, hide);
+            Assert.False(n.HasFlag(Need.Refresh));
+            Assert.False(n.HasFlag(Need.Battery));
+        }
+        Assert.Equal(Item.None, OverlayLevels.Hidden(true, true));
+        Assert.True(OverlayLevels.Items(3, false, Item.None).HasFlag(Item.Battery));
+    }
 }

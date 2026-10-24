@@ -30,6 +30,7 @@ public sealed class OverlayHost : IDisposable
     private volatile int _level, _position, _updateMs = 500, _offX, _offY;
     private double _scale = 0.8, _bg = 0.5;
     private volatile bool _extended, _smooth;
+    private Item _hidden;   // ov.9: Show on overlay toggles
     private DispatcherTimer? _graphTimer;
 
     private readonly FramesSource.Frame[] _buf = new FramesSource.Frame[2048];
@@ -42,9 +43,10 @@ public sealed class OverlayHost : IDisposable
     public void Push(Sensors s) => _sensors = s;
 
     /// <summary>Applies level and look. Level 0 hides the window (the thread stays parked, it costs nothing).</summary>
-    public void Apply(int level, int position, double scale, double bg, int updateMs, int offsetX = 0, int offsetY = 0, bool extended = false, bool smooth = false)
+    public void Apply(int level, int position, double scale, double bg, int updateMs, int offsetX = 0, int offsetY = 0, bool extended = false, bool smooth = false, Item hidden = Item.None)
     {
         _extended = extended;
+        _hidden = hidden;
         _smooth = smooth;
         _offX = offsetX; _offY = offsetY;
         _level = level; _position = position; _scale = scale; _bg = bg; _updateMs = Math.Clamp(updateMs, 100, 2000);
@@ -98,7 +100,7 @@ public sealed class OverlayHost : IDisposable
             return;
         }
         _panel.Level = level;
-        _panel.Items = OverlayLevels.Items(level, _extended);
+        _panel.Items = OverlayLevels.Items(level, _extended, _hidden);
         _panel.Scale = _scale;
         _panel.BgAlpha = _bg;
         _timer.Interval = TimeSpan.FromMilliseconds(_updateMs);
