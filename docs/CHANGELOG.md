@@ -3,6 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta2.5 (2026-10-25, prerelease)
+Untested. FPS from MsBetweenPresents again with the latency toggle on (was display change: 117 to 120 vs RTSS 140 in Control FG); undisplayed frames kept as Hidden, skipped by graph, lows, stutter, bound.
+
 ## v2.0.0-beta2.4 (2026-10-25, prerelease)
 Untested. Graph back to one step per frame (200 frames, MangoHud / RTSS style) with a subpixel slide (GraphFrac); fixes wide hitch triangles and straight lines over pauses.
 

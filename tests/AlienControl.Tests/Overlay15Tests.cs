@@ -258,10 +258,17 @@ public class Overlay15Tests
             var tt = t.ToString(System.Globalization.CultureInfo.InvariantCulture);
             f.OnLine($"game.exe,3,0x1,DXGI,Application,{tt},{ms.ToString(System.Globalization.CultureInfo.InvariantCulture)},7.0");
         }
-        Assert.False(f.OnLine("game.exe,3,0x1,DXGI,Application,1.0,7.0,NA"));   // never reached the screen
         var buf = new FramesSource.Frame[128];
         int n = f.CopyRecent(buf);
         Assert.Equal(100, n);
-        for (int i = 0; i < n; i++) Assert.Equal(7f, buf[i].Ms, 3);
+        for (int i = 0; i < n; i++) { Assert.Equal(7f, buf[i].Ms, 3); Assert.False(buf[i].Hidden); }
+        // beta2.5: fps counts presents like RTSS (avg 7 ms = ~143), not display changes
+        var (fps, _) = FramesSource.FpsOver(buf.AsSpan(0, n), buf[n - 1].Ticks, System.Diagnostics.Stopwatch.Frequency);
+        Assert.InRange(fps, 140, 146);
+        Assert.True(f.OnLine("game.exe,3,0x1,DXGI,Application,1.0,7.0,NA"));   // never reached the screen: kept, hidden
+        n = f.CopyRecent(buf);
+        Assert.Equal(101, n);
+        Assert.True(buf[n - 1].Hidden);
+        Assert.Equal(7f, buf[n - 1].PresentMs, 3);
     }
 }

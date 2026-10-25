@@ -315,7 +315,7 @@ public sealed class OverlayHost : IDisposable
         }
         v.GraphFrac = frac;
         int m = 0;   // beta2: real frames only, so frame gen draws one flat line
-        for (int i = 0; i < n; i++) { _gT[m] = _gbuf[i].T; _gMs[m] = _gbuf[i].Ms; m++; }
+        for (int i = 0; i < n; i++) { if (_gbuf[i].Hidden) continue; _gT[m] = _gbuf[i].T; _gMs[m] = _gbuf[i].Ms; m++; }
         v.GraphT = _gT;
         v.Graph = _gMs;
         v.GraphCount = m;
@@ -344,7 +344,7 @@ public sealed class OverlayHost : IDisposable
         while (g > 0 && n > 0 && span[n - 1].T - span[g - 1].T <= OverlayView.GraphSpan) g--;
         var shown = span[g..];
         float mn = float.MaxValue, mx = 0;
-        foreach (var f in shown) { if (f.Ms < mn) mn = f.Ms; if (f.Ms > mx) mx = f.Ms; }
+        foreach (var f in shown) { if (f.Hidden) continue; if (f.Ms < mn) mn = f.Ms; if (f.Ms > mx) mx = f.Ms; }
         p.MaxMs = mx > 0 ? mx : 0;
         p.GraphRange = mx > 0 ? $"min {mn:0.0} / max {mx:0.0} ms" : "";
         p.Engine = EngineLabel(frames);
@@ -362,7 +362,7 @@ public sealed class OverlayHost : IDisposable
         if (f.Length == 0) return (0, 0, 0);
         var buf = _lowScratch is { } b && b.Length >= f.Length ? b : (_lowScratch = new float[Math.Max(f.Length, 2048)]);
         int k0 = 0;
-        for (int i = 0; i < f.Length; i++) if (!f[i].Gen) buf[k0++] = f[i].Ms;   // beta2: real frames only
+        for (int i = 0; i < f.Length; i++) if (!f[i].Gen && !f[i].Hidden) buf[k0++] = f[i].Ms;   // beta2: real frames only
         if (k0 == 0) return (0, 0, 0);
         var ms = buf.AsSpan(0, k0);
         ms.Sort();
