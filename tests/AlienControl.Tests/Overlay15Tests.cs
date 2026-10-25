@@ -61,11 +61,11 @@ public class Overlay15Tests
     public void Clock_and_bound_are_levels_3_and_4_and_off_by_default()
     {
         var hidden = OverlayLevels.Hidden(true, true, false, false);   // the defaults
-        foreach (int lv in new[] { 1, 2 })
-        {
-            Assert.False(OverlayLevels.Items(lv).HasFlag(Item.Clock));
-            Assert.False(OverlayLevels.Items(lv).HasFlag(Item.Bound));
-        }
+        Assert.False(OverlayLevels.Items(1).HasFlag(Item.Clock));
+        Assert.False(OverlayLevels.Items(1).HasFlag(Item.Bound));
+        Assert.True(OverlayLevels.Items(2).HasFlag(Item.Clock));                 // beta3 Metal: clock on top, with its tile
+        Assert.False(OverlayLevels.Items(2, false, hidden).HasFlag(Item.Clock));
+        Assert.False(OverlayLevels.Items(2).HasFlag(Item.Bound));
         foreach (int lv in new[] { 3, 4 })
         {
             Assert.True(OverlayLevels.Items(lv).HasFlag(Item.Clock));

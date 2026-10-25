@@ -226,7 +226,7 @@ public class OverlayTests
     public void Show_on_overlay_hides_refresh_and_battery_everywhere()
     {
         // ov.9: level 3 has refresh too; the toggles drop it (and battery) from every level and from what gets read
-        foreach (int lv in new[] { 2, 3, 4 }) Assert.True(OverlayLevels.Items(lv).HasFlag(Item.Refresh));
+        foreach (int lv in new[] { 1, 3, 4 }) Assert.True(OverlayLevels.Items(lv).HasFlag(Item.Refresh));
         var hide = OverlayLevels.Hidden(showRefresh: false, showBattery: false);
         for (int lv = 1; lv <= 4; lv++)
         {
@@ -234,7 +234,7 @@ public class OverlayTests
             Assert.False(it.HasFlag(Item.Refresh));
             Assert.False(it.HasFlag(Item.Battery));
             var n = OverlayLevels.Needs(lv, hide);
-            Assert.False(n.HasFlag(Need.Refresh));
+            Assert.Equal(lv == 2, n.HasFlag(Need.Refresh));   // beta3 Metal still reads the mode (resolution, G-SYNC)
             Assert.False(n.HasFlag(Need.Battery));
         }
         Assert.Equal(Item.None, OverlayLevels.Hidden(true, true, true, true));
