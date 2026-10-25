@@ -287,9 +287,9 @@ public class Overlay15Tests
         var fps = rows.Single(r => r.Label == "FPS:");
         Assert.Equal("139.84", fps.Find(15));
         Assert.Equal("117.20", fps.Find(23));
-        Assert.Equal("144.09", fps.Find(30));                                                 // 1000 / fastest frame
+        Assert.Equal("133.69", fps.Find(30));                                                 // 1000 / avg of the 3 frames (fewer than 10)
         var frame = rows.Single(r => r.Label == "Frame:");
-        Assert.Equal("6.94", frame.Find(23));
+        Assert.Equal("7.48", frame.Find(23));
         Assert.Equal("8.50", frame.Find(30));
         var gpu = rows.Single(r => r.Label == "GPU:");
         Assert.Equal("97%", gpu.Find(15));
@@ -301,6 +301,13 @@ public class Overlay15Tests
         Assert.Equal("8.8GB", mem.Find(30));
         Assert.DoesNotContain(rows, r => r.Label.Contains("Latency") || r.Label.Contains("Gen") || r.Label.Contains("Fan"));
         Assert.Single(rows, r => r.Graph);
+
+        // uneven pacing (0.2 ms / 14 ms pairs) must not read as thousands of fps
+        var zig = new float[200];
+        for (int i = 0; i < zig.Length; i++) zig[i] = i % 2 == 0 ? 0.2f : 14f;
+        var (zmn, zmx) = OverlayView.MetalRange(zig, zig.Length);
+        Assert.InRange(1000 / zmn, 130, 150);
+        Assert.Equal(14, zmx, 3);
 
         v.Data = v.Data with { GpuTemp = 80, CpuTemp = 90 };                                  // Amine: red at GPU 80, CPU 90
         rows = v.BuildMetal();

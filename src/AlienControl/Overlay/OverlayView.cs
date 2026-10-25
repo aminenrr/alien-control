@@ -578,19 +578,13 @@ public sealed class OverlayView
             r.Add(Lr(mode, MetalGreen, gs, gc));
         }
         if (r.Count > 0) r.Add(new(Array.Empty<MSeg>(), Spacer: true));
-        // min / max over the frames the graph shows (the last GraphFrames)
-        double mn = double.MaxValue, mx = 0;
-        for (int i = Math.Max(0, GraphCount - GraphFrames); i < GraphCount && i < Graph.Length; i++)
-        {
-            double f = Graph[i];
-            if (f <= 0 || double.IsNaN(f)) continue;
-            if (f < mn) mn = f;
-            if (f > mx) mx = f;
-        }
+        // beta3.5: min / max over the frames the graph shows, from 10 frame averages for the fast end so uneven pacing
+        // (0.2 ms / 14 ms pairs) doesn't read as 4651 fps; the slowest frame stays raw so a hitch still shows
+        var (mn, mx) = MetalRange(Graph, GraphCount);
         bool have = mx > 0;
         if ((it & Item.Fps) != 0)
             r.Add(Br("FPS:", Fps.ToString("0.00"), (it & Item.Low1) != 0 ? Low1.ToString("0.00") : "",
-                have ? (1000 / mn).ToString("0.00") : "--", White, MetalRed, White));
+                have ? Math.Min(9999, 1000 / mn).ToString("0.00") : "--", White, MetalRed, White));
         if ((it & Item.FrameTime) != 0)
             r.Add(Br("Frame:", FrameMs.ToString("0.00"), have ? mn.ToString("0.00") : "--", have ? mx.ToString("0.00") : "--", MetalBlue, MetalBlue, MetalRed));
         if ((it & Item.Latency) != 0) r.Add(Lr("Latency:", White, LatValue == "--" ? "--" : LatValue + "ms", White));
@@ -621,6 +615,30 @@ public sealed class OverlayView
         _ => "--",
     };
 
+    /// <summary>Fastest 10 frame average and slowest single frame over the last GraphFrames frames (ms).</summary>
+    internal static (double Min, double Max) MetalRange(float[] g, int count)
+    {
+        const int W = 10;
+        int end = Math.Min(count, g.Length), start = Math.Max(0, end - GraphFrames);
+        Span<float> v = stackalloc float[GraphFrames];
+        int n = 0;
+        double mx = 0;
+        for (int i = start; i < end; i++)
+        {
+            float f = g[i];
+            if (f <= 0 || float.IsNaN(f)) continue;
+            v[n++] = f;
+            if (f > mx) mx = f;
+        }
+        if (n == 0) return (0, 0);
+        int w = Math.Min(W, n);
+        double sum = 0;
+        for (int i = 0; i < w; i++) sum += v[i];
+        double mn = sum;
+        for (int i = w; i < n; i++) { sum += v[i] - v[i - w]; if (sum < mn) mn = sum; }
+        return (mn / w, mx);
+    }
+
     private (double, double) MeasureMetal(IOverlayCanvas c)
     {
         _mrows = BuildMetal();
@@ -633,7 +651,7 @@ public sealed class OverlayView
             foreach (var r in _mrows)
                 h += r.Spacer ? MRowH * 0.35 : r.Graph ? MGraphH + MRowH * 0.25 : MRowH;
             // graph scale: about 2.5x the average frame interval, in 5 ms steps so it doesn't wobble with every update
-            _mGraphHi = Math.Clamp(Math.Ceiling(FrameMs * 2.5 / 5) * 5, 10, 100);
+            _mGraphHi = Math.Clamp(Math.Ceiling(FrameMs * 4 / 10) * 10, 20, 100);   // beta3.5: room for uneven pacing
             return (Math.Ceiling(w + MPad * 2), Math.Ceiling(h));
         }
         finally { c.Mono = mono; }
@@ -681,7 +699,7 @@ public sealed class OverlayView
         c.Fill(left, top + height - t, width, t, White);
         c.Fill(left, top, t, height, White);
         c.Fill(left + width - t, top, t, height, White);
-        double spike = FrameMs > 0 ? Math.Max(FrameMs * 1.6, FrameMs + 4) : 0;
+        double spike = FrameMs > 0 ? Math.Max(FrameMs * 2.5, FrameMs + 10) : 0;   // beta3.5: real hitches only, not every other frame of a zigzag
         DrawGraph(c, left + t, top + t, width - 2 * t, height - 2 * t, _mGraphHi, MetalBlue, spike);
     }
 }
