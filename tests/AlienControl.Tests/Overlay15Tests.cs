@@ -279,22 +279,42 @@ public class Overlay15Tests
         var v = View(2, OverlayLevels.Hidden(true, true, false, false));   // clock tile off
         v.Data = new Sensors { Resolution = "2560x1600", VramGiB = 6.2, RamGiB = 8.8, GpuLoad = 97, GpuTemp = 71, GpuW = 115, CpuLoad = 38, CpuTemp = 68, CpuW = 38 };
         v.Fps = 139.84; v.Low1 = 117.2; v.FrameMs = 7.15;
+        v.Graph = new float[] { 7.0f, 8.5f, 6.94f }; v.GraphCount = 3;
         var rows = v.BuildMetal();
-        Assert.DoesNotContain(rows, r => r.Left.Contains(':') && r.Left.Length == 5);   // no clock
-        Assert.Contains(rows, r => r.Left == "2560x1600" && r.Right == "");            // no mode without the toggle
-        Assert.Contains(rows, r => r.Left == "VRAM: 6.2GB" && r.Right == "RAM: 8.8GB");
-        Assert.Contains(rows, r => r.Left == "FPS" && r.Right == "139.8");
-        Assert.Contains(rows, r => r.Left == "Frame Interval" && r.Right == "7.15ms");
-        Assert.Contains(rows, r => r.Left == "GPU" && r.Right == "97%  71°C  115W");
-        Assert.DoesNotContain(rows, r => r.Left.Contains("Latency") || r.Left.Contains("Frame Gen") || r.Left.Contains("Fan"));
+        Assert.DoesNotContain(rows, r => r.Label == "Time");                                  // clock tile off
+        Assert.Contains(rows, r => r.Label == "Resolution" && r.Find(OverlayView.MCols) == "[2560x1600]");
+        Assert.Contains(rows, r => r.Label == "" && r.Find(OverlayView.MCols) == "G-SYNC --");  // no mode without the toggle
+        var fps = rows.Single(r => r.Label == "FPS:");
+        Assert.Equal("139.84", fps.Find(14));
+        Assert.Equal("117.20", fps.Find(22));
+        Assert.Equal("144.09", fps.Find(28));                                                 // 1000 / fastest frame
+        var frame = rows.Single(r => r.Label == "Frame:");
+        Assert.Equal("6.94", frame.Find(22));
+        Assert.Equal("8.50", frame.Find(28));
+        var gpu = rows.Single(r => r.Label == "GPU:");
+        Assert.Equal("97%", gpu.Find(14));
+        Assert.Equal("71°C", gpu.Find(22));
+        Assert.Equal("115W", gpu.Find(28));
+        Assert.Equal(OverlayView.MetalGreen, gpu.Segs.Single(x => x.Col == 22).Color);
+        var mem = rows.Single(r => r.Label == "Mem:");
+        Assert.Equal("6.2GB", mem.Find(22));
+        Assert.Equal("8.8GB", mem.Find(28));
+        Assert.DoesNotContain(rows, r => r.Label.Contains("Latency") || r.Label.Contains("Gen") || r.Label.Contains("Fan"));
         Assert.Single(rows, r => r.Graph);
+
+        v.Data = v.Data with { GpuTemp = 80, CpuTemp = 90 };                                  // Amine: red at GPU 80, CPU 90
+        rows = v.BuildMetal();
+        Assert.Equal(OverlayView.MetalRed, rows.Single(r => r.Label == "GPU:").Segs.Single(x => x.Col == 22).Color);
+        Assert.Equal(OverlayView.MetalRed, rows.Single(r => r.Label == "CPU:").Segs.Single(x => x.Col == 22).Color);
 
         v.Items = OverlayLevels.Items(2, true, OverlayLevels.Hidden(true, true, true, false));   // clock + latency on
         v.Clock = "13:23"; v.PresentMode = "Hardware: Independent Flip"; v.LatMs = 54; v.LatPc = true;
         rows = v.BuildMetal();
-        Assert.Equal("13:23", rows[0].Left);
-        Assert.Contains(rows, r => r.Left == "2560x1600" && r.Right == "iFlip");
-        Assert.Contains(rows, r => r.Left == "PC Latency" && r.Right == "54ms");
+        Assert.Equal("[13:23]", rows[0].Find(OverlayView.MCols));
+        Assert.Contains(rows, r => r.Label == "iFlip");
+        int lat = rows.FindIndex(r => r.Label == "Latency:");
+        Assert.Equal("54ms", rows[lat].Find(OverlayView.MCols));
+        Assert.Equal("Frame:", rows[lat - 1].Label);                                          // right after Frame
 
         var c = new FakeCanvas();
         var (w, h) = v.Measure(c);

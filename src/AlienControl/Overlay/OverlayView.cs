@@ -519,11 +519,19 @@ public sealed class OverlayView
     internal static readonly Rgba MetalRed = Rgba.Hex(0xF0463C);
     internal static readonly Rgba MetalGrid = new(0xFF, 0xFF, 0xFF, 0x80);
 
-    /// <summary>One Metal row: text on the left, text on the right (either can be empty). Spacer / Graph rows carry no text.</summary>
-    internal readonly record struct MRow(string Left, string Right, Rgba RightColor, bool Spacer = false, bool Graph = false);
+    /// <summary>beta3.2: one piece of a Metal row on the monospace grid. Right = Col is where the text ends (right
+    /// aligned), else where it starts. Col MCols = the panel's right edge.</summary>
+    internal readonly record struct MSeg(string Text, Rgba Color, int Col, bool Right);
+    internal readonly record struct MRow(MSeg[] Segs, bool Spacer = false, bool Graph = false)
+    {
+        public string Find(int col) { foreach (var x in Segs) if (x.Col == col) return x.Text; return ""; }
+        public string Label => Segs.Length > 0 && Segs[0].Col == 0 && !Segs[0].Right ? Segs[0].Text : "";
+    }
+    internal const int MCols = 30;
     private List<MRow> _mrows = new();
     private double _mGraphHi = 20;
     private bool? _gsyncLast;
+    internal static readonly Rgba MetalCpu = Rgba.Hex(0x5AA0FF);
 
     private double MFs => 20 * Scale;
     private double MRowH => MFs * 1.22;
@@ -542,37 +550,62 @@ public sealed class OverlayView
         return last;
     }
 
+    private static MRow Lr(string l, Rgba lc, string r, Rgba rc) =>
+        new(new[] { new MSeg(l, lc, 0, false), new MSeg(r, rc, MCols, true) });
+
+    /// <summary>beta3.2 (Amine, Metal HUD): "Label:  value [  a   b]" on fixed columns, brackets line up row to row.</summary>
+    private static MRow Br(string label, string v, string a, string b, Rgba c, Rgba? ca = null, Rgba? cb = null) =>
+        new(new[] { new MSeg(label, c, 0, false), new MSeg(v, c, 14, true), new MSeg("[", c, 15, false),
+                    new MSeg(a, ca ?? c, 22, true), new MSeg(b, cb ?? c, 28, true), new MSeg("]", c, 29, false) });
+
     internal List<MRow> BuildMetal()
     {
         var d = Data; var it = Items;
         var r = new List<MRow>();
-        if ((it & Item.Clock) != 0) r.Add(new(Clock.Length > 0 ? Clock : "--:--", "", White));
-        if ((it & (Item.Resolution | Item.PresentMode)) != 0)
+        if ((it & Item.Clock) != 0) r.Add(Lr("Time", White, $"[{(Clock.Length > 0 ? Clock : "--:--")}]", White));
+        if ((it & Item.Resolution) != 0) r.Add(Lr("Resolution", White, $"[{d.Resolution ?? "--"}]", White));
+        if ((it & (Item.Gsync | Item.PresentMode)) != 0)
         {
             string mode = (it & Item.PresentMode) != 0 ? MetalMode(PresentMode) : "";
-            r.Add(new((it & Item.Resolution) != 0 ? d.Resolution ?? "--" : "", mode, MetalGreen));
+            string gs = "";
+            Rgba gc = DimC;
+            if ((it & Item.Gsync) != 0)
+            {
+                _gsyncLast = GsyncState(d.RefreshHz, d.ModeHz, Fps, _gsyncLast);
+                gs = _gsyncLast switch { true => "G-SYNC On", false => "G-SYNC Off", _ => "G-SYNC --" };
+                if (_gsyncLast == true) gc = MetalGreen;
+            }
+            r.Add(Lr(mode, MetalGreen, gs, gc));
         }
-        if ((it & (Item.Vram | Item.Ram)) != 0)
-            r.Add(new((it & Item.Vram) != 0 ? $"VRAM: {G(d.VramGiB)}GB" : "", (it & Item.Ram) != 0 ? $"RAM: {G(d.RamGiB)}GB" : "", White));
-        if ((it & Item.Gsync) != 0)
+        if (r.Count > 0) r.Add(new(Array.Empty<MSeg>(), Spacer: true));
+        // min / max over the frames the graph shows (the last GraphFrames)
+        double mn = double.MaxValue, mx = 0;
+        for (int i = Math.Max(0, GraphCount - GraphFrames); i < GraphCount && i < Graph.Length; i++)
         {
-            _gsyncLast = GsyncState(d.RefreshHz, d.ModeHz, Fps, _gsyncLast);
-            r.Add(new("G-SYNC", _gsyncLast switch { true => "On", false => "Off", _ => "--" }, _gsyncLast == true ? MetalGreen : DimC));
+            double f = Graph[i];
+            if (f <= 0 || double.IsNaN(f)) continue;
+            if (f < mn) mn = f;
+            if (f > mx) mx = f;
         }
-        if (r.Count > 0) r.Add(new("", "", White, Spacer: true));
-        if ((it & Item.Fps) != 0) r.Add(new("FPS", Fps.ToString("0.0"), White));
-        if ((it & Item.Low1) != 0) r.Add(new("1% Low", Low1.ToString("0.0"), White));
-        if ((it & Item.FrameTime) != 0) r.Add(new("Frame Interval", FrameMs.ToString("0.00") + "ms", White));
-        if ((it & Item.FrameGraph) != 0) r.Add(new("", "", White, Graph: true));
-        int before = r.Count;
+        bool have = mx > 0;
+        if ((it & Item.Fps) != 0)
+            r.Add(Br("FPS:", Fps.ToString("0.00"), (it & Item.Low1) != 0 ? Low1.ToString("0.00") : "",
+                have ? (1000 / mn).ToString("0.00") : "--", White, MetalRed, White));
+        if ((it & Item.FrameTime) != 0)
+            r.Add(Br("Frame:", FrameMs.ToString("0.00"), have ? mn.ToString("0.00") : "--", have ? mx.ToString("0.00") : "--", MetalBlue, MetalBlue, MetalRed));
+        if ((it & Item.Latency) != 0) r.Add(Lr("Latency:", White, LatValue == "--" ? "--" : LatValue + "ms", White));
+        if ((it & Item.FrameGraph) != 0) r.Add(new(Array.Empty<MSeg>(), Graph: true));
         if ((it & (Item.Gpu | Item.GpuTemp | Item.GpuPower)) != 0)
-            r.Add(new("GPU", d.GpuOff ? "OFF" : Join((it & Item.Gpu) != 0 ? N(d.GpuLoad) + "%" : null,
-                (it & Item.GpuTemp) != 0 ? N(d.GpuTemp) + "°C" : null, (it & Item.GpuPower) != 0 ? N(d.GpuW) + "W" : null), White));
+            r.Add(d.GpuOff ? Lr("GPU:", MetalGreen, "OFF", MetalGreen)
+                : Br("GPU:", (it & Item.Gpu) != 0 ? N(d.GpuLoad) + "%" : "", (it & Item.GpuTemp) != 0 ? N(d.GpuTemp) + "°C" : "",
+                    (it & Item.GpuPower) != 0 ? N(d.GpuW) + "W" : "", MetalGreen, d.GpuTemp >= 80 ? MetalRed : MetalGreen));
         if ((it & (Item.Cpu | Item.CpuTemp | Item.CpuPower)) != 0)
-            r.Add(new("CPU", Join((it & Item.Cpu) != 0 ? N(d.CpuLoad) + "%" : null,
-                (it & Item.CpuTemp) != 0 ? N(d.CpuTemp) + "°C" : null, (it & Item.CpuPower) != 0 ? N(d.CpuW) + "W" : null), White));
-        if ((it & Item.Latency) != 0) r.Add(new(LatPc ? "PC Latency" : "Disp Latency", LatValue == "--" ? "--" : LatValue + "ms", White));
-        if (r.Count > before && before > 0 && !r[before - 1].Spacer) r.Insert(before, new("", "", White, Spacer: true));
+            r.Add(Br("CPU:", (it & Item.Cpu) != 0 ? N(d.CpuLoad) + "%" : "", (it & Item.CpuTemp) != 0 ? N(d.CpuTemp) + "°C" : "",
+                (it & Item.CpuPower) != 0 ? N(d.CpuW) + "W" : "", MetalCpu, d.CpuTemp >= 90 ? MetalRed : MetalCpu));
+        if ((it & (Item.Vram | Item.Ram)) != 0)   // Amine: VRAM and RAM both in the brackets, lined up with GPU / CPU
+            r.Add(new(new[] { new MSeg("Mem:", White, 0, false), new MSeg("[", White, 15, false),
+                new MSeg((it & Item.Vram) != 0 ? G(d.VramGiB) + "GB" : "", White, 22, true),
+                new MSeg((it & Item.Ram) != 0 ? G(d.RamGiB) + "GB" : "", White, 28, true), new MSeg("]", White, 29, false) }));
         return r;
     }
 
@@ -588,16 +621,6 @@ public sealed class OverlayView
         _ => "--",
     };
 
-    private static string Join(string? a, string? b, string? c)
-    {
-        // fixed width columns so the numbers line up row to row in the monospace face: "97%  71°C  115W"
-        var parts = new List<string>(3);
-        if (a != null) parts.Add(a.PadLeft(4));
-        if (b != null) parts.Add(b.PadLeft(5));
-        if (c != null) parts.Add(c.PadLeft(5));
-        return string.Join(" ", parts).TrimStart();
-    }
-
     private (double, double) MeasureMetal(IOverlayCanvas c)
     {
         _mrows = BuildMetal();
@@ -605,16 +628,10 @@ public sealed class OverlayView
         c.Mono = true;
         try
         {
-            double gap = c.TextWidth("  ", MFs, false);
-            double w = c.TextWidth("Frame Interval  100.00ms", MFs, false);   // a steady width, the graph fills it
+            double w = c.TextWidth(new string('0', MCols), MFs, false);
             double h = MPad * 2;
             foreach (var r in _mrows)
-            {
-                if (r.Spacer) { h += MRowH * 0.35; continue; }
-                if (r.Graph) { h += MGraphH + MRowH * 0.25; continue; }
-                w = Math.Max(w, c.TextWidth(r.Left, MFs, false) + (r.Right.Length > 0 ? gap + c.TextWidth(r.Right, MFs, false) : 0));
-                h += MRowH;
-            }
+                h += r.Spacer ? MRowH * 0.35 : r.Graph ? MGraphH + MRowH * 0.25 : MRowH;
             // graph scale: about 2.5x the average frame interval, in 5 ms steps so it doesn't wobble with every update
             _mGraphHi = Math.Clamp(Math.Ceiling(FrameMs * 2.5 / 5) * 5, 10, 100);
             return (Math.Ceiling(w + MPad * 2), Math.Ceiling(h));
@@ -629,6 +646,8 @@ public sealed class OverlayView
         try
         {
             double x = MPad, xr = Size.W - MPad, y = MPad;
+            double cw = c.TextWidth("0", MFs, false);
+            var (h, _) = c.LineMetrics("0", MFs, false);
             foreach (var r in _mrows)
             {
                 if (r.Spacer) { y += MRowH * 0.35; continue; }
@@ -639,10 +658,14 @@ public sealed class OverlayView
                     y += MGraphH + MRowH * 0.15;
                     continue;
                 }
-                var (h, _) = c.LineMetrics(r.Left.Length > 0 ? r.Left : r.Right, MFs, false);
                 double ty = y + (MRowH - h) / 2;
-                if (r.Left.Length > 0) c.Text(r.Left, x, ty, MFs, false, White);
-                if (r.Right.Length > 0) c.Text(r.Right, xr - c.TextWidth(r.Right, MFs, false), ty, MFs, false, r.RightColor);
+                foreach (var sg in r.Segs)
+                {
+                    if (sg.Text.Length == 0) continue;
+                    double end = sg.Col >= MCols ? xr : x + sg.Col * cw;
+                    double sx = sg.Right ? end - c.TextWidth(sg.Text, MFs, false) : x + sg.Col * cw;
+                    c.Text(sg.Text, sx, ty, MFs, false, sg.Color);
+                }
                 y += MRowH;
             }
         }

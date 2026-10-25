@@ -3,6 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta3.2 (2026-10-25, prerelease)
+Metal level on a 30 column mono grid (MSeg / MRow, Br rows), brackets per mock metal3.png.
+
 ## v2.0.0-beta3.1 (2026-10-25, prerelease)
 Metal level: IOverlayCanvas.FillRounded (D2D FillRoundedRectangle, WPF DrawRoundedRectangle), mono SemiBold, MFs 20, MPad 12.
 
