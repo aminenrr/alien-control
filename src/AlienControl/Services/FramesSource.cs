@@ -73,7 +73,7 @@ public sealed class FramesSource : IDisposable
     {
         // ov.15: GPU tracking (GPU busy per frame) only while the BOUND row is shown
         var a = $"--output_stdout --no_console_stats --session_name {SessionName} " + (stopExisting ? "--stop_existing_session " : "") +
-                (trackGpu ? "" : "--no_track_gpu ") + "--no_track_input --exclude dwm.exe --exclude AlienControl.exe";
+                (trackGpu ? "" : "--no_track_gpu ") + "--no_track_input --set_circular_buffer_size 8192 --exclude dwm.exe --exclude AlienControl.exe";
         // beta2 (Amine: FG games drew a zigzag): the frame type is read in lean mode too, so frame gen is told apart
         if (!extended) return a + " --no_track_display" + (tier == 0 ? " --track_frame_type" : "");
         return tier == 0 ? a + " --track_frame_type --track_pc_latency" : a;
@@ -326,6 +326,7 @@ public sealed class FramesSource : IDisposable
         _colGpuBusy = _colSync = _colUntil = -1;
         // beta2 (Amine: LATENCY showed --): the columns this PresentMon sends, once per start
         Log.Info("Frames", "columns: " + line);
+        int tRank = 0; _tScale = 1.0;
         for (int i = 0; i < cols.Length; i++)
         {
             var c = cols[i].Trim();
@@ -334,7 +335,9 @@ public sealed class FramesSource : IDisposable
             else if (c.Equals("PresentRuntime", StringComparison.OrdinalIgnoreCase)) _colRuntime = i;
             else if (c.Equals("MsBetweenPresents", StringComparison.OrdinalIgnoreCase)) _colMs = i;
             else if (_colMs < 0 && c.Equals("FrameTime", StringComparison.OrdinalIgnoreCase)) _colMs = i;
-            else if (c.Equals("CPUStartTime", StringComparison.OrdinalIgnoreCase) || c.Equals("TimeInSeconds", StringComparison.OrdinalIgnoreCase)) _colT = i;
+            // beta2.1 (Amine: 0 FPS, dead graph): with --track_frame_type PresentMon 2.6 prints the time in ms
+            // (CPUStartTimeInMs / TimeInMs). Best first: CPUStartTime, CPUStartTimeInMs, TimeInSeconds, TimeInMs.
+            else if (TimeRank(c) is int r && r > tRank) { _colT = i; tRank = r; _tScale = r is 4 or 2 ? 1.0 : 0.001; }
             else if (c.Equals("FrameType", StringComparison.OrdinalIgnoreCase)) _colType = i;
             else if (c.Equals("PresentMode", StringComparison.OrdinalIgnoreCase)) _colMode = i;
             else if (c.Equals("MsPCLatency", StringComparison.OrdinalIgnoreCase)) _colPcLat = i;
@@ -352,8 +355,18 @@ public sealed class FramesSource : IDisposable
                   Math.Max(Math.Max(_colPcLat, _colDispLat), Math.Max(_colMode, _colSwap))));
         _colMax = Math.Max(_colMax, Math.Max(Math.Max(_colGpuBusy, _colSync), _colUntil));
         _starts = new int[_colMax + 2];
+        if (_colT < 0) Log.Info("Frames", "no time column, using arrival time");
         return _colPid >= 0 && _colMs >= 0;
     }
+
+    /// <summary>beta2.1: rank of a time column (0 = not one). Higher wins.</summary>
+    private static int TimeRank(string c) =>
+        c.Equals("CPUStartTime", StringComparison.OrdinalIgnoreCase) ? 4 :
+        c.Equals("CPUStartTimeInMs", StringComparison.OrdinalIgnoreCase) ? 3 :
+        c.Equals("TimeInSeconds", StringComparison.OrdinalIgnoreCase) ? 2 :
+        c.Equals("TimeInMs", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+
+    private double _tScale = 1.0;   // beta2.1: seconds per unit of the time column
 
     private int[] _starts = new int[2];
     private int _colUntil = -1;
@@ -384,7 +397,8 @@ public sealed class FramesSource : IDisposable
         if (ms <= 0 || ms > 5000) return false;
         if (!PrimarySwapchain(Col(span, _colSwap, n), pid, now)) return false;
         double t = double.NaN;
-        if (_colT >= 0 && _colT < n) double.TryParse(Col(span, _colT, n), flt, inv, out t);
+        if (_colT >= 0 && _colT < n && double.TryParse(Col(span, _colT, n), flt, inv, out double tv)) t = tv * _tScale;
+        if (_colT < 0) t = now / (double)Stopwatch.Frequency;   // beta2.1: no time column, arrival time beats no time at all
         // extended columns (only present when the toggle is on)
         bool gen = _colType >= 0 && _colType < n && IsGenerated(Col(span, _colType, n));
         if (pid != _targetPid) { _emaMs = 0; _lastRealT = double.NaN; _genSince = false; _typeGen = false; }
@@ -506,11 +520,13 @@ public sealed class FramesSource : IDisposable
 
     internal static bool IsGenerated(ReadOnlySpan<char> type)
     {
+        // beta2.1 (Amine: 0 FPS in Castlevania, no frame gen there): PresentMon 2.6 prints types this list didn't
+        // know (Unspecified), and every unknown type counted as generated, so no real frames were left. Now only
+        // the frame gen types count: Intel XeFG, AMD AFMF, and anything naming FG / frame generation.
         var x = type.Trim();
         if (x.Length == 0) return false;
-        return !(x.Equals("Application", StringComparison.OrdinalIgnoreCase) || x.Equals("NotSet", StringComparison.OrdinalIgnoreCase)
-              || x.Equals("Repeated", StringComparison.OrdinalIgnoreCase) || x.Equals("NA", StringComparison.OrdinalIgnoreCase)
-              || x.Equals("Unknown", StringComparison.OrdinalIgnoreCase));
+        return x.Contains("FG", StringComparison.OrdinalIgnoreCase) || x.Contains("AFMF", StringComparison.OrdinalIgnoreCase)
+            || x.Contains("DLSSG", StringComparison.OrdinalIgnoreCase) || x.Contains("Generat", StringComparison.OrdinalIgnoreCase) || x.Contains("Interpol", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool TryMs(ReadOnlySpan<char> s, out float v) =>

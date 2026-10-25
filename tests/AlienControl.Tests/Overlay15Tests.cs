@@ -210,4 +210,38 @@ public class Overlay15Tests
         s.Clamp();
         Assert.Equal("d2d", s.OverlayRenderer);
     }
+
+    // beta2.1: the exact header PresentMon 2.6 printed on Amine's laptop (lean mode with --track_frame_type)
+    [Fact]
+    public void Ms_time_columns_and_unknown_frame_types_keep_real_frames()
+    {
+        const string h = "Application,ProcessID,SwapChainAddress,PresentRuntime,SyncInterval,PresentFlags,FrameType,TimeInMs,MsBetweenSimulationStart,MsBetweenPresents,MsInPresentAPI,MsRenderPresentLatency,CPUStartTimeInMs,MsBetweenAppStart,MsCPUBusy,MsCPUWait";
+        var f = new FramesSource();
+        Assert.True(f.ParseHeader(h));
+        f.SetForegroundForTest(9);
+        double t = 1000;
+        for (int i = 0; i < 40; i++)
+        {
+            t += 8.333;
+            var tt = t.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            Assert.True(f.OnLine($"game.exe,9,0x1,DXGI,0,0,Unspecified,{tt},8.3,8.333,0.1,5.0,{tt},8.3,4.0,4.3"));
+        }
+        var buf = new FramesSource.Frame[64];
+        int n = f.CopyRecent(buf);
+        Assert.Equal(40, n);
+        Assert.False(buf[0].Gen);
+        Assert.Equal(0.008333, buf[1].T - buf[0].T, 5);   // ms column read as seconds
+        var (fps, _) = FramesSource.FpsOver(buf.AsSpan(0, n), buf[n - 1].Ticks, System.Diagnostics.Stopwatch.Frequency / 4);
+        Assert.InRange(fps, 118, 122);
+    }
+
+    [Fact]
+    public void Only_frame_gen_types_count_as_generated()
+    {
+        Assert.False(FramesSource.IsGenerated("Unspecified"));
+        Assert.False(FramesSource.IsGenerated("Application"));
+        Assert.True(FramesSource.IsGenerated("AMD AFMF"));
+        Assert.True(FramesSource.IsGenerated("Intel XeFG"));
+        Assert.True(FramesSource.Args(false).Contains("--set_circular_buffer_size 8192"));
+    }
 }

@@ -3,6 +3,12 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta2.1 (2026-10-25, prerelease)
+Fixes beta2's 0 FPS and dead frametime graph (Amine, Castlevania + Control). Untested.
+- Only real frame gen types count as generated (PresentMon 2.6 sends Unspecified, which beta2 counted as generated, leaving no real frames).
+- CPUStartTimeInMs / TimeInMs time columns read (ms to seconds), arrival time fallback.
+- PresentMon --set_circular_buffer_size 8192 (dropped presents in the log).
+
 ## v2.0.0-beta2 (2026-10-25, prerelease)
 The in-game overlay (beta1.3-ov) merged into 2.0. Full notes to follow.
 
