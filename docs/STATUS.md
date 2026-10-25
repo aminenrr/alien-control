@@ -1,6 +1,6 @@
 # Project status (for anyone picking this up)
 
-Last updated: 2026-10-24, **v2.0.0-beta1.6** (pre-release) on branch `v2.0`. The latest stable is v1.3.5 on `main`.
+Last updated: 2026-10-25, **v2.0.0-beta3.3** (pre-release) on branch `v2.0`. The latest stable is v1.3.5 on `main`.
 Read this first, then [DEVELOPMENT.md](DEVELOPMENT.md) (code layout, build), [DECISIONS.md](DECISIONS.md) (why),
 [HARDWARE.md](HARDWARE.md) (what was measured on the m15 R7) and the 2.0 spec in
 [mockups/2.0/HANDOFF.md](mockups/2.0/HANDOFF.md).
@@ -11,41 +11,14 @@ fans, GPU mode (Optimus / iGPU only), NVIDIA overclock, lighting (keyboard HID f
 status keys, toasts and chimes. One 440 x 820 window (Legend theme only), tabs Home / Tuning / Lights / Overlay,
 a two-tab Settings page. Runs elevated, starts at logon through a scheduled task.
 
-## Two branches (until 2.0.0-beta2)
-Two lines of work run in parallel. The full rules are in `docs/BRANCHES-2.0.md` (on both branches since 2026-10-24).
-**Agent A's part is done (2026-10-24):** `v2.0` ends at v2.0.0-beta1.6 (`6ca0a85`), every fix tested on the laptop by
-Amine. Nothing more goes into `v2.0` before the beta2 merge unless Amine reports a new bug.
-- **Agent A owns `v2.0`** (based on beta1.3, 1c26220): beta1.4 and later fixes (Tier 1 / 2 / 3 review work, WPF-UI
-  removal, MainWindow partials, the startup task security fix, the Log frame gaps removal). Tags `v2.0.0-beta1.4`, ...
-- **Agent B owns `beta1.3-ov`** (also based on 1c26220): the in-game overlay only (PresentMon frametimes, 4 SteamOS
-  levels, F4, Overlay tab). Pre-release tags `v2.0.0-beta1.3-ov.N` (latest v2.0.0-beta1.3-ov.14, 0c5d26f, not signed off yet).
-- **`main`** is 1.3.x: nobody touches it until 2.0 is stable.
+## Branches
+Since 2.0.0-beta2 (2026-10-25) everything is on `v2.0`; the overlay branch `beta1.3-ov` is merged and retired, the
+old two agent rules in `docs/BRANCHES-2.0.md` are history. `main` stays 1.3.x until 2.0.0 stable.
 
-Rules
-- Agent A never pushes to `beta1.3-ov` or `main`; agent B never pushes to `v2.0` or `main`.
-- No overlay code in `v2.0` before the beta2 merge. Never use the `v2.0.0-beta2` or `v2.0.0-beta1.3-ov.*` tags on `v2.0`.
-- Overlay code lives in its own files (`src/AlienControl/Overlay/`, `Services/Frames*.cs`, `Services/CpuCores.cs`,
-  `Services/VblankCounter.cs`, `MainWindow.Overlay.cs`). Its hooks in shared files are marked `// beta1.3-ov`.
-- WPF-UI removal is fine for the overlay (it doesn't use WPF-UI).
-
-Where the overlay hooks land on `v2.0` after the MainWindow split (keep these easy to find):
-| Hook target | File |
-|---|---|
-| `RefreshSensorsAsync`, `RefreshPowerAsync` | `MainWindow.Sensors.cs` |
-| `UpdatePolling` | `MainWindow.Tabs.cs` |
-| `AllowClose` | `MainWindow.Window.cs` |
-| `EmergencyExitCleanup` | `MainWindow.Oc.cs` |
-| settings keys | `Services/Settings.cs` (the class; retired keys in `RetiredKeys`) |
-
-Merging into 2.0.0-beta2 (either agent)
-1. Wait until beta1.4 is in `v2.0` and Amine signs off the overlay on `beta1.3-ov`.
-2. Branch `merge/beta2` off `v2.0`, then `git merge beta1.3-ov`.
-3. Expected conflicts: `MainWindow.xaml.cs` (move each `// beta1.3-ov` hook into its partial, table above),
-   `MainWindow.xaml`, `Settings.cs`, `AlienControl.csproj`, `CHANGELOG.md`, `build.yml` (drop `beta1.3-ov` from the
-   branch list). Copy `docs/BRANCHES-2.0.md` in.
-4. Grep `beta1.3-ov` after the merge: every hook must still be wired.
-5. Bump to 2.0.0-beta2, add `docs/releases/v2.0.0-beta2.md`, PR into `v2.0`, Windows CI green, tag `v2.0.0-beta2`,
-   delete `beta1.3-ov`.
+Overlay releases after the merge: beta2.1 to 2.5 (PresentMon parsing, FPS like RTSS, per frame graph), beta3 (levels
+reworked: old level 1 dropped, old level 2 strip is level 1, level 2 = Metal HUD style, `Settings.OverlayLevelsV3`
+migration), beta3.1 (rounded, bolder), beta3.2 (Metal values in brackets), beta3.3 (graph min / max over the 200 drawn
+frames, perf log aware of G-SYNC).
 
 ## Architecture
 **App** (`App.xaml.cs`): single instance, tray icon and menu, theme loading (`ApplyTheme`: Legend.xaml then

@@ -57,14 +57,14 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 |---|---|---|
 | ![Home](docs/mockups/2.0/01-home.png) | ![Tuning](docs/mockups/2.0/02-tuning.png) | ![Lights](docs/mockups/2.0/03-lights.png) |
 
-### Overlay (beta 2) and settings
+### Overlay and settings
 
 | Overlay tab | Settings: General · Keys | Settings: Alerts · Advanced |
 |---|---|---|
 | ![Overlay](docs/mockups/2.0/04-overlay.png) | ![Settings 1](docs/mockups/2.0/05-settings-general-keys.png) | ![Settings 2](docs/mockups/2.0/06-settings-alerts-advanced.png) |
 
 *2.0 images are the approved design mockups (values are samples); real screenshots replace them once the beta is tested
-on the laptop. In 2.0.0-beta1 the Overlay tab is shown but disabled ("Coming in beta 2").*
+on the laptop.*
 
 ### Notifications (F1, F2, plug / unplug)
 
@@ -80,8 +80,9 @@ on the laptop. In 2.0.0-beta1 the Overlay tab is shown but disabled ("Coming in 
 
 - **2.0 layout**: one 440 x 820 window with four tabs, **Home** (sensors, power, presets, G-Mode, lighting), **Tuning**
   (performance mode, GPU mode, GPU overclock, CPU boost, refresh rate, fans), **Lights** (zones, color, effect,
-  brightness, backlight timeout, status keys) and **Overlay** (beta 2). **F3** opens / hides it, games included
+  brightness, backlight timeout, status keys) and **Overlay**. **F3** opens / hides it, games included
   (borderless). The compact view of 1.1 to 1.3 is gone.
+- **In-game overlay** (2.0): frametimes from PresentMon (no injection, click through), 4 levels (1 horizontal strip, 2 Metal HUD style, 3 and 4 MangoHud style) plus Advanced, latency toggle, per game FPS cap and V-Sync through the NVIDIA driver profile. Off = nothing runs.
 - Presets from the tray, the header preset button, the window or **F2**: Battery, Quiet, Balanced, Performance (power mode, CPU boost, refresh rate), plus Custom.
 - **F1 G-Mode**: fans max, Aggressive CPU boost, optional GPU overclock (core / memory offsets, AC only, keep-or-revert test).
 - **GPU OC in Performance** (v1.3.4): the **G-MODE / + PERF** pill in the GPU Overclock header (2.0; a toggle with the
@@ -213,7 +214,7 @@ You can undo this anytime by setting the services back to Automatic.
 
 ### 6. Check the hotkeys
 
-- **F1** toggles G-Mode, **F2** cycles the presets, **F3** opens / hides the window. **F4** is reserved for the overlay (beta 2).
+- **F1** toggles G-Mode, **F2** cycles the presets, **F3** opens / hides the window. **F4** turns the overlay off / back to its last level, **Shift + F4** cycles the levels.
 - If F1 does nothing, open the gear (next to Quit) > **General · Keys**, click **Detect key**, and press F1 once.
 
 ### Updating
@@ -337,7 +338,7 @@ The only network traffic is yours: downloading the release from GitHub and the a
 All hardware control is done by [alienfx-tools](https://github.com/T-Troll/alienfx-tools)
 by T-Troll and contributors (MIT license).
 Icons: [Tabler Icons](https://tabler.io/icons) (MIT license).
-The 2.0 overlay (beta 2) will use [PresentMon](https://github.com/GameTechDev/PresentMon) (Intel, MIT) for frametimes.
+The overlay uses [PresentMon](https://github.com/GameTechDev/PresentMon) (Intel, MIT) for frametimes.
 RAM clean idea from [WinMemoryCleaner](https://github.com/IgorMundstein/WinMemoryCleaner) and GPU modes from [G-Helper](https://github.com/seerge/g-helper). Both ideas are reimplemented here, and no code was copied.
 
 ## Disclaimer
@@ -383,8 +384,7 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**2.0.0-beta1.4** (pre-release): the new 2.0 look (tabs, Legend only, no compact view) with the 2.0 code review fixes. The in-game overlay comes in
-2.0.0-beta2. See [docs/STATUS.md](docs/STATUS.md). The latest stable is **v1.3.5** (Lights menu and Ctrl + Alt + F from 1.3.1 to 1.3.3, plus GPU OC in the Performance preset and OC state on
+**2.0.0-beta3.3** (pre-release): the 2.0 look (tabs, Legend only, no compact view) plus the in-game overlay (PresentMon frametimes, 4 levels, level 2 in the Apple Metal HUD style, FPS cap). See [docs/STATUS.md](docs/STATUS.md). The latest stable is **v1.3.5** (Lights menu and Ctrl + Alt + F from 1.3.1 to 1.3.3, plus GPU OC in the Performance preset and OC state on
 toasts from 1.3.4), on top of **v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout,
 CPU / GPU %, smoother slides, security hardening). Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the

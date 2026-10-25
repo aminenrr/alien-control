@@ -290,6 +290,7 @@ public sealed class OverlayHost : IDisposable
         lock (_vl)
         {
             Fill(_view, _frames, _buf, _sensors);
+            _perf.GameMs = _view.FrameMs;
             FillGraph(_view);
             _dirty = true;
         }
@@ -339,12 +340,18 @@ public sealed class OverlayHost : IDisposable
         var (low1, low01, _) = Lows(span[Math.Max(0, n - 2048)..]);
         p.Low1 = low1;
         p.Low01 = low01;
-        // the graph's span: max and the min / max label
-        int g = n;
-        while (g > 0 && n > 0 && span[n - 1].T - span[g - 1].T <= OverlayView.GraphSpan) g--;
-        var shown = span[g..];
+        // the min / max label over the frames the graph shows (beta3.3: the last GraphFrames, not 2 s, since beta2.4
+        // draws per frame)
         float mn = float.MaxValue, mx = 0;
-        foreach (var f in shown) { if (f.Hidden) continue; if (f.Ms < mn) mn = f.Ms; if (f.Ms > mx) mx = f.Ms; }
+        int seen = 0;
+        for (int i = n - 1; i >= 0 && seen < OverlayView.GraphFrames; i--)
+        {
+            var f = span[i];
+            if (f.Hidden) continue;
+            seen++;
+            if (f.Ms < mn) mn = f.Ms;
+            if (f.Ms > mx) mx = f.Ms;
+        }
         p.MaxMs = mx > 0 ? mx : 0;
         p.GraphRange = mx > 0 ? $"min {mn:0.0} / max {mx:0.0} ms" : "";
         p.Engine = EngineLabel(frames);
@@ -619,6 +626,9 @@ internal sealed class OverlayPerf
     private int _hz = 60;
     private long _start, _last;
     private int _frames, _missed;
+    /// <summary>beta3.3: the game's frame interval. Under G-SYNC the panel refreshes at the game's rate, so a
+    /// refresh only counts as missed against the slower of the two (a 60 fps game on 144 Hz isn't 84 misses a second).</summary>
+    public double GameMs { get; set; }
     private TimeSpan _cpu0;
     private bool _on;
 
@@ -650,7 +660,8 @@ internal sealed class OverlayPerf
         {
             if (!_on) return;
             if (!moving) { _last = 0; return; }
-            if (_last != 0 && now - _last > Stopwatch.Frequency * 1.5 / _hz) _missed++;
+            double expect = Math.Max(1.0 / _hz, GameMs > 0 && GameMs < 1000 ? GameMs / 1000 : 0);
+            if (_last != 0 && now - _last > Stopwatch.Frequency * 1.5 * expect) _missed++;
             _last = now;
             _frames++;
         }
@@ -668,7 +679,7 @@ internal sealed class OverlayPerf
             double cpu = 0;
             try { using var p = Process.GetCurrentProcess(); cpu = (p.TotalProcessorTime - _cpu0).TotalSeconds / sec / Environment.ProcessorCount * 100; }
             catch (Exception) { /* no reading */ }
-            line = $"Overlay perf: {_renderer}, {_hz} Hz, {_frames} frames in {sec:0} s, {_missed} missed, {cpu:0.0} % CPU";
+            line = $"Overlay perf: {_renderer}, {_hz} Hz, game {(GameMs > 0 ? 1000 / GameMs : 0):0} fps, {_frames} frames in {sec:0} s, {_missed} missed, {cpu:0.0} % CPU";
             Reset(now);
         }
         Log.Info("Overlay", line);
