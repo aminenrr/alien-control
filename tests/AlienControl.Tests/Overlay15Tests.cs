@@ -146,33 +146,30 @@ public class Overlay15Tests
     }
 
     [Fact]
-    public void Graph_is_plotted_by_time_with_the_playhead_at_the_right_edge()
+    public void Graph_is_one_step_per_frame_and_slides_by_the_fraction()
     {
         var v = View(3, OverlayLevels.Hidden(true, true, false, false));
         v.Data = new Sensors();
         int n = 300;
         var t = new double[n]; var ms = new float[n];
-        for (int i = 0; i < n; i++) { t[i] = 10 + i * 0.01; ms[i] = 10f; }   // 3 s at 100 fps
-        v.GraphT = t; v.Graph = ms; v.GraphCount = n; v.GraphNow = t[^1];
+        for (int i = 0; i < n; i++) { t[i] = 10 + i * 0.01; ms[i] = 10f; }
+        ms[n - 50] = 250f;   // one hitch
+        v.GraphT = t; v.Graph = ms; v.GraphCount = n; v.GraphFrac = 0;
         var c = new FakeCanvas();
         var (w, _) = v.Measure(c);
         v.Render(c);
         var line = Assert.Single(c.Lines);
-        double pad = 6, left = pad, right = w - pad;
-        Assert.Equal(right, line[^2], 3);                    // newest frame on the right edge
-        Assert.Equal(left, line[0], 3);                      // the first point is clamped to the left edge
-        // a frame 1 s before the playhead sits half way (2 s window)
-        int k = Array.FindIndex(t, x => Math.Abs(x - (t[^1] - 1.0)) < 1e-6);
-        int firstDrawn = n - line.Length / 2;
-        Assert.Equal(left + (right - left) / 2, line[(k - firstDrawn) * 2], 3);
-        // moving the playhead by 10 ms moves every point left by the same sub pixel amount
-        v.GraphNow += 0.01;
+        double pad = 6, left = pad, right = w - pad, step = (right - left) / (OverlayView.GraphFrames - 1);
+        Assert.Equal(right, line[^2], 3);                                  // newest frame on the right edge
+        Assert.Equal(left, line[0], 3);                                    // oldest frame on the left edge
+        Assert.Equal(right - 49 * step, line[line.Length - 2 - 49 * 2], 3);              // the hitch is one point, one step wide
+        Assert.Equal(right - 48 * step, line[line.Length - 2 - 48 * 2], 3);
+        v.GraphFrac = 0.5;                                                  // half way to the next frame
         var c2 = new FakeCanvas();
         v.Render(c2);
-        double step = (right - left) * 0.01 / OverlayView.GraphSpan;
-        Assert.Equal(line[^2] - step, c2.Lines[0][^2], 3);
+        Assert.Equal(right - step / 2, c2.Lines[0][^2], 3);
+        Assert.Equal(left, c2.Lines[0][0], 3);                              // clipped at the left edge
     }
-
 
     [Fact]
     public void Bound_and_clock_rows()

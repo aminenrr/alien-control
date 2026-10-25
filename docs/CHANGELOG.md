@@ -3,6 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta2.4 (2026-10-25, prerelease)
+Untested. Graph back to one step per frame (200 frames, MangoHud / RTSS style) with a subpixel slide (GraphFrac); fixes wide hitch triangles and straight lines over pauses.
+
 ## v2.0.0-beta2.3 (2026-10-25, prerelease)
 Untested. Latency toggle on: frametime = MsBetweenDisplayChange (frames not displayed dropped), fixes the FG zigzag. LATENCY label renamed DISP LAT.
 

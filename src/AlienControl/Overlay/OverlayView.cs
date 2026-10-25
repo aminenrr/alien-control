@@ -91,6 +91,11 @@ public sealed class OverlayView
     public int GraphCount { get; set; }
     public double GraphNow { get; set; }
     public const double GraphSpan = 2.0;
+    /// <summary>beta2.4: how far the playhead is from the newest drawn frame to the next one (0 to 1), so the per frame
+    /// graph slides by subpixels between frames instead of stepping.</summary>
+    public double GraphFrac { get; set; }
+    /// <summary>beta2.4: frames across the graph, like MangoHud's frametime history.</summary>
+    public const int GraphFrames = 200;
     /// <summary>The graph's min / max label, set at each number update (not per frame).</summary>
     public string GraphRange { get; set; } = "";
 
@@ -452,29 +457,41 @@ public sealed class OverlayView
 
     /// <summary>MangoHud's default frame_timing graph: a fixed 0 to 50 ms scale, so a steady 17 ms sits flat a third of
     /// the way up and only real stutters spike; slower frames clip at the top.
-    /// ov.15: x is time, not the frame's index. The right edge is GraphNow, GraphSpan seconds back is the left edge,
-    /// and positions are not rounded, so the line slides at a steady speed whatever the frame rate.</summary>
+    /// beta2.4 (Amine's clips: hitches drew as wide triangles, gaps as long straight lines): one step per frame like
+    /// MangoHud / RTSS, the last GraphFrames frames across, sliding by GraphFrac between frames so it still moves
+    /// smoothly. A hitch is one thin spike and a pause (loading, menu) just stops the line.</summary>
     private void DrawGraph(IOverlayCanvas c, double left, double top, double width, double height)
     {
         int n = GraphCount;
         if (n < 2) return;
         const double lo = 0, hi = 50;
-        double right = left + width, bottom = top + height, now = GraphNow;
-        // the first frame drawn is the last one left of the window, so the line runs in from the left edge
-        int first = n - 1;
-        while (first > 0 && now - GraphT[first] < GraphSpan) first--;
+        double right = left + width, bottom = top + height;
+        double step = width / (GraphFrames - 1), shift = Math.Clamp(GraphFrac, 0, 1) * step;
+        int first = Math.Max(0, n - GraphFrames - 1);
         int count = n - first;
-        if (count < 2) return;
         if (_pts.Length < count * 2) _pts = new double[count * 2 + 256];
         int k = 0;
         for (int i = first; i < n; i++)
         {
-            double x = right - (now - GraphT[i]) / GraphSpan * width;
-            if (x < left) x = left;
-            if (x > right) x = right;
+            double x = right - (n - 1 - i) * step - shift;
+            if (x < left)
+            {
+                // clip the segment entering from the left edge instead of drawing past it
+                if (i + 1 < n)
+                {
+                    double x2 = right - (n - 2 - i) * step - shift;
+                    if (x2 <= left) continue;
+                    double y1 = Math.Clamp(Graph[i], lo, hi), y2 = Math.Clamp(Graph[i + 1], lo, hi);
+                    double yl = y1 + (y2 - y1) * (left - x) / (x2 - x);
+                    _pts[k++] = left;
+                    _pts[k++] = bottom - height * (yl - lo) / (hi - lo);
+                }
+                continue;
+            }
             _pts[k++] = x;
             _pts[k++] = bottom - height * (Math.Clamp(Graph[i], lo, hi) - lo) / (hi - lo);
         }
+        if (k < 4) return;
         c.Polyline(_pts.AsSpan(0, k), GraphC, Math.Max(1, 1.4 * Scale));
         // beta2 (Amine): no red spike marks any more (the stutter estimate wasn't accurate)
     }

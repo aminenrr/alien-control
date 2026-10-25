@@ -304,8 +304,16 @@ public sealed class OverlayHost : IDisposable
     private void FillGraph(OverlayView v)
     {
         if (!v.HasGraph) { v.GraphCount = 0; return; }
-        int n = _frames.CopyRecent(_gbuf);
-        n = _play.Visible(new ReadOnlySpan<FramesSource.Frame>(_gbuf, 0, n), Stopwatch.GetTimestamp());
+        int total = _frames.CopyRecent(_gbuf);
+        int n = _play.Visible(new ReadOnlySpan<FramesSource.Frame>(_gbuf, 0, total), Stopwatch.GetTimestamp());
+        // beta2.4: subpixel slide between the newest shown frame and the next one due
+        double frac = 0;
+        if (n > 0 && n < total)
+        {
+            double a = _gbuf[n - 1].T, b = _gbuf[n].T;
+            if (b > a) frac = Math.Clamp((_play.Now - a) / (b - a), 0, 1);
+        }
+        v.GraphFrac = frac;
         int m = 0;   // beta2: real frames only, so frame gen draws one flat line
         for (int i = 0; i < n; i++) { _gT[m] = _gbuf[i].T; _gMs[m] = _gbuf[i].Ms; m++; }
         v.GraphT = _gT;
