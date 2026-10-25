@@ -44,9 +44,9 @@ public class Overlay15Tests
     }
 
     [Fact]
-    public void Level_2_shows_coloured_temps_in_the_strip()
+    public void Level_1_shows_coloured_temps_in_the_strip()
     {
-        var v = View(2);
+        var v = View(1);   // beta3: the strip moved to level 1
         v.Data = new Sensors { CpuLoad = 41, CpuTemp = 84, CpuW = 38, GpuLoad = 72, GpuTemp = 83, GpuW = 118 };
         var items = v.BuildHorizontal();
         var cpu = items.Single(i => i.Label == "CPU");
@@ -270,5 +270,45 @@ public class Overlay15Tests
         Assert.Equal(101, n);
         Assert.True(buf[n - 1].Hidden);
         Assert.Equal(7f, buf[n - 1].PresentMs, 3);
+    }
+
+    // beta3: the Metal HUD level
+    [Fact]
+    public void Metal_level_rows_follow_the_toggles()
+    {
+        var v = View(2, OverlayLevels.Hidden(true, true, false, false));   // clock tile off
+        v.Data = new Sensors { Resolution = "2560x1600", VramGiB = 6.2, RamGiB = 8.8, GpuLoad = 97, GpuTemp = 71, GpuW = 115, CpuLoad = 38, CpuTemp = 68, CpuW = 38 };
+        v.Fps = 139.84; v.Low1 = 117.2; v.FrameMs = 7.15;
+        var rows = v.BuildMetal();
+        Assert.DoesNotContain(rows, r => r.Left.Contains(':') && r.Left.Length == 5);   // no clock
+        Assert.Contains(rows, r => r.Left == "2560x1600" && r.Right == "");            // no mode without the toggle
+        Assert.Contains(rows, r => r.Left == "VRAM: 6.2GB" && r.Right == "RAM: 8.8GB");
+        Assert.Contains(rows, r => r.Left == "FPS" && r.Right == "139.8");
+        Assert.Contains(rows, r => r.Left == "Frame Interval" && r.Right == "7.15ms");
+        Assert.Contains(rows, r => r.Left == "GPU" && r.Right == "97%  71°C  115W");
+        Assert.DoesNotContain(rows, r => r.Left.Contains("Latency") || r.Left.Contains("Frame Gen") || r.Left.Contains("Fan"));
+        Assert.Single(rows, r => r.Graph);
+
+        v.Items = OverlayLevels.Items(2, true, OverlayLevels.Hidden(true, true, true, false));   // clock + latency on
+        v.Clock = "13:23"; v.PresentMode = "Hardware: Independent Flip"; v.LatMs = 54; v.LatPc = true;
+        rows = v.BuildMetal();
+        Assert.Equal("13:23", rows[0].Left);
+        Assert.Contains(rows, r => r.Left == "2560x1600" && r.Right == "iFlip");
+        Assert.Contains(rows, r => r.Left == "PC Latency" && r.Right == "54ms");
+
+        var c = new FakeCanvas();
+        var (w, h) = v.Measure(c);
+        Assert.True(w > 0 && h > 0);
+        v.Render(c);
+        Assert.Contains(c.Texts, t => t.S == "iFlip");
+    }
+
+    [Fact]
+    public void Gsync_is_read_from_the_counted_refresh()
+    {
+        Assert.True(OverlayView.GsyncState(141, 240, 140, null));     // the panel follows the game
+        Assert.False(OverlayView.GsyncState(240, 240, 140, null));    // fixed 240 Hz while the game runs 140
+        Assert.True(OverlayView.GsyncState(238, 240, 239, true));     // at the max: can't tell, keep the last
+        Assert.Null(OverlayView.GsyncState(null, 240, 140, null));
     }
 }

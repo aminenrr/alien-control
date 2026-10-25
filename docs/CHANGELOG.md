@@ -3,6 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta3 (2026-10-25, prerelease)
+Untested. Levels: FPS only dropped, old L2 strip -> L1, new L2 Metal HUD (OverlayView.BuildMetal / RenderMetal, mono face via IOverlayCanvas.Mono, Item.Resolution / Item.Gsync from the refresh poll, GsyncState from vblank vs mode Hz). Settings.OverlayLevelsV3 moves level + looks once.
+
 ## v2.0.0-beta2.5 (2026-10-25, prerelease)
 Untested. FPS from MsBetweenPresents again with the latency toggle on (was display change: 117 to 120 vs RTSS 140 in Control FG); undisplayed frames kept as Hidden, skipped by graph, lows, stutter, bound.
 

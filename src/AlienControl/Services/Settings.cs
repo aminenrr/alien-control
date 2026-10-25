@@ -152,6 +152,9 @@ public sealed class Settings
     /// Index 0 = level 1 ... 3 = level 4. The single OverlayPosition / Size / Bg / OffsetX / OffsetY above are only
     /// the seed for settings files from ov.1 / ov.2.</summary>
     public List<OverlayLook>? OverlayLooks { get; set; }
+    /// <summary>beta3 (Amine): levels moved (FPS only dropped, old level 2 is level 1, level 2 is the Metal HUD). False
+    /// on older settings files: the level and the looks move over once in Normalize.</summary>
+    public bool OverlayLevelsV3 { get; set; }
 
     public OverlayLook LookFor(int level)
     {
@@ -217,7 +220,7 @@ public sealed class Settings
                     continue;
                 }
                 if (s is null) continue;
-                bool migrated = s.SettingsVersion < CurrentVersion || s.DroppedRetired;
+                bool migrated = s.SettingsVersion < CurrentVersion || s.DroppedRetired || !s.OverlayLevelsV3;   // beta3 levels move once
                 s.Clamp();
                 if (migrated || path != FilePath) s.Save();
                 return s;
@@ -253,7 +256,7 @@ public sealed class Settings
     /// <summary>2.0.0-beta1.3 (services review #2): what Load falls back to when there is no readable settings.json or
     /// .bak (first start, Reset settings, or both files torn). Nothing says the driver is at stock then, so it is treated
     /// like a test that wasn't kept: OcPending makes the next start write +0 once.</summary>
-    internal static Settings Defaults() => new() { OcPending = true, LoadedDefaults = true };
+    internal static Settings Defaults() { var d = new Settings { OcPending = true, LoadedDefaults = true }; d.Clamp(); return d; }   // beta3: Clamp also lays out the overlay levels
 
     /// <summary>2.0.0-beta1.3: true when this instance came from Defaults() (not saved), so the startup +0 is silent.</summary>
     [System.Text.Json.Serialization.JsonIgnore] public bool LoadedDefaults { get; private set; }
@@ -299,6 +302,18 @@ public sealed class Settings
         FanMaxRpm = C(FanMaxRpm, 1000, 8000, d.FanMaxRpm);
         KeyboardDevice = C(KeyboardDevice, 0, 3, d.KeyboardDevice);
         // beta1.3-ov overlay
+        if (!OverlayLevelsV3)
+        {
+            EnsureLooks();
+            // old 1 (FPS only) and old 2 (one line) both land on the new level 1, which keeps old level 2's look;
+            // the new Metal level 2 starts top right like macOS, with old level 2's size and background
+            var old2 = OverlayLooks![1];
+            OverlayLooks[0] = old2;
+            OverlayLooks[1] = new OverlayLook { Position = 2, Size = old2.Size, Bg = old2.Bg };
+            if (OverlayLevel == 2) OverlayLevel = 1;
+            if (OverlayLastLevel == 2) OverlayLastLevel = 1;
+            OverlayLevelsV3 = true;
+        }
         OverlayLevel = C(OverlayLevel, 0, 4, d.OverlayLevel);
         OverlayLastLevel = C(OverlayLastLevel, 1, 4, d.OverlayLastLevel);
         OverlayPosition = C(OverlayPosition, 0, 5, d.OverlayPosition);

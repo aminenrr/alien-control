@@ -19,6 +19,9 @@ public interface IOverlayCanvas
     void Fill(double x, double y, double w, double h, Rgba c);
     /// <summary>One open polyline (the frametime graph). pts holds x0, y0, x1, y1, ...</summary>
     void Polyline(ReadOnlySpan<double> pts, Rgba c, double width);
+    /// <summary>beta3: text in the monospace face (the Metal HUD level) instead of the MangoHud one, until set back.
+    /// Canvases without a monospace face ignore it.</summary>
+    bool Mono { get => false; set { } }
 }
 
 /// <summary>
@@ -225,8 +228,8 @@ public sealed class OverlayView
     {
         Size = Level switch
         {
-            1 => MeasureL1(c),
-            2 => MeasureHorizontal(c),
+            1 => MeasureHorizontal(c),   // beta3: the old level 2
+            2 => MeasureMetal(c),
             >= 3 => MeasureVertical(c),
             _ => (0, 0),
         };
@@ -238,12 +241,12 @@ public sealed class OverlayView
     {
         if (Level <= 0 || Size.W <= 0) return;
         c.Fill(0, 0, Size.W, Size.H, new Rgba(2, 2, 2, (byte)Math.Round(Math.Clamp(BgAlpha, 0, 1) * 255)));
-        if (Level == 1) RenderL1(c);
-        else if (Level == 2) RenderHorizontal(c);
+        if (Level == 1) RenderHorizontal(c);
+        else if (Level == 2) RenderMetal(c);
         else RenderVertical(c);
     }
 
-    public bool HasGraph => Level >= 2 && (Items & Item.FrameGraph) != 0;
+    public bool HasGraph => Level >= 1 && (Items & Item.FrameGraph) != 0;
 
     private double CellW(IOverlayCanvas c, Cell x) =>
         c.TextWidth(x.Value, Fs, false) + (x.Unit.Length > 0 ? c.TextWidth(x.Unit, FsUnit, false) + 2 * Scale : 0);
@@ -269,25 +272,6 @@ public sealed class OverlayView
     {
         var (h, _) = c.LineMetrics(s, Fs, true);
         c.Text(s, x, y + (RowH - h) / 2, Fs, true, col);
-    }
-
-    // level 1: the fps number alone (MangoHud fps_only); ov.5: then the 1 % low with a small "1%" unit (Amine)
-    private bool L1Low => (Items & Item.Low1) != 0;
-    private Cell L1LowCell => new(Low1.ToString("0"), "1%");
-    private double _l1FpsW;
-
-    private (double, double) MeasureL1(IOverlayCanvas c)
-    {
-        _l1FpsW = Math.Max(c.TextWidth(Fps.ToString("0"), Fs, false), c.TextWidth("000", Fs, false));
-        double w = _l1FpsW + Pad * 2;
-        if (L1Low) w += 10 * Scale + Math.Max(CellW(c, L1LowCell), CellW(c, new("000", "1%")));
-        return (Math.Ceiling(w), RowH + Pad * 2);
-    }
-
-    private void RenderL1(IOverlayCanvas c)
-    {
-        DrawCellRight(c, new Cell(Fps.ToString("0"), ""), Pad + _l1FpsW, Pad);
-        if (L1Low) DrawCellRight(c, L1LowCell, Size.W - Pad, Pad);
     }
 
     // ---------- vertical (levels 3 and 4) ----------
@@ -347,7 +331,7 @@ public sealed class OverlayView
         }
     }
 
-    // ---------- horizontal (level 2) ----------
+    // ---------- horizontal (level 1, the old level 2) ----------
 
     internal readonly record struct HItem(string Label, Rgba Color, Cell[] Cells, bool Graph);
     private List<HItem> _hitems = new();
@@ -460,11 +444,16 @@ public sealed class OverlayView
     /// beta2.4 (Amine's clips: hitches drew as wide triangles, gaps as long straight lines): one step per frame like
     /// MangoHud / RTSS, the last GraphFrames frames across, sliding by GraphFrac between frames so it still moves
     /// smoothly. A hitch is one thin spike and a pause (loading, menu) just stops the line.</summary>
-    private void DrawGraph(IOverlayCanvas c, double left, double top, double width, double height)
+    private void DrawGraph(IOverlayCanvas c, double left, double top, double width, double height) =>
+        DrawGraph(c, left, top, width, height, 50, GraphC, 0);
+
+    /// <summary>hi: the top of the scale (ms). spikeMs > 0: segments touching a frame slower than that are drawn again in
+    /// red on top (the Metal level).</summary>
+    private void DrawGraph(IOverlayCanvas c, double left, double top, double width, double height, double hi, Rgba color, double spikeMs)
     {
         int n = GraphCount;
         if (n < 2) return;
-        const double lo = 0, hi = 50;
+        const double lo = 0;
         double right = left + width, bottom = top + height;
         double step = width / (GraphFrames - 1), shift = Math.Clamp(GraphFrac, 0, 1) * step;
         int first = Math.Max(0, n - GraphFrames - 1);
@@ -492,7 +481,179 @@ public sealed class OverlayView
             _pts[k++] = bottom - height * (Math.Clamp(Graph[i], lo, hi) - lo) / (hi - lo);
         }
         if (k < 4) return;
-        c.Polyline(_pts.AsSpan(0, k), GraphC, Math.Max(1, 1.4 * Scale));
+        double lw = Math.Max(1, 1.4 * Scale);
+        c.Polyline(_pts.AsSpan(0, k), color, lw);
+        if (spikeMs > 0) DrawSpikes(c, k, bottom, height, hi, spikeMs, lw);
         // beta2 (Amine): no red spike marks any more (the stutter estimate wasn't accurate)
+    }
+
+    /// <summary>beta3 Metal level: the parts of the drawn line above spikeMs again in red, one short polyline per spike.</summary>
+    private void DrawSpikes(IOverlayCanvas c, int k, double bottom, double height, double hi, double spikeMs, double lw)
+    {
+        double yThr = bottom - height * Math.Min(spikeMs, hi) / hi;
+        int start = -1;
+        for (int j = 0; j <= k; j += 2)
+        {
+            bool up = j < k && _pts[j + 1] < yThr;
+            if (up && start < 0) start = Math.Max(0, j - 2);
+            else if (!up && start >= 0)
+            {
+                int end = Math.Min(k, j + 2);
+                if (end - start >= 4) c.Polyline(_pts.AsSpan(start, end - start), MetalRed, lw);
+                start = -1;
+            }
+        }
+    }
+
+    // ---------- Metal HUD (level 2, beta3) ----------
+    // Amine's pick (another agent's mock): dark panel, monospace, label left / value right, the Metal HUD's blue frame
+    // interval graph with white grid, red spikes. Rows: clock (its tile), resolution + flip mode (latency toggle),
+    // VRAM / RAM, G-SYNC, then FPS, 1% low, frame interval + graph, then GPU, CPU, latency (toggle).
+
+    internal static readonly Rgba MetalGreen = Rgba.Hex(0x6EDC5A);
+    internal static readonly Rgba MetalBlue = Rgba.Hex(0x4696FF);
+    internal static readonly Rgba MetalRed = Rgba.Hex(0xF0463C);
+    internal static readonly Rgba MetalGrid = new(0xFF, 0xFF, 0xFF, 0x80);
+
+    /// <summary>One Metal row: text on the left, text on the right (either can be empty). Spacer / Graph rows carry no text.</summary>
+    internal readonly record struct MRow(string Left, string Right, Rgba RightColor, bool Spacer = false, bool Graph = false);
+    private List<MRow> _mrows = new();
+    private double _mGraphHi = 20;
+    private bool? _gsyncLast;
+
+    private double MFs => 19 * Scale;
+    private double MRowH => MFs * 1.3;
+    private double MGraphH => 58 * Scale;
+
+    /// <summary>G-SYNC from what the panel does: the counted refresh (vblanks) follows the game well under the mode's
+    /// Hz = on; the counted refresh sits at the mode's Hz while the game runs well under it = off. With the game at or
+    /// near the max refresh it can't tell, so the last answer stays (null until the first one).</summary>
+    internal static bool? GsyncState(int? countedHz, int? modeHz, double fps, bool? last)
+    {
+        if (countedHz is not int hz || modeHz is not int mode || mode <= 0 || fps < 1) return last;
+        if (fps >= mode - 8) return last;
+        if (hz <= mode - 8) return true;
+        if (hz >= mode - 3) return false;
+        return last;
+    }
+
+    internal List<MRow> BuildMetal()
+    {
+        var d = Data; var it = Items;
+        var r = new List<MRow>();
+        if ((it & Item.Clock) != 0) r.Add(new(Clock.Length > 0 ? Clock : "--:--", "", White));
+        if ((it & (Item.Resolution | Item.PresentMode)) != 0)
+        {
+            string mode = (it & Item.PresentMode) != 0 ? MetalMode(PresentMode) : "";
+            r.Add(new((it & Item.Resolution) != 0 ? d.Resolution ?? "--" : "", mode, MetalGreen));
+        }
+        if ((it & (Item.Vram | Item.Ram)) != 0)
+            r.Add(new((it & Item.Vram) != 0 ? $"VRAM: {G(d.VramGiB)}GB" : "", (it & Item.Ram) != 0 ? $"RAM: {G(d.RamGiB)}GB" : "", White));
+        if ((it & Item.Gsync) != 0)
+        {
+            _gsyncLast = GsyncState(d.RefreshHz, d.ModeHz, Fps, _gsyncLast);
+            r.Add(new("G-SYNC", _gsyncLast switch { true => "On", false => "Off", _ => "--" }, _gsyncLast == true ? MetalGreen : DimC));
+        }
+        if (r.Count > 0) r.Add(new("", "", White, Spacer: true));
+        if ((it & Item.Fps) != 0) r.Add(new("FPS", Fps.ToString("0.0"), White));
+        if ((it & Item.Low1) != 0) r.Add(new("1% Low", Low1.ToString("0.0"), White));
+        if ((it & Item.FrameTime) != 0) r.Add(new("Frame Interval", FrameMs.ToString("0.00") + "ms", White));
+        if ((it & Item.FrameGraph) != 0) r.Add(new("", "", White, Graph: true));
+        int before = r.Count;
+        if ((it & (Item.Gpu | Item.GpuTemp | Item.GpuPower)) != 0)
+            r.Add(new("GPU", d.GpuOff ? "OFF" : Join((it & Item.Gpu) != 0 ? N(d.GpuLoad) + "%" : null,
+                (it & Item.GpuTemp) != 0 ? N(d.GpuTemp) + "°C" : null, (it & Item.GpuPower) != 0 ? N(d.GpuW) + "W" : null), White));
+        if ((it & (Item.Cpu | Item.CpuTemp | Item.CpuPower)) != 0)
+            r.Add(new("CPU", Join((it & Item.Cpu) != 0 ? N(d.CpuLoad) + "%" : null,
+                (it & Item.CpuTemp) != 0 ? N(d.CpuTemp) + "°C" : null, (it & Item.CpuPower) != 0 ? N(d.CpuW) + "W" : null), White));
+        if ((it & Item.Latency) != 0) r.Add(new(LatPc ? "PC Latency" : "Disp Latency", LatValue == "--" ? "--" : LatValue + "ms", White));
+        if (r.Count > before && before > 0 && !r[before - 1].Spacer) r.Insert(before, new("", "", White, Spacer: true));
+        return r;
+    }
+
+    /// <summary>The flip mode the Metal way (Direct / Composited): iFlip is what G-SYNC wants.</summary>
+    internal static string MetalMode(string m) => ModeLabel(m) switch
+    {
+        "IFLIP" => "iFlip",
+        "IFLIP MPO" => "iFlip MPO",
+        "FULLSCREEN" => "Fullscreen",
+        "FS COPY" => "FS Copy",
+        "COMPOSED" => "Composed",
+        "COMPOSED COPY" => "Composed Copy",
+        _ => "--",
+    };
+
+    private static string Join(string? a, string? b, string? c)
+    {
+        // fixed width columns so the numbers line up row to row in the monospace face: "97%  71°C  115W"
+        var parts = new List<string>(3);
+        if (a != null) parts.Add(a.PadLeft(4));
+        if (b != null) parts.Add(b.PadLeft(5));
+        if (c != null) parts.Add(c.PadLeft(5));
+        return string.Join(" ", parts).TrimStart();
+    }
+
+    private (double, double) MeasureMetal(IOverlayCanvas c)
+    {
+        _mrows = BuildMetal();
+        bool mono = c.Mono;
+        c.Mono = true;
+        try
+        {
+            double gap = c.TextWidth("  ", MFs, false);
+            double w = c.TextWidth("Frame Interval  100.00ms", MFs, false);   // a steady width, the graph fills it
+            double h = Pad * 2;
+            foreach (var r in _mrows)
+            {
+                if (r.Spacer) { h += MRowH * 0.35; continue; }
+                if (r.Graph) { h += MGraphH + MRowH * 0.25; continue; }
+                w = Math.Max(w, c.TextWidth(r.Left, MFs, false) + (r.Right.Length > 0 ? gap + c.TextWidth(r.Right, MFs, false) : 0));
+                h += MRowH;
+            }
+            // graph scale: about 2.5x the average frame interval, in 5 ms steps so it doesn't wobble with every update
+            _mGraphHi = Math.Clamp(Math.Ceiling(FrameMs * 2.5 / 5) * 5, 10, 100);
+            return (Math.Ceiling(w + Pad * 2), Math.Ceiling(h));
+        }
+        finally { c.Mono = mono; }
+    }
+
+    private void RenderMetal(IOverlayCanvas c)
+    {
+        bool mono = c.Mono;
+        c.Mono = true;
+        try
+        {
+            double x = Pad, xr = Size.W - Pad, y = Pad;
+            foreach (var r in _mrows)
+            {
+                if (r.Spacer) { y += MRowH * 0.35; continue; }
+                if (r.Graph)
+                {
+                    y += MRowH * 0.1;
+                    DrawMetalGraph(c, x, y, xr - x, MGraphH);
+                    y += MGraphH + MRowH * 0.15;
+                    continue;
+                }
+                var (h, _) = c.LineMetrics(r.Left.Length > 0 ? r.Left : r.Right, MFs, false);
+                double ty = y + (MRowH - h) / 2;
+                if (r.Left.Length > 0) c.Text(r.Left, x, ty, MFs, false, White);
+                if (r.Right.Length > 0) c.Text(r.Right, xr - c.TextWidth(r.Right, MFs, false), ty, MFs, false, r.RightColor);
+                y += MRowH;
+            }
+        }
+        finally { c.Mono = mono; }
+    }
+
+    private void DrawMetalGraph(IOverlayCanvas c, double left, double top, double width, double height)
+    {
+        double t = Math.Max(1, Scale);
+        // box and 6 grid lines, like the Metal HUD
+        for (int i = 1; i < 7; i++) c.Fill(Math.Round(left + i * width / 7), top, t, height, MetalGrid);
+        c.Fill(left, top, width, t, White);
+        c.Fill(left, top + height - t, width, t, White);
+        c.Fill(left, top, t, height, White);
+        c.Fill(left + width - t, top, t, height, White);
+        double spike = FrameMs > 0 ? Math.Max(FrameMs * 1.6, FrameMs + 4) : 0;
+        DrawGraph(c, left + t, top + t, width - 2 * t, height - 2 * t, _mGraphHi, MetalBlue, spike);
     }
 }

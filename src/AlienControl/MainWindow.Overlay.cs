@@ -94,8 +94,8 @@ public partial class MainWindow
 
     private static string LevelName(int level) => level switch
     {
-        1 => "FPS only",
-        2 => "One line: FPS, frametime, CPU, GPU, memory, battery",
+        1 => "One line: FPS, frametime, CPU, GPU, memory, battery",
+        2 => "Metal HUD: macOS style, display, FPS, frame interval, GPU, CPU",
         3 => "Full HUD with temps, clocks and power",
         4 => "Everything: every core's load and clock, fans, refresh rate",
         _ => "Off",
@@ -103,8 +103,8 @@ public partial class MainWindow
 
     private static string LevelItems(int level) => level switch
     {
-        1 => "FPS and 1% low.",
-        2 => "FPS, frametime and graph, CPU and GPU load, temp and watts, RAM, VRAM, battery, refresh rate.",
+        1 => "FPS, frametime and graph, CPU and GPU load, temp and watts, RAM, VRAM, battery, refresh rate.",
+        2 => "Resolution, VRAM, RAM, G-SYNC, FPS, 1% low, frame interval and graph, GPU and CPU load, temp and watts. Clock with its tile, flip mode and latency with Latency on.",
         3 => "GPU load, temp, watts, core and memory clock. CPU load, temp, watts, clock. VRAM, RAM, battery, refresh rate, engine, FPS, stutters, 1% low, frametime graph. Clock and bound with their tiles.",
         4 => "Level 3 plus every core (P and E) with its threads' load and real clock, fan RPM, 0.1% low and max frametime. With Latency and frame gen on: flip mode (IFLIP or COMPOSED).",
         _ => "Nothing runs: PresentMon is stopped and no sensor is read for the overlay.",
@@ -260,9 +260,11 @@ public partial class MainWindow
                 int? mhz = CpuCores.MaxMhz(perThreadMhz);
                 (int? core, int? mem) gpu = (need & Need.Clocks) != 0 && gpuOn ? GpuClocks() : (null, null);
                 CpuCores.CoreReading[]? cores = (need & Need.Cores) != 0 ? CpuCores.Combine(_cores.Topology, _cores.Loads(), perThreadMhz) : null;
-                int? hz = readRefresh ? DisplayRefresh.Read()?.CurrentHz : null;
+                var disp = readRefresh ? DisplayRefresh.Read() : null;
+                int? hz = disp?.CurrentHz;
                 if (hz is int modeHz) _vblank.MaxHz = modeHz;   // ov.7.1: caps and de-duplicates the vblank count
-                return (mhz, gpu, cores, hz);
+                string? res = disp is { Width: > 0, Height: > 0 } ? $"{disp.Width}x{disp.Height}" : null;   // beta3 Metal level
+                return (mhz, gpu, cores, hz, res);
             });
             var ps = System.Windows.Forms.SystemInformation.PowerStatus;
             _ovSnap = _ovSnap with
@@ -273,6 +275,8 @@ public partial class MainWindow
                 Cores = r.cores ?? _ovSnap.Cores,
                 // ov.7: counted vblanks (what the panel really does under G-Sync), the mode's Hz until / unless that works
                 RefreshHz = (need & Need.Refresh) != 0 ? _vblank.Hz ?? r.hz ?? _ovSnap.RefreshHz : _ovSnap.RefreshHz,
+                ModeHz = r.hz ?? _ovSnap.ModeHz,            // beta3: the G-SYNC row compares the counted Hz with this
+                Resolution = r.res ?? _ovSnap.Resolution,
                 BatteryPct = (need & Need.Battery) != 0 && ps.BatteryLifePercent <= 1 ? (int)Math.Round(ps.BatteryLifePercent * 100) : _ovSnap.BatteryPct,
                 OnAc = ps.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online,
                 GpuOff = !gpuOn && _gpu.Kind == GpuModeKind.IGpuOnly,
@@ -306,7 +310,7 @@ public partial class MainWindow
         GpuLoad = 97, GpuTemp = 71, GpuW = 118, GpuCoreMhz = 1755, GpuMemMhz = 7001,
         CpuLoad = 38, CpuTemp = 78, CpuW = 45, CpuMhz = 4100,
         VramGiB = 6.2, RamGiB = 11.4, BatteryPct = 100, OnAc = true,
-        CpuFanRpm = 4200, GpuFanRpm = 4350, RefreshHz = 240,
+        CpuFanRpm = 4200, GpuFanRpm = 4350, RefreshHz = 141, ModeHz = 240, Resolution = "2560x1600",
         Cores = new CpuCores.CoreReading[]
         {
             new('P', 1, new double[] { 62, 40 }, 4600), new('P', 2, new double[] { 55, 31 }, 4600), new('P', 3, new double[] { 48, 22 }, 4500),

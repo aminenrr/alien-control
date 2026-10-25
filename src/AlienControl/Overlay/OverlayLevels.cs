@@ -26,9 +26,12 @@ public enum Item
     /// <summary>ov.15: stutters under LATENCY (frames over 2x the median in the last ~10 s), levels 3 and 4. From the
     /// frames already read, nothing new runs.</summary>
     Stutter = 1 << 26,
+    /// <summary>beta3 (Amine): the Metal HUD level's display rows: resolution, and G-SYNC (on when the counted refresh
+    /// follows the game instead of the mode's Hz). Both from the refresh poll, nothing new runs.</summary>
+    Resolution = 1 << 27, Gsync = 1 << 28,
 }
 
-/// <summary>What the sensor side must read for a level. Only these run; level 1 reads frames only.</summary>
+/// <summary>What the sensor side must read for a level. Only these run.</summary>
 [Flags]
 public enum Need
 {
@@ -48,13 +51,18 @@ public static class OverlayLevels
 {
     public const int Max = 4;
 
-    /// <summary>MangoHud preset 1: fps_only.</summary>
-    public const Item L1 = Item.Fps | Item.Low1;   // ov.5: + 1 % low (Amine)
-
-    /// <summary>MangoHud preset 2 (horizontal): fps, frame_timing, cpu/gpu load, ram, vram, battery, cpu/gpu power.</summary>
-    public const Item L2 = Item.Fps | Item.FrameTime | Item.FrameGraph | Item.Cpu | Item.Gpu | Item.Ram | Item.Vram
+    /// <summary>beta3 (Amine): level 1 is the old level 2, MangoHud preset 2 (horizontal): fps, frame_timing, cpu/gpu
+    /// load, ram, vram, battery, cpu/gpu power. The old FPS only level is gone.</summary>
+    public const Item L1 = Item.Fps | Item.FrameTime | Item.FrameGraph | Item.Cpu | Item.Gpu | Item.Ram | Item.Vram
                          | Item.Battery | Item.CpuPower | Item.GpuPower | Item.Refresh   // ov.5: + RR after battery (Amine)
                          | Item.CpuTemp | Item.GpuTemp;   // ov.15: + CPU and GPU temps (Amine), from the 2 s poll
+
+    /// <summary>beta3 (Amine): level 2 is a macOS Metal Performance HUD look: clock (its tile), resolution + flip mode
+    /// (latency toggle), VRAM / RAM, G-SYNC, FPS, 1% low, frame interval + graph, GPU and CPU load / temp / watts,
+    /// latency (toggle). No frame gen row, no fans.</summary>
+    public const Item L2 = Item.Clock | Item.Resolution | Item.Vram | Item.Ram | Item.Gsync
+                         | Item.Fps | Item.Low1 | Item.FrameTime | Item.FrameGraph
+                         | Item.Gpu | Item.GpuTemp | Item.GpuPower | Item.Cpu | Item.CpuTemp | Item.CpuPower;
 
     /// <summary>MangoHud preset 3: the default vertical HUD + temps, power, cpu mhz, gpu core and mem clock, ram, vram, battery.</summary>
     public const Item L3 = Item.Fps | Item.FrameTime | Item.FrameGraph | Item.Engine
@@ -76,9 +84,12 @@ public static class OverlayLevels
 
     public static Item Items(int level) => level switch { 1 => L1, 2 => L2, 3 => L3, 4 => L4, _ => Item.None };
 
-    /// <summary>Items with the latency and frame gen toggle: it adds FrameGen + Latency on levels 2 to 4, never on level 1.</summary>
+    /// <summary>Items with the latency and frame gen toggle: FrameGen + Latency on levels 1, 3, 4; level 4 adds the flip
+    /// mode. beta3: level 2 (Metal) gets latency + flip mode, no frame gen row (Amine: just FPS).</summary>
     public static Item Items(int level, bool extended) =>
-        extended && level >= 2 ? Items(level) | Item.FrameGen | Item.Latency | (level == 4 ? Item.PresentMode : Item.None) : Items(level);
+        !extended || level < 1 ? Items(level)
+        : level == 2 ? Items(level) | Item.Latency | Item.PresentMode
+        : Items(level) | Item.FrameGen | Item.Latency | (level == 4 ? Item.PresentMode : Item.None);
 
     /// <summary>ov.9: the Show on overlay toggles. Refresh or battery off drops it from every level (and it isn't read).</summary>
     public static Item Hidden(bool showRefresh, bool showBattery) => Hidden(showRefresh, showBattery, false, false);
@@ -93,9 +104,9 @@ public static class OverlayLevels
     public static Need Needs(int level, Item hidden) => NeedsOf(Items(level) & ~hidden);
 
     /// <summary>Does PresentMon need the extended tracking? Only when the toggle is on and the level shows it.</summary>
-    public static bool WantsExtended(int level, bool toggle) => toggle && level >= 2;
+    public static bool WantsExtended(int level, bool toggle) => toggle && level >= 1;
 
-    public static bool Horizontal(int level) => level == 2;
+    public static bool Horizontal(int level) => level == 1;
 
     public static Need Needs(int level) => NeedsOf(Items(level));
 
@@ -109,7 +120,7 @@ public static class OverlayLevels
         if ((it & (Item.CpuMhz | Item.GpuClocks)) != 0) n |= Need.Clocks;
         if ((it & Item.CoreLoads) != 0) n |= Need.Cores;
         if ((it & Item.Battery) != 0) n |= Need.Battery;
-        if ((it & Item.Refresh) != 0) n |= Need.Refresh;
+        if ((it & (Item.Refresh | Item.Resolution | Item.Gsync)) != 0) n |= Need.Refresh;
         if ((it & Item.Bound) != 0) n |= Need.GpuBusy;
         return n;
     }
@@ -143,6 +154,8 @@ public sealed record Sensors
     public int CapFps { get; init; }
     public bool DriverVsync { get; init; }
     public int? ModeHz { get; init; }
+    /// <summary>beta3: the display mode's size ("2560x1600"), read with the refresh rate.</summary>
+    public string? Resolution { get; init; }
 
     /// <summary>The fps the game is held at, 0 when nothing holds it: the cap, or the refresh rate with V-Sync on
     /// (the driver's, or the game's own SyncInterval).</summary>

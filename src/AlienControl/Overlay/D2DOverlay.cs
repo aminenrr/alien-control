@@ -153,11 +153,13 @@ internal sealed class D2DOverlay : IDisposable
         private readonly ID2D1Factory1 _f;
         private readonly ID2D1DeviceContext _ctx;
         private readonly IDWriteFactory _dw;
-        private readonly string _family;
-        private readonly Dictionary<(float, bool), IDWriteTextFormat> _formats = new();
+        private readonly string _family, _monoFamily;
+        /// <summary>beta3: the Metal level draws in a monospace face.</summary>
+        public bool Mono { get; set; }
+        private readonly Dictionary<(float, bool, bool), IDWriteTextFormat> _formats = new();
         /// <summary>A text's layout with its metrics read once (reading them allocates).</summary>
         private sealed record Laid(IDWriteTextLayout Layout, double Width, double Height, double Baseline);
-        private readonly Dictionary<(string, float, bool), Laid> _layouts = new();
+        private readonly Dictionary<(string, float, bool, bool), Laid> _layouts = new();
         private readonly Dictionary<uint, ID2D1SolidColorBrush> _brushes = new();
 
         public D2DCanvas(ID2D1Factory1 f, ID2D1DeviceContext ctx)
@@ -167,21 +169,24 @@ internal sealed class D2DOverlay : IDisposable
             // "Ubuntu, Segoe UI" like the WPF overlay: Ubuntu when it's installed (MangoHud's font), Segoe UI otherwise
             using var fonts = _dw.GetSystemFontCollection(false);
             _family = fonts.FindFamilyName("Ubuntu", out _) ? "Ubuntu" : "Segoe UI";
+            _monoFamily = fonts.FindFamilyName("Cascadia Mono", out _) ? "Cascadia Mono" : "Consolas";
         }
 
         private IDWriteTextFormat Format(float size, bool bold)
         {
-            if (_formats.TryGetValue((size, bold), out var f)) return f;
+            if (_formats.TryGetValue((size, bold, Mono), out var f)) return f;
             if (_formats.Count >= 8) { foreach (var x in _formats.Values) x.Dispose(); _formats.Clear(); }   // overlay resized a lot
-            f = _dw.CreateTextFormat(_family, bold ? FontWeight.Bold : FontWeight.SemiBold, Vortice.DirectWrite.FontStyle.Normal, FontStretch.Normal, size);
+            f = Mono
+                ? _dw.CreateTextFormat(_monoFamily, bold ? FontWeight.Bold : FontWeight.Normal, Vortice.DirectWrite.FontStyle.Normal, FontStretch.Normal, size)
+                : _dw.CreateTextFormat(_family, bold ? FontWeight.Bold : FontWeight.SemiBold, Vortice.DirectWrite.FontStyle.Normal, FontStretch.Normal, size);
             f.WordWrapping = WordWrapping.NoWrap;
-            _formats[(size, bold)] = f;
+            _formats[(size, bold, Mono)] = f;
             return f;
         }
 
         private Laid Layout(string s, double size, bool bold)
         {
-            var key = (s, (float)size, bold);
+            var key = (s, (float)size, bold, Mono);
             if (_layouts.TryGetValue(key, out var l)) return l;
             if (_layouts.Count > 600)   // old numbers: drop them all, the next frames re-make what's shown
             {

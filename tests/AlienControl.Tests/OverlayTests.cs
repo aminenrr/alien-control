@@ -66,15 +66,19 @@ public class OverlayTests
     }
 
     [Fact]
-    public void Level_one_reads_frames_only()
+    public void Each_level_reads_only_what_it_shows()
     {
-        Assert.Equal(Need.Frames, OverlayLevels.Needs(1));
         Assert.Equal(Need.None, OverlayLevels.Needs(0));
-        Assert.True(OverlayLevels.Needs(2).HasFlag(Need.Acpi));    // ov.15: level 2 shows CPU and GPU temps (Amine)
+        Assert.True(OverlayLevels.Needs(1).HasFlag(Need.Acpi));    // ov.15: the strip shows CPU and GPU temps (Amine)
+        Assert.False(OverlayLevels.Needs(1).HasFlag(Need.Clocks));
+        Assert.True(OverlayLevels.Needs(2).HasFlag(Need.Refresh)); // beta3 Metal: resolution + G-SYNC
+        Assert.False(OverlayLevels.Needs(2).HasFlag(Need.Clocks));
+        Assert.False(OverlayLevels.Needs(2).HasFlag(Need.Acpi) && OverlayLevels.Needs(2).HasFlag(Need.Cores));
         Assert.True(OverlayLevels.Needs(3).HasFlag(Need.Clocks));
         Assert.True(OverlayLevels.Needs(4).HasFlag(Need.Cores));
         Assert.False(OverlayLevels.Needs(3).HasFlag(Need.Cores));
-        Assert.True(OverlayLevels.Horizontal(2));
+        Assert.True(OverlayLevels.Horizontal(1));
+        Assert.False(OverlayLevels.Horizontal(2));
     }
 
     [Fact]
@@ -121,10 +125,14 @@ public class OverlayTests
         Assert.DoesNotContain("--stop_existing_session", on);
         Assert.DoesNotContain("--terminate_existing_session", on);
         Assert.Contains("--stop_existing_session", FramesSource.Args(false, 0, stopExisting: true));
-        Assert.Equal(OverlayLevels.Items(1), OverlayLevels.Items(1, true));   // level 1 stays FPS only
-        Assert.True(OverlayLevels.Items(2, true).HasFlag(Item.FrameGen));
+        Assert.True(OverlayLevels.Items(1, true).HasFlag(Item.FrameGen));     // beta3: the strip is level 1 now
+        Assert.False(OverlayLevels.Items(2, true).HasFlag(Item.FrameGen));    // Metal: just FPS (Amine)
+        Assert.True(OverlayLevels.Items(2, true).HasFlag(Item.Latency));
+        Assert.True(OverlayLevels.Items(2, true).HasFlag(Item.PresentMode));
+        Assert.False(OverlayLevels.Items(2, false).HasFlag(Item.PresentMode));
         Assert.False(OverlayLevels.Items(3, false).HasFlag(Item.Latency));
-        Assert.False(OverlayLevels.WantsExtended(1, true));
+        Assert.True(OverlayLevels.WantsExtended(1, true));
+        Assert.False(OverlayLevels.WantsExtended(0, true));
         Assert.True(OverlayLevels.Items(4, true).HasFlag(Item.PresentMode));    // ov.6: level 4 + toggle only
         Assert.False(OverlayLevels.Items(4, false).HasFlag(Item.PresentMode));
         Assert.False(OverlayLevels.Items(3, true).HasFlag(Item.PresentMode));
@@ -209,6 +217,7 @@ public class OverlayTests
         var back = System.Text.Json.JsonSerializer.Deserialize<Settings>(System.Text.Json.JsonSerializer.Serialize(s))!;
         Assert.Equal(-10, back.LookFor(3).X);
         Assert.Equal(80, back.LookFor(3).Bg);
+        back.OverlayLevelsV3 = true;                                     // levels already moved (beta3), see below
         back.LookFor(1).Size = 999; back.Clamp();
         Assert.Equal(100, back.LookFor(1).Size);                         // out of range back to SteamOS
     }
@@ -344,5 +353,24 @@ public class OverlayTests
         for (int i = 0; i < n; i++) Assert.False(buf[i].Gen);
         var (fps, _) = FramesSource.FpsOver(buf.AsSpan(0, n), buf[n - 1].Ticks, Stopwatch.Frequency / 4);
         Assert.InRange(fps, 138, 147);   // 2 presents per 14 ms
+    }
+
+    // beta3 (Amine): FPS only dropped, old level 2 is level 1, level 2 is the Metal HUD
+    [Fact]
+    public void Old_levels_move_once()
+    {
+        var s = new Settings { OverlayLevel = 2, OverlayLastLevel = 2 };
+        s.LookFor(2).Position = 4; s.LookFor(2).Size = 120;
+        s.Clamp();
+        Assert.True(s.OverlayLevelsV3);
+        Assert.Equal(1, s.OverlayLevel);
+        Assert.Equal(1, s.OverlayLastLevel);
+        Assert.Equal(4, s.LookFor(1).Position);   // the strip keeps its look
+        Assert.Equal(2, s.LookFor(2).Position);   // Metal starts top right
+        Assert.Equal(120, s.LookFor(2).Size);
+        s.LookFor(1).Position = 3;
+        s.Clamp();                                // only once
+        Assert.Equal(3, s.LookFor(1).Position);
+        Assert.Equal(2, s.LookFor(2).Position);
     }
 }

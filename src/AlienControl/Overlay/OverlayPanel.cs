@@ -41,6 +41,9 @@ public sealed class OverlayPanel : FrameworkElement
     {
         private static readonly Typeface Face = new(new FontFamily("Ubuntu, Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
         private static readonly Typeface FaceBold = new(new FontFamily("Ubuntu, Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+        private static readonly Typeface FaceMono = new(new FontFamily("Cascadia Mono, Consolas"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        /// <summary>beta3: the Metal level draws in a monospace face.</summary>
+        public bool Mono { get; set; }
         private readonly Visual _owner;
         private readonly Dictionary<uint, Brush> _brushes = new();
         public DrawingContext? Dc;
@@ -61,7 +64,7 @@ public sealed class OverlayPanel : FrameworkElement
         }
 
         private FormattedText T(string s, double size, bool bold, Brush? b = null) =>
-            new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, bold ? FaceBold : Face, size, b ?? Brushes.White, Dpi);
+            new(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Mono ? FaceMono : bold ? FaceBold : Face, size, b ?? Brushes.White, Dpi);
 
         public double TextWidth(string s, double size, bool bold) => s.Length == 0 ? 0 : T(s, size, bold).WidthIncludingTrailingWhitespace;
 
