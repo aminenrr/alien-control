@@ -242,6 +242,6 @@ public class Overlay15Tests
         Assert.False(FramesSource.IsGenerated("Application"));
         Assert.True(FramesSource.IsGenerated("AMD AFMF"));
         Assert.True(FramesSource.IsGenerated("Intel XeFG"));
-        Assert.True(FramesSource.Args(false).Contains("--set_circular_buffer_size 8192"));
+        Assert.Contains("--set_circular_buffer_size 8192", FramesSource.Args(false));
     }
 }

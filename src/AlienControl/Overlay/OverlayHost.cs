@@ -307,7 +307,7 @@ public sealed class OverlayHost : IDisposable
         int n = _frames.CopyRecent(_gbuf);
         n = _play.Visible(new ReadOnlySpan<FramesSource.Frame>(_gbuf, 0, n), Stopwatch.GetTimestamp());
         int m = 0;   // beta2: real frames only, so frame gen draws one flat line
-        for (int i = 0; i < n; i++) { if (_gbuf[i].Gen) continue; _gT[m] = _gbuf[i].T; _gMs[m] = _gbuf[i].Ms; m++; }
+        for (int i = 0; i < n; i++) { _gT[m] = _gbuf[i].T; _gMs[m] = _gbuf[i].Ms; m++; }
         v.GraphT = _gT;
         v.Graph = _gMs;
         v.GraphCount = m;
@@ -336,7 +336,7 @@ public sealed class OverlayHost : IDisposable
         while (g > 0 && n > 0 && span[n - 1].T - span[g - 1].T <= OverlayView.GraphSpan) g--;
         var shown = span[g..];
         float mn = float.MaxValue, mx = 0;
-        foreach (var f in shown) { if (f.Gen) continue; if (f.Ms < mn) mn = f.Ms; if (f.Ms > mx) mx = f.Ms; }
+        foreach (var f in shown) { if (f.Ms < mn) mn = f.Ms; if (f.Ms > mx) mx = f.Ms; }
         p.MaxMs = mx > 0 ? mx : 0;
         p.GraphRange = mx > 0 ? $"min {mn:0.0} / max {mx:0.0} ms" : "";
         p.Engine = EngineLabel(frames);

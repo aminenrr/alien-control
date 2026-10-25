@@ -3,6 +3,11 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta2.2 (2026-10-25, prerelease)
+FPS and graph fixed again (Amine: beta2.1 still 0 FPS). Untested.
+- Lean PresentMon args back to ov.14 (no --track_frame_type): frame type without display tracking overflowed PresentMon's present buffer.
+- FPS, graph and lows count every present like RTSS; GuessGenerated and the real-frame-only math removed.
+
 ## v2.0.0-beta2.1 (2026-10-25, prerelease)
 Fixes beta2's 0 FPS and dead frametime graph (Amine, Castlevania + Control). Untested.
 - Only real frame gen types count as generated (PresentMon 2.6 sends Unspecified, which beta2 counted as generated, leaving no real frames).

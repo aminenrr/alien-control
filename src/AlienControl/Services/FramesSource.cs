@@ -75,7 +75,10 @@ public sealed class FramesSource : IDisposable
         var a = $"--output_stdout --no_console_stats --session_name {SessionName} " + (stopExisting ? "--stop_existing_session " : "") +
                 (trackGpu ? "" : "--no_track_gpu ") + "--no_track_input --set_circular_buffer_size 8192 --exclude dwm.exe --exclude AlienControl.exe";
         // beta2 (Amine: FG games drew a zigzag): the frame type is read in lean mode too, so frame gen is told apart
-        if (!extended) return a + " --no_track_display" + (tier == 0 ? " --track_frame_type" : "");
+        // beta2.2 (Amine: still 0 FPS / broken graph): frame type tracking without display tracking made PresentMon hold
+        // presents until its buffer overflowed (thousands dropped per run), so frames came out seconds late. Lean
+        // mode is back to ov.14's set, the one that worked.
+        if (!extended) return a + " --no_track_display";
         return tier == 0 ? a + " --track_frame_type --track_pc_latency" : a;
     }
 
@@ -401,9 +404,7 @@ public sealed class FramesSource : IDisposable
         if (_colT < 0) t = now / (double)Stopwatch.Frequency;   // beta2.1: no time column, arrival time beats no time at all
         // extended columns (only present when the toggle is on)
         bool gen = _colType >= 0 && _colType < n && IsGenerated(Col(span, _colType, n));
-        if (pid != _targetPid) { _emaMs = 0; _lastRealT = double.NaN; _genSince = false; _typeGen = false; }
-        if (gen) _typeGen = true;
-        else if (!_typeGen) gen = GuessGenerated(ms);   // the frame type says nothing: tell frame gen by its pairs
+        // beta2.2 (Amine: show fps like RTSS): no guessing; generated frames only count for the FG tile
         float lat = float.NaN; bool pcLat = false, changed = false;
         string app = "";
         if (_colPcLat >= 0 && _colPcLat < n && TryMs(Col(span, _colPcLat, n), out float pl)) { lat = pl; pcLat = true; }
@@ -431,13 +432,6 @@ public sealed class FramesSource : IDisposable
             }
             if (double.IsNaN(t)) t = (_count > 0 ? _ring[(_head - 1 + _ring.Length) % _ring.Length].T : 0) + ms / 1000.0;
             // beta2: a real frame after generated ones gets the time since the last real frame (its true frametime)
-            if (gen) _genSince = true;
-            else
-            {
-                if (_genSince && !double.IsNaN(_lastRealT) && t > _lastRealT) ms = (float)((t - _lastRealT) * 1000);
-                _lastRealT = t;
-                _genSince = false;
-            }
             if (sync >= 0) _syncInterval = sync;
             _ring[_head] = new Frame(now, t, ms, gen, lat, pcLat, gpuBusy);
             _head = (_head + 1) % _ring.Length;
@@ -445,20 +439,6 @@ public sealed class FramesSource : IDisposable
         }
         if (changed) { try { TargetChanged?.Invoke(app, pid); } catch (Exception e) { Log.Warn("Frames.TargetChanged", e); } }
         return true;
-    }
-
-    private float _emaMs;              // beta2: average gap between the game's own presents
-    private double _lastRealT = double.NaN;
-    private bool _genSince, _typeGen;  // generated frames since the last real one; the frame type column reports them
-
-    /// <summary>beta2: frame gen without a frame type (DLSS FG on this PresentMon): the generated frame is presented a
-    /// fraction of a millisecond after the real one, so a present far shorter than the usual gap is the generated half
-    /// of a pair. Steady or uncapped games never have such pairs.</summary>
-    internal bool GuessGenerated(float ms)
-    {
-        if (_emaMs > 0 && ms < 2f && ms < 0.25f * _emaMs) return true;
-        _emaMs = _emaMs <= 0 ? ms : _emaMs * 0.9f + ms * 0.1f;
-        return false;
     }
 
     /// <summary>Comma positions of the line into starts (starts[i] = first char of column i, starts[n] = end + 1).
@@ -576,7 +556,7 @@ public sealed class FramesSource : IDisposable
         for (int i = frames.Length - 1; i >= 0; i--)
         {
             if (last - frames[i].T > window) break;
-            if (frames[i].Gen) continue;   // beta2: real frames only (their Ms is real frame to real frame)
+            // beta2.2 (Amine): every presented frame counts, like RTSS (beta2 counted real frames only)
             sum += frames[i].Ms; n++;
         }
         if (n == 0) return (0, 0);
@@ -601,8 +581,7 @@ public sealed class FramesSource : IDisposable
             if (float.IsNaN(f.Lat) || f.Gen) continue;
             if (f.PcLat) { pcSum += f.Lat; pcN++; } else { latSum += f.Lat; latN++; }
         }
-        int real = n - gen;
-        double genFps = real > 0 ? fps * gen / real : 0;   // beta2: fps is already the real frames' rate
+        double genFps = n > 0 ? fps * gen / n : 0;   // beta2.2: fps counts every frame, FG = the generated share
         // Reflex PC latency wins when the game sends it; otherwise PresentMon's display latency
         double lat = pcN > 0 ? pcSum / pcN : latN > 0 ? latSum / latN : double.NaN;
         return new Stats(fps, genFps, avg, lat, pcN > 0);
@@ -665,7 +644,7 @@ public sealed class FramesSource : IDisposable
         while (from > 0 && last - frames[from - 1].T <= windowSec) from--;
         var buf = _medScratch is { } b && b.Length >= frames.Length - from ? b : (_medScratch = new float[Math.Max(frames.Length - from, 4096)]);
         int n = 0;
-        for (int i = from; i < frames.Length; i++) if (!frames[i].Gen) buf[n++] = frames[i].Ms;
+        for (int i = from; i < frames.Length; i++) buf[n++] = frames[i].Ms;
         if (n < 20) return (0, 0, 0);
         // a scratch copy of the window, sorted: the median, then the count from the slow end
         var ms = buf.AsSpan(0, n);

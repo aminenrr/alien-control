@@ -108,7 +108,7 @@ public class OverlayTests
     {
         var off = FramesSource.Args(false);
         Assert.Contains("--no_track_display", off);
-        Assert.Contains("--track_frame_type", off);   // beta2: frame gen is told apart in lean mode too
+        Assert.DoesNotContain("--track_frame_type", off);   // beta2.2: back to ov.14's lean set (overflow)
         Assert.DoesNotContain("--track_frame_type", FramesSource.Args(false, 1));
         Assert.DoesNotContain("--track_pc_latency", off);
         var on = FramesSource.Args(true);
@@ -149,12 +149,9 @@ public class OverlayTests
         var buf = new FramesSource.Frame[200];
         int n = f.CopyRecent(buf);
         var st = FramesSource.StatsOver(buf.AsSpan(0, n), buf[n - 1].Ticks, Stopwatch.Frequency / 4);
-        Assert.InRange(st.Fps, 95, 105);      // 200 presents/s, half generated (an odd frame count in the window tips it a little)
+        Assert.InRange(st.Fps, 190, 210);     // beta2.2: every present counts, like RTSS (200/s, half generated)
         Assert.InRange(st.GenFps, 95, 105);
-        Assert.InRange(st.Fps + st.GenFps, 190, 210);
         Assert.True(st.PcLat);
-        // beta2: a real frame's frametime is real frame to real frame (10 ms here), not the 5 ms since the generated one
-        for (int i = 0; i < n; i++) if (!buf[i].Gen && i > 1) Assert.Equal(10f, buf[i].Ms, 2);
         Assert.Equal(30, st.LatMs, 3);
     }
 
@@ -327,9 +324,9 @@ public class OverlayTests
     }
 
     [Fact]
-    public void Frame_gen_pairs_are_found_without_a_frame_type()
+    public void No_frame_type_never_guesses_generated()
     {
-        // DLSS FG as PresentMon showed it in Control (no FrameType column): 0.2 ms, 13.8 ms, 0.2 ms, ...
+        // beta2.2 (Amine: show fps like RTSS): FG pairs without a frame type are plain frames
         const string h = "Application,ProcessID,SwapChainAddress,PresentRuntime,CPUStartTime,MsBetweenPresents";
         var f = new FramesSource();
         Assert.True(f.ParseHeader(h));
@@ -343,17 +340,9 @@ public class OverlayTests
         }
         var buf = new FramesSource.Frame[512];
         int n = f.CopyRecent(buf);
-        int gen = 0;
-        for (int i = 20; i < n; i++) { if (buf[i].Gen) gen++; else Assert.InRange(buf[i].Ms, 13.9, 14.1); }
-        Assert.InRange(gen, (n - 20) / 2 - 2, (n - 20) / 2 + 2);
-        var (low1, _, _) = AlienControl.Overlay.OverlayHost.Lows(buf.AsSpan(20, n - 20));
-        Assert.InRange(low1, 70, 73);   // about 71 real fps, not 35
-        // a steady game is never split
-        var g = new FramesSource();
-        g.ParseHeader(h); g.SetForegroundForTest(7);
-        t = 0;
-        for (int i = 0; i < 300; i++) { float ms = 6f + (i % 3) * 0.5f; t += ms / 1000.0; g.OnLine($"game.exe,7,0x1,DXGI,{t.ToString(System.Globalization.CultureInfo.InvariantCulture)},{ms.ToString(System.Globalization.CultureInfo.InvariantCulture)}"); }
-        n = g.CopyRecent(buf);
+        Assert.Equal(400, n);
         for (int i = 0; i < n; i++) Assert.False(buf[i].Gen);
+        var (fps, _) = FramesSource.FpsOver(buf.AsSpan(0, n), buf[n - 1].Ticks, Stopwatch.Frequency / 4);
+        Assert.InRange(fps, 138, 147);   // 2 presents per 14 ms
     }
 }
