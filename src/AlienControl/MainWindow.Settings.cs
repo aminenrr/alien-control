@@ -183,6 +183,8 @@ public partial class MainWindow
     private void F4Overlay_Click(object sender, RoutedEventArgs e)
     {
         _settings.F4Overlay = F4OverlayToggle.IsChecked == true;
+        bool f4On = _settings.F4Overlay;
+        InputThread.Invoke(() => _macro.SetOverlayHotkey(f4On));   // beta2: Shift + F4 only while F4 drives the overlay
         _settings.Save();
     }
 }

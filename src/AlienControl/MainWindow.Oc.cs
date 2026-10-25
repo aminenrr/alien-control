@@ -270,6 +270,7 @@ public partial class MainWindow
     public void EmergencyExitCleanup(int joinMs)
     {
         if (System.Threading.Interlocked.Exchange(ref _emergencyDone, 1) == 1) return;
+        try { _frames.Stop(); } catch (Exception ex) { Services.Log.Warn("Exit cleanup overlay", ex); }   // beta1.3-ov
         var applied = _ocApplied;
         bool rtxOff = _gpu.Kind == GpuModeKind.IGpuOnly || _rtxSwitching;   // never touch NVML then (NvmlSession refuses during a switch too)
         var t = new System.Threading.Thread(() =>
