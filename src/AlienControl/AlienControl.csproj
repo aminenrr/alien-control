@@ -51,7 +51,7 @@
     <!-- 2.0.0-beta1.4: WPF-UI is gone (ToolTip / TextBox / ScrollBar have Legend styles in Themes/Legend2.xaml), and the
          System.Diagnostics.PerformanceCounter package too: Microsoft.WindowsDesktop.App 8.0 already ships it (build
          review #1 and #7, the exe drops from about 11.6 MB to about 3.7 MB) -->
-    <PackageReference Include="System.Management" Version="8.0.0" />
+    <PackageReference Include="System.Management" Version="10.0.13" />
     <!-- ov.15: the overlay window draws with Direct2D + DirectComposition (Vortice, MIT). WPF stays as the fallback. -->
     <PackageReference Include="Vortice.Direct2D1" Version="3.8.3" />
     <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
