@@ -128,6 +128,13 @@ public sealed class Settings
     /// <summary>ov.9 Show on overlay: refresh rate / battery on every level that has them. On by default (as before).</summary>
     public bool OverlayShowRefresh { get; set; } = true;
     public bool OverlayShowBattery { get; set; } = true;
+    /// <summary>ov.15 (Amine): the clock (levels 3 and 4) and the CPU / GPU bound estimate (levels 3 and 4). Off by
+    /// default; bound off = PresentMon tracks no GPU work.</summary>
+    public bool OverlayShowClock { get; set; } = false;
+    public bool OverlayShowBound { get; set; } = false;
+    /// <summary>ov.15: how the in-game overlay draws: "d2d" (Direct2D + DirectComposition, default) or "wpf" (the old
+    /// window, kept as the fallback and for comparing). No UI: settings.json only.</summary>
+    public string OverlayRenderer { get; set; } = "d2d";
     /// <summary>Nudge from the chosen spot, in % of the screen: X -50 (left) .. 50 (right), Y -50 (up) .. 50 (down).
     /// The overlay always stays on screen.</summary>
     public int OverlayOffsetX { get; set; } = 0;
@@ -268,6 +275,7 @@ public sealed class Settings
         OverlaySize = C(OverlaySize, 50, 150, d.OverlaySize);
         OverlayBg = C(OverlayBg, 0, 100, d.OverlayBg);
         if (OverlayUpdateMs is not (250 or 500 or 1000)) OverlayUpdateMs = d.OverlayUpdateMs;
+        if (OverlayRenderer is not ("d2d" or "wpf")) OverlayRenderer = d.OverlayRenderer;   // ov.15
         OverlayOffsetX = C(OverlayOffsetX, -50, 50, 0);
         OverlayOffsetY = C(OverlayOffsetY, -50, 50, 0);
         EnsureLooks();

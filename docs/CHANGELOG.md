@@ -4,6 +4,15 @@ Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Unt
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
 
+## 2.0.0-beta1.3-ov.15 (overlay preview, branch beta1.3-ov)
+Untested on the laptop. ov.4 to ov.14 are in docs/releases.
+- The overlay draws with Direct2D + DirectComposition (Vortice 3.8.3). WPF stays as the fallback (automatic, or `"OverlayRenderer": "wpf"`). The HUD layout moved to `OverlayView`, shared by both.
+- The frametime graph is plotted by time: 2 s window, playhead on the right edge, redrawn every refresh while shown.
+- `Overlay perf:` line in crash.log every 10 s: frames, missed refreshes, CPU.
+- Level 2: CPU and GPU temps. Temp colours on levels 2 to 4: CPU 80 / 90, GPU 75 / 80 (green, yellow, red #FF3B3B).
+- Shift + F4 cycles levels 1 to 4 (Amine; Alt + F4 would close the game).
+- Levels 3 and 4: TIME row and BOUND row (GPU / CPU estimate, LIMITED at the cap or V-Sync), both off by default with their own tiles. GPU tracking runs only while BOUND is shown. STUTTER row (over 2x the median in 10 s, generated frames ignored) and red spike marks on the graph.
+
 ## 2.0.0-beta1.3-ov.3 (overlay preview, branch beta1.3-ov)
 - Each overlay level remembers its own position, size, background and move left / right / up / down. The Overlay tab edits the level that's on (or the last one while off). Reset to SteamOS resets only that level. Update speed and the latency toggle stay shared. Old settings seed all four levels.
 
