@@ -384,7 +384,7 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**2.0.0-beta3.3** (pre-release): the 2.0 look (tabs, Legend only, no compact view) plus the in-game overlay (PresentMon frametimes, 4 levels, level 2 in the Apple Metal HUD style, FPS cap). See [docs/STATUS.md](docs/STATUS.md). The latest stable is **v1.3.5** (Lights menu and Ctrl + Alt + F from 1.3.1 to 1.3.3, plus GPU OC in the Performance preset and OC state on
+**2.0.0-beta3.4** (pre-release): the 2.0 look (tabs, Legend only, no compact view) plus the in-game overlay (PresentMon frametimes, 4 levels, level 2 in the Apple Metal HUD style, FPS cap). See [docs/STATUS.md](docs/STATUS.md). The latest stable is **v1.3.5** (Lights menu and Ctrl + Alt + F from 1.3.1 to 1.3.3, plus GPU OC in the Performance preset and OC state on
 toasts from 1.3.4), on top of **v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout,
 CPU / GPU %, smoother slides, security hardening). Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the

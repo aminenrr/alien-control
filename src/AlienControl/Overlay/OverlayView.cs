@@ -527,7 +527,7 @@ public sealed class OverlayView
         public string Find(int col) { foreach (var x in Segs) if (x.Col == col) return x.Text; return ""; }
         public string Label => Segs.Length > 0 && Segs[0].Col == 0 && !Segs[0].Right ? Segs[0].Text : "";
     }
-    internal const int MCols = 30;
+    internal const int MCols = 32;   // beta3.4: 2 wider so "2.0GB 14.8GB" keeps a space
     private List<MRow> _mrows = new();
     private double _mGraphHi = 20;
     private bool? _gsyncLast;
@@ -555,8 +555,8 @@ public sealed class OverlayView
 
     /// <summary>beta3.2 (Amine, Metal HUD): "Label:  value [  a   b]" on fixed columns, brackets line up row to row.</summary>
     private static MRow Br(string label, string v, string a, string b, Rgba c, Rgba? ca = null, Rgba? cb = null) =>
-        new(new[] { new MSeg(label, c, 0, false), new MSeg(v, c, 14, true), new MSeg("[", c, 15, false),
-                    new MSeg(a, ca ?? c, 22, true), new MSeg(b, cb ?? c, 28, true), new MSeg("]", c, 29, false) });
+        new(new[] { new MSeg(label, c, 0, false), new MSeg(v, c, 15, true), new MSeg("[", c, 16, false),
+                    new MSeg(a, ca ?? c, 23, true), new MSeg(b, cb ?? c, 30, true), new MSeg("]", c, 31, false) });
 
     internal List<MRow> BuildMetal()
     {
@@ -603,9 +603,9 @@ public sealed class OverlayView
             r.Add(Br("CPU:", (it & Item.Cpu) != 0 ? N(d.CpuLoad) + "%" : "", (it & Item.CpuTemp) != 0 ? N(d.CpuTemp) + "°C" : "",
                 (it & Item.CpuPower) != 0 ? N(d.CpuW) + "W" : "", MetalCpu, d.CpuTemp >= 90 ? MetalRed : MetalCpu));
         if ((it & (Item.Vram | Item.Ram)) != 0)   // Amine: VRAM and RAM both in the brackets, lined up with GPU / CPU
-            r.Add(new(new[] { new MSeg("Mem:", White, 0, false), new MSeg("[", White, 15, false),
-                new MSeg((it & Item.Vram) != 0 ? G(d.VramGiB) + "GB" : "", White, 22, true),
-                new MSeg((it & Item.Ram) != 0 ? G(d.RamGiB) + "GB" : "", White, 28, true), new MSeg("]", White, 29, false) }));
+            r.Add(new(new[] { new MSeg("Mem:", White, 0, false), new MSeg("[", White, 16, false),
+                new MSeg((it & Item.Vram) != 0 ? G(d.VramGiB) + "GB" : "", White, 23, true),
+                new MSeg((it & Item.Ram) != 0 ? G(d.RamGiB) + "GB" : "", White, 30, true), new MSeg("]", White, 31, false) }));
         return r;
     }
 

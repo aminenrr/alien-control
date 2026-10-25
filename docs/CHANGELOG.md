@@ -3,7 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
-## v2.0.0-beta3.3 (2026-10-25, prerelease)
+## v2.0.0-beta3.4 (2026-10-25, prerelease)
+- Metal grid 32 columns: Mem bracket keeps a space between VRAM and RAM.
+- Folds in beta3.3 (never published, release notes lacked a test list):
 - Graph min / max label over the 200 frames the graph draws (was 2 s).
 - Overlay perf log: a refresh only counts as missed against the slower of panel Hz and game fps (G-SYNC), and logs the game fps.
 - README / STATUS brought up to date for 2.0.

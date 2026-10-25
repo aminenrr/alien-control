@@ -285,27 +285,27 @@ public class Overlay15Tests
         Assert.Contains(rows, r => r.Label == "Resolution" && r.Find(OverlayView.MCols) == "[2560x1600]");
         Assert.Contains(rows, r => r.Label == "" && r.Find(OverlayView.MCols) == "G-SYNC --");  // no mode without the toggle
         var fps = rows.Single(r => r.Label == "FPS:");
-        Assert.Equal("139.84", fps.Find(14));
-        Assert.Equal("117.20", fps.Find(22));
-        Assert.Equal("144.09", fps.Find(28));                                                 // 1000 / fastest frame
+        Assert.Equal("139.84", fps.Find(15));
+        Assert.Equal("117.20", fps.Find(23));
+        Assert.Equal("144.09", fps.Find(30));                                                 // 1000 / fastest frame
         var frame = rows.Single(r => r.Label == "Frame:");
-        Assert.Equal("6.94", frame.Find(22));
-        Assert.Equal("8.50", frame.Find(28));
+        Assert.Equal("6.94", frame.Find(23));
+        Assert.Equal("8.50", frame.Find(30));
         var gpu = rows.Single(r => r.Label == "GPU:");
-        Assert.Equal("97%", gpu.Find(14));
-        Assert.Equal("71°C", gpu.Find(22));
-        Assert.Equal("115W", gpu.Find(28));
-        Assert.Equal(OverlayView.MetalGreen, gpu.Segs.Single(x => x.Col == 22).Color);
+        Assert.Equal("97%", gpu.Find(15));
+        Assert.Equal("71°C", gpu.Find(23));
+        Assert.Equal("115W", gpu.Find(30));
+        Assert.Equal(OverlayView.MetalGreen, gpu.Segs.Single(x => x.Col == 23).Color);
         var mem = rows.Single(r => r.Label == "Mem:");
-        Assert.Equal("6.2GB", mem.Find(22));
-        Assert.Equal("8.8GB", mem.Find(28));
+        Assert.Equal("6.2GB", mem.Find(23));
+        Assert.Equal("8.8GB", mem.Find(30));
         Assert.DoesNotContain(rows, r => r.Label.Contains("Latency") || r.Label.Contains("Gen") || r.Label.Contains("Fan"));
         Assert.Single(rows, r => r.Graph);
 
         v.Data = v.Data with { GpuTemp = 80, CpuTemp = 90 };                                  // Amine: red at GPU 80, CPU 90
         rows = v.BuildMetal();
-        Assert.Equal(OverlayView.MetalRed, rows.Single(r => r.Label == "GPU:").Segs.Single(x => x.Col == 22).Color);
-        Assert.Equal(OverlayView.MetalRed, rows.Single(r => r.Label == "CPU:").Segs.Single(x => x.Col == 22).Color);
+        Assert.Equal(OverlayView.MetalRed, rows.Single(r => r.Label == "GPU:").Segs.Single(x => x.Col == 23).Color);
+        Assert.Equal(OverlayView.MetalRed, rows.Single(r => r.Label == "CPU:").Segs.Single(x => x.Col == 23).Color);
 
         v.Items = OverlayLevels.Items(2, true, OverlayLevels.Hidden(true, true, true, false));   // clock + latency on
         v.Clock = "13:23"; v.PresentMode = "Hardware: Independent Flip"; v.LatMs = 54; v.LatPc = true;

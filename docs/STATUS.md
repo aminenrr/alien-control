@@ -1,6 +1,6 @@
 # Project status (for anyone picking this up)
 
-Last updated: 2026-10-25, **v2.0.0-beta3.3** (pre-release) on branch `v2.0`. The latest stable is v1.3.5 on `main`.
+Last updated: 2026-10-25, **v2.0.0-beta3.4** (pre-release) on branch `v2.0`. The latest stable is v1.3.5 on `main`.
 Read this first, then [DEVELOPMENT.md](DEVELOPMENT.md) (code layout, build), [DECISIONS.md](DECISIONS.md) (why),
 [HARDWARE.md](HARDWARE.md) (what was measured on the m15 R7) and the 2.0 spec in
 [mockups/2.0/HANDOFF.md](mockups/2.0/HANDOFF.md).
@@ -17,7 +17,7 @@ old two agent rules in `docs/BRANCHES-2.0.md` are history. `main` stays 1.3.x un
 
 Overlay releases after the merge: beta2.1 to 2.5 (PresentMon parsing, FPS like RTSS, per frame graph), beta3 (levels
 reworked: old level 1 dropped, old level 2 strip is level 1, level 2 = Metal HUD style, `Settings.OverlayLevelsV3`
-migration), beta3.1 (rounded, bolder), beta3.2 (Metal values in brackets), beta3.3 (graph min / max over the 200 drawn
+migration), beta3.1 (rounded, bolder), beta3.2 (Metal values in brackets), beta3.3 / 3.4 (Mem spacing, graph min / max over the 200 drawn
 frames, perf log aware of G-SYNC).
 
 ## Architecture
