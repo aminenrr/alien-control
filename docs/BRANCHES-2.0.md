@@ -6,10 +6,10 @@ Two lines of work run in parallel until 2.0.0-beta2. Read this before you push.
 |---|---|---|---|---|
 | `main` | 1.3.x | nobody right now | untouched until 2.0 is stable | `v1.3.*` |
 | `v2.0` | 2.0.0-beta1.3 | agent A | beta1.4 and later fixes: Tier 1, 2, 3 review work, WPF-UI removal, MainWindow partials, startup task security | `v2.0.0-beta1.4`, ... |
-| `beta1.3-ov` | 2.0.0-beta1.3 (`1c26220`) | agent B | the in-game overlay only (PresentMon frametimes, 4 SteamOS levels, F4, Overlay tab) | `v2.0.0-beta1.3-ov.N` |
+| `beta1.3-ov` | 2.0.0-beta1.3 (`1c26220`) | agent B, agent A from ov.15 (Amine, 2026-10-25) | the in-game overlay only (PresentMon frametimes, 4 SteamOS levels, F4, Overlay tab) | `v2.0.0-beta1.3-ov.N` |
 
 ## Rules
-- Agent A never pushes to `beta1.3-ov`. Agent B never pushes to `v2.0` or `main`.
+- Agent A never pushes to `beta1.3-ov`. Agent B never pushes to `v2.0` or `main`. From ov.15 (2026-10-25) Amine handed `beta1.3-ov` and the beta2 merge to agent A.
 - `beta1.3-ov` does **not** get the beta1.4 fixes. Its builds are for testing the overlay only. Install them over beta1.3, not over beta1.4.
 - Overlay test builds use tags `v2.0.0-beta1.3-ov.1`, `.2`, ... (pre-release). They never use `v2.0.0-beta1.4` or `v2.0.0-beta2`.
 - To keep the merge easy, overlay code lives in its own files:
@@ -32,9 +32,9 @@ Whoever merges (agent A or B):
 New files (no conflicts expected):
 - `src/AlienControl/Services/FramesSource.cs` (PresentMon child, CSV parse, job object, swapchain filter, `Playhead` graph playback), `Services/CpuCores.cs`, `Services/VblankCounter.cs`
 - `src/AlienControl/Services/NvDrs.cs` (NVAPI DRS: per game FPS cap + V-Sync, read back), `MainWindow.FpsCap.cs` (cap chips + APPLY on the Overlay tab)
-- `src/AlienControl/Overlay/OverlayLevels.cs`, `OverlayPanel.cs` (renderer), `OverlayHost.cs` (window, own thread), `LevelSlider.cs`
+- `src/AlienControl/Overlay/OverlayLevels.cs`, `OverlayView.cs` (the HUD layout, shared by both renderers, ov.15), `OverlayPanel.cs` (WPF host: preview + fallback), `D2DOverlay.cs` (Direct2D + DirectComposition, ov.15), `OverlayHost.cs` (window, own thread, D2D render thread), `LevelSlider.cs`
 - `src/AlienControl/MainWindow.Overlay.cs` (levels, F4, Overlay tab, feeding sensors, exit cleanup)
-- `tests/AlienControl.Tests/OverlayTests.cs`, `docs/releases/v2.0.0-beta1.3-ov.*.md`
+- `tests/AlienControl.Tests/OverlayTests.cs`, `Overlay15Tests.cs`, `docs/releases/v2.0.0-beta1.3-ov.*.md`
 
 Hooks in existing files (all marked `beta1.3-ov`):
 - `MainWindow.xaml.cs`: `InitOverlay()` in the constructor; `RefreshSensorsAsync` / `RefreshPowerAsync` also run for the overlay and call `OverlayTakeSensors` / `OverlayTakePower`; hidden window calls `UpdatePolling()` instead of stopping the timers; `AllowClose` calls `StopOverlayOnExit()`. In 1.4 these live in the Sensors / Window partials.
@@ -42,15 +42,17 @@ Hooks in existing files (all marked `beta1.3-ov`):
 - `MainWindow.Oc.cs`: `EmergencyExitCleanup` stops PresentMon.
 - `MainWindow.xaml`: Home overlay block and the whole `OverlayPage` replaced; `xmlns:ov`.
 - `Services/Settings.cs`: `Overlay*` keys + clamps. `Services/Nvml.cs`: `nvmlDeviceGetClockInfo`.
-- `AlienControl.csproj`: `ConcurrentGarbageCollection` false + `System.GC.ConserveMemory` 5 (ov.11 RAM). Keep both in the merge.
+- `AlienControl.csproj`: `ConcurrentGarbageCollection` false + `System.GC.ConserveMemory` 5 (ov.11 RAM). Keep both in the merge. ov.15 adds `Vortice.Direct2D1`, `Vortice.Direct3D11`, `Vortice.DirectComposition` 3.8.3 (MIT): keep them.
+- `MainWindow.xaml.cs`: ov.15 reads Shift / F4 with `OverlayKeys()` in the macro handler and calls `OnF4Pressed(shift, f4)`. In 1.4 this lives in the partial that wires `_macro`.
+- Merge check (ov.15): in iGPU only, `OverlayTakeSensors` must take the GPU temp from 1.4's Intel / CPU package source, not the RTX sensor. PresentMon must run from the Program Files startup copy (1.5 `AppFiles` copies `tools\PresentMon`).
 - `Themes/Legend2.xaml`: `Icon.Gauge`. Settings > General: Background slider (all overlay levels).
 - `.github/workflows/*.yml`: PresentMon download step (pinned SHA256). `.gitignore`: `tools/PresentMon/`.
 - 1.4 moves GPU % to one PDH query and removes WPF-UI: the overlay uses neither directly, it reads `_stats.GpuUsage()` through `RefreshSensorsAsync`.
 
-## Where beta1.3-ov is (2026-10-24)
+## Where beta1.3-ov is (2026-10-25)
 - Latest: `v2.0.0-beta1.3-ov.14` (`0c5d26f`), CI green. Not signed off yet, don't merge.
 - ov.11: NVIDIA driver FPS cap + V-Sync per game, background slider moved to Settings, swapchain filter, RAM teardown 30 s after F4 off.
 - ov.12: Size / Move X / Move Y as compact steppers in Overlay Advanced.
 - ov.13: FPS cap APPLY button, profile name + exe shown, read-back + relaunch check. Tested OK on Amine's 3070 Ti.
 - ov.14: smooth frametime graph (plays PresentMon bursts back), FPS over the last 250 ms.
-- Next, ov.15: clock row, CPU/GPU bound tile, stutter indicator. Later: DirectComposition + Direct2D overlay window.
+- ov.15 (agent A): Direct2D + DirectComposition overlay window (WPF fallback, `OverlayRenderer` in settings.json), graph by time (2 s, playhead on the right edge, redrawn every refresh), perf line in crash.log every 10 s, level 2 temps, temp colours (CPU 80 / 90, GPU 75 / 80), Shift + F4 cycles levels, CLOCK and BOUND tiles (off by default), STUTTER row. Waiting on Amine's test, then the beta2 merge (agent A).

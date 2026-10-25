@@ -33,7 +33,8 @@ public partial class MainWindow
     private int _ovRefreshTick;
 
     private bool OvNeeds(Need n) => (_ovNeed & n) != 0;
-    private Item OvHidden => OverlayLevels.Hidden(_settings.OverlayShowRefresh, _settings.OverlayShowBattery);   // ov.9
+    private Item OvHidden => OverlayLevels.Hidden(_settings.OverlayShowRefresh, _settings.OverlayShowBattery,
+        _settings.OverlayShowClock, _settings.OverlayShowBound);   // ov.9, ov.15 clock and bound
 
     /// <summary>The level the Overlay tab edits and previews: the current one, or the last one while off.</summary>
     private int OvShownLevel => _settings.OverlayLevel > 0 ? _settings.OverlayLevel : Math.Clamp(_settings.OverlayLastLevel, 1, OverlayLevels.Max);
@@ -66,9 +67,11 @@ public partial class MainWindow
         OvExtraToggle.IsChecked = _settings.OverlayLatencyFg;
         OvShowRefresh.IsChecked = _settings.OverlayShowRefresh;
         OvShowBattery.IsChecked = _settings.OverlayShowBattery;
+        OvShowClock.IsChecked = _settings.OverlayShowClock;
+        OvShowBound.IsChecked = _settings.OverlayShowBound;
         PaintShowSub();
         InitFpsCap();
-        _frames.TargetChanged += (app, pid) => Dispatcher.BeginInvoke(new Action(() => NoteCapGame(app, pid)));
+        _frames.TargetChanged += (app, pid) => Dispatcher.BeginInvoke(new Action(() => { NoteCapGame(app, pid); _ = RefreshBoundLimitAsync(app); }));
         (_settings.OverlaySmoothGraph ? OvUpdLive : _settings.OverlayUpdateMs switch { 250 => OvUpd250, 1000 => OvUpd1000, _ => OvUpd500 }).IsChecked = true;
         // after the constructor: the window's services are ready, and the app may start hidden in the tray
         Dispatcher.BeginInvoke(new Action(ApplyOverlay), DispatcherPriority.Background);
@@ -101,8 +104,8 @@ public partial class MainWindow
     private static string LevelItems(int level) => level switch
     {
         1 => "FPS and 1% low.",
-        2 => "FPS, frametime and graph, CPU and GPU load and watts, RAM, VRAM, battery, refresh rate.",
-        3 => "GPU load, temp, watts, core and memory clock. CPU load, temp, watts, clock. VRAM, RAM, battery, refresh rate, engine, FPS, 1% low, frametime graph.",
+        2 => "FPS, frametime and graph, CPU and GPU load, temp and watts, RAM, VRAM, battery, refresh rate.",
+        3 => "GPU load, temp, watts, core and memory clock. CPU load, temp, watts, clock. VRAM, RAM, battery, refresh rate, engine, FPS, stutters, 1% low, frametime graph. Clock and bound with their tiles.",
         4 => "Level 3 plus every core (P and E) with its threads' load and real clock, fan RPM, 0.1% low and max frametime. With Latency and frame gen on: flip mode (IFLIP or COMPOSED).",
         _ => "Nothing runs: PresentMon is stopped and no sensor is read for the overlay.",
     };
@@ -116,6 +119,9 @@ public partial class MainWindow
 
         // the latency / frame gen toggle: a hard switch, PresentMon collects none of it unless on (and a level 2+ shows it)
         _frames.SetExtended(OverlayLevels.WantsExtended(level, _settings.OverlayLatencyFg));
+        // ov.15: GPU tracking only while the BOUND row is shown (its tile on, level 3 or 4)
+        _frames.SetTrackGpu(OvNeeds(Need.GpuBusy));
+        if (OvNeeds(Need.GpuBusy) && (oldNeed & Need.GpuBusy) == 0) _ = RefreshBoundLimitAsync(_frames.TargetApp);
         if (level > 0) _frames.Start();   // ov.7: always call, Start cancels a pending debounced stop (F4 off / on within 2 s)
         else _frames.StopSoon();   // ov.4: debounced, F4 spam keeps one PresentMon
 
@@ -128,7 +134,7 @@ public partial class MainWindow
         }
         var look = OvLook;
         _overlay?.Apply(level, look.Position, look.Size / 100.0, look.Bg / 100.0, _settings.OverlayUpdateMs,
-            look.X, look.Y, _settings.OverlayLatencyFg, _settings.OverlaySmoothGraph, OvHidden);
+            look.X, look.Y, _settings.OverlayLatencyFg, _settings.OverlaySmoothGraph, OvHidden, _settings.OverlayRenderer);
         if (OvNeeds(Need.Refresh)) _vblank.Start(); else _vblank.Stop();
 
         bool extra = OvNeeds(Need.Clocks) || OvNeeds(Need.Cores) || OvNeeds(Need.Battery) || OvNeeds(Need.Refresh);
@@ -146,7 +152,7 @@ public partial class MainWindow
         SyncOverlayLookUi();
         HomeOverlaySlider.Level = level;
         OvTabSlider.Level = level;
-        HomeOverlayHint.Text = level == 0 ? "F4" : $"LEVEL {level} · F4";
+        HomeOverlayHint.Text = level == 0 ? "F4" : $"LEVEL {level} · F4";   // Shift + F4 cycles (the Overlay tab says so)
         int shown = level == 0 ? _settings.OverlayLastLevel : level;
         OvLevelInfo.Text = level == 0 ? $"Off (F4 brings back level {_settings.OverlayLastLevel})" : $"Level {level}: {LevelName(level)}";
         OvLevelItems.Text = LevelItems(level);
@@ -158,13 +164,50 @@ public partial class MainWindow
         UpdateOverlayPreview();
     }
 
-    /// <summary>F4 (Macro C): off, or back to the last level. Replaces beta1's "comes in beta 2" hint.</summary>
-    private void OnF4Pressed()
+    /// <summary>F4 (Macro C): off, or back to the last level. Replaces beta1's "comes in beta 2" hint.
+    /// ov.15 (Amine): Shift + F4 cycles levels 1 to 4 (from off it starts at 1). Not Alt: Alt + F4 closes the game.
+    /// shift / f4Down are read with GetAsyncKeyState when the macro report arrives; f4Down is only logged, to check the
+    /// key sends the Alienware macro report alone and no real F4 to the game.</summary>
+    private void OnF4Pressed(bool shift = false, bool f4Down = false)
     {
         if (!_settings.F4Overlay) return;
-        int next = _settings.OverlayLevel > 0 ? 0 : Math.Clamp(_settings.OverlayLastLevel, 1, OverlayLevels.Max);
-        Log.Info("F4", $"overlay {_settings.OverlayLevel} -> {next}");
+        int level = _settings.OverlayLevel;
+        int next = OverlayLevels.OnKey(level, _settings.OverlayLastLevel, shift);
+        Log.Info("F4", $"overlay {level} -> {next}{(shift ? " (Shift)" : "")}{(f4Down ? ", VK_F4 down too" : "")}");
         SetOverlayLevel(next, fromKey: true);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")] private static extern short GetAsyncKeyState(int vk);
+
+    /// <summary>ov.15: is Shift held, and is a real F4 down too (logged only), when the F4 macro report arrives.</summary>
+    private static (bool Shift, bool F4) OverlayKeys()
+    {
+        try { return ((GetAsyncKeyState(0x10) & 0x8000) != 0, (GetAsyncKeyState(0x73) & 0x8000) != 0); }
+        catch (Exception) { return (false, false); }
+    }
+
+    /// <summary>ov.15 BOUND: the game's NVIDIA cap and driver V-Sync, and the mode's Hz, so a capped game reads LIMITED
+    /// instead of CPU. Once per game (and when the row turns on), only while the row is shown.</summary>
+    private async Task RefreshBoundLimitAsync(string exe)
+    {
+        if (!OvNeeds(Need.GpuBusy)) return;
+        try
+        {
+            var r = await Task.Run(() =>
+            {
+                int cap = 0; bool vsync = false;
+                if (!string.IsNullOrWhiteSpace(exe))
+                {
+                    var (st, _, err) = NvDrs.ReadFull(exe);
+                    if (err is null) { cap = st.Fps; vsync = st.Vsync; }
+                }
+                return (cap, vsync, hz: DisplayRefresh.Read()?.CurrentHz);
+            });
+            _ovSnap = _ovSnap with { CapFps = r.cap, DriverVsync = r.vsync, ModeHz = r.hz };
+            _overlay?.Push(_ovSnap);
+            Log.Info("Overlay", $"bound limits for {(exe.Length > 0 ? exe : "no game")}: cap {r.cap}, driver vsync {(r.vsync ? "on" : "off")}, {r.hz?.ToString() ?? "?"} Hz");
+        }
+        catch (Exception ex) { Log.Warn("Overlay bound limits", ex); }
     }
 
     // ---------- sensors for the overlay (called from the window's pollers) ----------
@@ -273,7 +316,8 @@ public partial class MainWindow
         },
     };
 
-    private readonly float[] _previewGraph = new float[160];
+    private readonly float[] _previewGraph = new float[300];
+    private readonly double[] _previewT = new double[300];
     private int _previewPhase;
 
     private void UpdateOverlayPreview()
@@ -286,27 +330,37 @@ public partial class MainWindow
         for (int i = 0; i < _previewGraph.Length; i++)
         {
             int k = i + _previewPhase * 4;
-            _previewGraph[i] = (float)(7.0 + 0.6 * Math.Sin(k * 0.21) + ((k * 37) % 97 == 0 ? 5 : 0) + new Random(k).NextDouble() * 0.5);
+            _previewGraph[i] = (float)(7.0 + 0.6 * Math.Sin(k * 0.21) + ((k * 37) % 97 == 0 ? 12 : 0) + new Random(k).NextDouble() * 0.5);
+            _previewT[i] = i == 0 ? 0 : _previewT[i - 1] + _previewGraph[i] / 1000.0;   // ov.15: the graph is plotted by time
         }
-        OvPreview.Level = level;
-        OvPreview.Items = OverlayLevels.Items(level, _settings.OverlayLatencyFg, OvHidden);
-        OvPreview.Scale = look.Size / 100.0;
-        OvPreview.BgAlpha = look.Bg / 100.0;
-        OvPreview.Data = Sample;
-        OvPreview.Fps = 142 + rnd.Next(-2, 3);
-        OvPreview.FrameMs = 1000.0 / OvPreview.Fps;
+        var pv = OvPreview.View;   // ov.15: the HUD's values live on the shared view
+        pv.Level = level;
+        pv.Items = OverlayLevels.Items(level, _settings.OverlayLatencyFg, OvHidden);
+        pv.Scale = look.Size / 100.0;
+        pv.BgAlpha = look.Bg / 100.0;
+        pv.Data = Sample;
+        pv.Fps = 142 + rnd.Next(-2, 3);
+        pv.FrameMs = 1000.0 / pv.Fps;
         // sample: frame gen doubling a 71 fps game, Reflex PC latency
-        OvPreview.GenFps = _settings.OverlayLatencyFg ? 71 : 0;
-        if (_settings.OverlayLatencyFg) { OvPreview.Fps = 71; OvPreview.FrameMs = 1000.0 / 142; }
-        OvPreview.LatMs = 28 + rnd.Next(-2, 3);
-        OvPreview.LatPc = true;
-        OvPreview.Engine = "DX12";
-        OvPreview.Graph = _previewGraph;
-        OvPreview.GraphCount = _previewGraph.Length;
-        OvPreview.Low1 = 98;
-        OvPreview.Low01 = 71;
-        OvPreview.PresentMode = "Hardware: Independent Flip";
-        OvPreview.MaxMs = 12.4;
+        pv.GenFps = _settings.OverlayLatencyFg ? 71 : 0;
+        if (_settings.OverlayLatencyFg) { pv.Fps = 71; pv.FrameMs = 1000.0 / 142; }
+        pv.LatMs = 28 + rnd.Next(-2, 3);
+        pv.LatPc = true;
+        pv.Engine = "DX12";
+        pv.Graph = _previewGraph;
+        pv.GraphT = _previewT;
+        pv.GraphCount = _previewGraph.Length;
+        pv.GraphNow = _previewT[^1];
+        pv.GraphRange = "min 6.4 / max 19.6 ms";
+        pv.SpikeMs = 14;
+        pv.Stutters = 2;
+        pv.StutterWorstMs = 19.6;
+        pv.Clock = DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+        pv.Bound = "GPU";
+        pv.Low1 = 98;
+        pv.Low01 = 71;
+        pv.PresentMode = "Hardware: Independent Flip";
+        pv.MaxMs = 19.6;
         OvPreview.InvalidateMeasure();
         OvPreview.InvalidateVisual();
         int pos = look.Position;
@@ -409,14 +463,18 @@ public partial class MainWindow
         ApplyOverlay();
     }
 
-    /// <summary>ov.9: the refresh and battery buttons of Show on overlay. Off = gone from every level and not read.</summary>
+    /// <summary>ov.9: the refresh and battery buttons of Show on overlay. Off = gone from every level and not read.
+    /// ov.15: + clock and bound (levels 3 and 4, both off by default).</summary>
     private void OvShow_Click(object sender, RoutedEventArgs e)
     {
         _settings.OverlayShowRefresh = OvShowRefresh.IsChecked == true;
         _settings.OverlayShowBattery = OvShowBattery.IsChecked == true;
+        _settings.OverlayShowClock = OvShowClock.IsChecked == true;
+        _settings.OverlayShowBound = OvShowBound.IsChecked == true;
         _settings.Save();
         PaintShowSub();
-        Log.Info("Overlay", $"show refresh {(_settings.OverlayShowRefresh ? "on" : "off")}, battery {(_settings.OverlayShowBattery ? "on" : "off")}");
+        Log.Info("Overlay", $"show refresh {(_settings.OverlayShowRefresh ? "on" : "off")}, battery {(_settings.OverlayShowBattery ? "on" : "off")}, " +
+            $"clock {(_settings.OverlayShowClock ? "on" : "off")}, bound {(_settings.OverlayShowBound ? "on" : "off")}");
         ApplyOverlay();
     }
 
@@ -432,10 +490,12 @@ public partial class MainWindow
     /// <summary>ov.11: the Show on overlay sub line says what's on, like the mockup.</summary>
     private void PaintShowSub()
     {
-        var on = new System.Collections.Generic.List<string>(3);
+        var on = new System.Collections.Generic.List<string>(5);
         if (_settings.OverlayLatencyFg) on.Add("latency");
         if (_settings.OverlayShowRefresh) on.Add("refresh");
         if (_settings.OverlayShowBattery) on.Add("battery");
+        if (_settings.OverlayShowClock) on.Add("clock");
+        if (_settings.OverlayShowBound) on.Add("bound");
         OvShowSub.Text = on.Count == 0 ? "All off: none of it is read" : "On: " + string.Join(", ", on);
     }
 

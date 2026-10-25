@@ -18,6 +18,14 @@ public enum Item
     Low1 = 1 << 21, Low01 = 1 << 22,
     /// <summary>ov.6: flip mode (independent vs composed), level 4 with the latency toggle only (needs display tracking).</summary>
     PresentMode = 1 << 23,
+    /// <summary>ov.15 (Amine): the clock (HH:mm), levels 3 and 4, only with its Show on overlay tile (off by default).</summary>
+    Clock = 1 << 24,
+    /// <summary>ov.15: CPU / GPU bound estimate, levels 3 and 4, only with its tile (off by default: PresentMon then
+    /// tracks GPU work too).</summary>
+    Bound = 1 << 25,
+    /// <summary>ov.15: stutters under LATENCY (frames over 2x the median in the last ~10 s), levels 3 and 4. From the
+    /// frames already read, nothing new runs.</summary>
+    Stutter = 1 << 26,
 }
 
 /// <summary>What the sensor side must read for a level. Only these run; level 1 reads frames only.</summary>
@@ -33,6 +41,7 @@ public enum Need
     Cores = 1 << 5,       // per core load
     Battery = 1 << 6,     // battery % / AC (GetSystemPowerStatus, free)
     Refresh = 1 << 7,     // display refresh rate (EnumDisplaySettings, every 5 s)
+    GpuBusy = 1 << 8,     // ov.15: PresentMon GPU tracking (only for the BOUND row)
 }
 
 public static class OverlayLevels
@@ -44,18 +53,26 @@ public static class OverlayLevels
 
     /// <summary>MangoHud preset 2 (horizontal): fps, frame_timing, cpu/gpu load, ram, vram, battery, cpu/gpu power.</summary>
     public const Item L2 = Item.Fps | Item.FrameTime | Item.FrameGraph | Item.Cpu | Item.Gpu | Item.Ram | Item.Vram
-                         | Item.Battery | Item.CpuPower | Item.GpuPower | Item.Refresh;   // ov.5: + RR after battery (Amine)
+                         | Item.Battery | Item.CpuPower | Item.GpuPower | Item.Refresh   // ov.5: + RR after battery (Amine)
+                         | Item.CpuTemp | Item.GpuTemp;   // ov.15: + CPU and GPU temps (Amine), from the 2 s poll
 
     /// <summary>MangoHud preset 3: the default vertical HUD + temps, power, cpu mhz, gpu core and mem clock, ram, vram, battery.</summary>
     public const Item L3 = Item.Fps | Item.FrameTime | Item.FrameGraph | Item.Engine
                          | Item.Cpu | Item.CpuTemp | Item.CpuPower | Item.CpuMhz
                          | Item.Gpu | Item.GpuTemp | Item.GpuPower | Item.GpuClocks
                          | Item.Ram | Item.Vram | Item.Battery | Item.Low1   // ov.5: + 1 % low (Amine)
-                         | Item.Refresh;   // ov.9: + DISPLAY under BATT, like level 4 (Amine)
+                         | Item.Refresh   // ov.9: + DISPLAY under BATT, like level 4 (Amine)
+                         | Item.Clock | Item.Bound | Item.Stutter;   // ov.15 (clock and bound only with their tiles)
 
     /// <summary>MangoHud preset 4: level 3 + per core load and clock (P and E cores), fans, refresh rate, detailed frame timing.
     /// MangoHud's network row isn't copied (no source that's cheap enough on Windows).</summary>
     public const Item L4 = L3 | Item.CoreLoads | Item.Fans | Item.FrameStats | Item.Low01;   // ov.5: + 0.1 % low
+
+    /// <summary>ov.15: the level after the overlay key. F4: off, or back to the last level. Shift + F4 (Amine): the next
+    /// level, 4 wraps to 1, and from off it starts at 1.</summary>
+    public static int OnKey(int level, int lastLevel, bool shift) =>
+        shift ? (level >= Max || level < 0 ? 1 : level + 1)
+              : level > 0 ? 0 : Math.Clamp(lastLevel, 1, Max);
 
     public static Item Items(int level) => level switch { 1 => L1, 2 => L2, 3 => L3, 4 => L4, _ => Item.None };
 
@@ -64,8 +81,12 @@ public static class OverlayLevels
         extended && level >= 2 ? Items(level) | Item.FrameGen | Item.Latency | (level == 4 ? Item.PresentMode : Item.None) : Items(level);
 
     /// <summary>ov.9: the Show on overlay toggles. Refresh or battery off drops it from every level (and it isn't read).</summary>
-    public static Item Hidden(bool showRefresh, bool showBattery) =>
-        (showRefresh ? Item.None : Item.Refresh) | (showBattery ? Item.None : Item.Battery);
+    public static Item Hidden(bool showRefresh, bool showBattery) => Hidden(showRefresh, showBattery, false, false);
+
+    /// <summary>ov.15: + the clock and bound tiles (both off by default).</summary>
+    public static Item Hidden(bool showRefresh, bool showBattery, bool showClock, bool showBound) =>
+        (showRefresh ? Item.None : Item.Refresh) | (showBattery ? Item.None : Item.Battery)
+        | (showClock ? Item.None : Item.Clock) | (showBound ? Item.None : Item.Bound);
 
     public static Item Items(int level, bool extended, Item hidden) => Items(level, extended) & ~hidden;
 
@@ -89,6 +110,7 @@ public static class OverlayLevels
         if ((it & Item.CoreLoads) != 0) n |= Need.Cores;
         if ((it & Item.Battery) != 0) n |= Need.Battery;
         if ((it & Item.Refresh) != 0) n |= Need.Refresh;
+        if ((it & Item.Bound) != 0) n |= Need.GpuBusy;
         return n;
     }
 }
@@ -116,4 +138,18 @@ public sealed record Sensors
     public int? RefreshHz { get; init; }
     /// <summary>One row per physical core (P / E / C), thread loads and the core clock.</summary>
     public AlienControl.Services.CpuCores.CoreReading[]? Cores { get; init; }
+    /// <summary>ov.15 BOUND: the game's NVIDIA FPS cap (0 = none), driver V-Sync forced on, and the display mode's Hz.
+    /// Read once per game while the BOUND row shows, so LIMITED can tell a capped game from a CPU bound one.</summary>
+    public int CapFps { get; init; }
+    public bool DriverVsync { get; init; }
+    public int? ModeHz { get; init; }
+
+    /// <summary>The fps the game is held at, 0 when nothing holds it: the cap, or the refresh rate with V-Sync on
+    /// (the driver's, or the game's own SyncInterval).</summary>
+    public double LimitFps(int gameSyncInterval)
+    {
+        double lim = CapFps > 0 ? CapFps : double.MaxValue;
+        if ((DriverVsync || gameSyncInterval >= 1) && ModeHz is int hz && hz > 0) lim = Math.Min(lim, hz);
+        return lim == double.MaxValue ? 0 : lim;
+    }
 }

@@ -253,7 +253,7 @@
                             <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
                             <TextBlock x:Name="HomeOverlayHint" Grid.Column="3" Text="F4" Style="{DynamicResource SecHint2}" />
                         </Grid>
-                        <ov:LevelSlider x:Name="HomeOverlaySlider" Margin="16,0,16,0" ToolTip="In-game overlay level, like SteamOS. F4 turns it off or back to your last level" />
+                        <ov:LevelSlider x:Name="HomeOverlaySlider" Margin="16,0,16,0" ToolTip="In-game overlay level, like SteamOS. F4 turns it off or back to your last level, Shift + F4 goes to the next level" />
                     </StackPanel>
 
                     <!-- LIGHTING: swatches + brightness -->
@@ -687,7 +687,7 @@
                             <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.ChartBar}" />
                             <TextBlock Grid.Column="1" Text="{DynamicResource Str2.OverlayLevel}" Style="{DynamicResource SecTitle2}" />
                             <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
-                            <TextBlock Grid.Column="3" Text="F4 · OFF / LAST LEVEL" Style="{DynamicResource SecHint2}" />
+                            <TextBlock Grid.Column="3" Text="F4 · OFF  ·  SHIFT+F4 · LEVEL" Style="{DynamicResource SecHint2}" ToolTip="F4: off, or back to your last level. Shift + F4: next level (1 to 4)" />
                         </Grid>
                         <ov:LevelSlider x:Name="OvTabSlider" Margin="16,0,16,0" />
                     </StackPanel>
@@ -873,7 +873,7 @@
                                             <RadioButton x:Name="OvUpd500" GroupName="OvUpdate" Content="500" Tag="500" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click" />
                                             <RadioButton x:Name="OvUpd1000" GroupName="OvUpdate" Content="1000" Tag="1000" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click" />
                                             <RadioButton x:Name="OvUpdLive" GroupName="OvUpdate" Content="LIVE" Tag="live" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click"
-                                                         ToolTip="Numbers every 250 ms and a smooth frametime graph (~30 redraws a second, a little more CPU in this app, none in the game)" />
+                                                         ToolTip="Numbers every 250 ms. The frametime graph scrolls every refresh at any setting (ov.15)" />
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
@@ -883,6 +883,9 @@
                                         <Geometry x:Key="OvIcLat">M3 12h4l3 8l4 -16l3 8h4</Geometry>
                                         <Geometry x:Key="OvIcHz">M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10a1 1 0 0 1 1 -1z M7 20h10 M9 16v4 M15 16v4</Geometry>
                                         <Geometry x:Key="OvIcBatt">M6 7h11a2 2 0 0 1 2 2v1h1v4h-1v1a2 2 0 0 1 -2 2h-11a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2z M7 10v4 M10 10v4</Geometry>
+                                        <!-- ov.15 clock and bound tiles -->
+                                        <Geometry x:Key="OvIcClock">M12 3a9 9 0 1 0 0.01 0z M12 7v5l3 2</Geometry>
+                                        <Geometry x:Key="OvIcBound">M3 6h8v12h-8z M13 6h8v12h-8z M5 14h4 M15 10h4</Geometry>
                                         <Style x:Key="OvShowTile" TargetType="CheckBox">
                                             <Setter Property="Cursor" Value="Hand" />
                                             <Setter Property="Height" Value="50" />
@@ -917,16 +920,22 @@
                                     <TextBlock Text="Show on overlay" Style="{DynamicResource RowTitle2}" />
                                     <TextBlock x:Name="OvShowSub" Text="On: refresh, battery" Style="{DynamicResource RowSub2}" TextTrimming="CharacterEllipsis"
                                                ToolTip="Lit = shown. Off = gone from every level and not read" />
-                                    <UniformGrid Columns="3" Margin="0,8,0,0">
+                                    <UniformGrid Columns="5" Margin="0,8,0,0">
                                         <CheckBox x:Name="OvExtraToggle" Style="{StaticResource OvShowTile}" Content="LATENCY" Margin="0,0,4,0" Click="OvExtra_Click"
                                                   Tag="{StaticResource OvIcLat}"
                                                   ToolTip="Latency and real / generated FPS on levels 2 to 4 (and flip mode on 4). Off by default: PresentMon also tracks display, frame type and PC latency (a little more CPU in PresentMon, not in the game)" />
                                         <CheckBox x:Name="OvShowRefresh" Style="{StaticResource OvShowTile}" Content="REFRESH" Margin="4,0,4,0" Click="OvShow_Click"
                                                   Tag="{StaticResource OvIcHz}"
                                                   ToolTip="The panel's real refresh rate (follows G-Sync) on levels 2, 3 and 4. Off: not shown and not measured" />
-                                        <CheckBox x:Name="OvShowBattery" Style="{StaticResource OvShowTile}" Content="BATTERY" Margin="4,0,0,0" Click="OvShow_Click"
+                                        <CheckBox x:Name="OvShowBattery" Style="{StaticResource OvShowTile}" Content="BATTERY" Margin="4,0,4,0" Click="OvShow_Click"
                                                   Tag="{StaticResource OvIcBatt}"
                                                   ToolTip="Battery % and AC / watts on levels 2, 3 and 4. Off: not shown and not read" />
+                                        <CheckBox x:Name="OvShowClock" Style="{StaticResource OvShowTile}" Content="CLOCK" Margin="4,0,4,0" Click="OvShow_Click"
+                                                  Tag="{StaticResource OvIcClock}"
+                                                  ToolTip="The time (HH:mm) on levels 3 and 4. Off by default" />
+                                        <CheckBox x:Name="OvShowBound" Style="{StaticResource OvShowTile}" Content="BOUND" Margin="4,0,0,0" Click="OvShow_Click"
+                                                  Tag="{StaticResource OvIcBound}"
+                                                  ToolTip="CPU or GPU bound estimate on levels 3 and 4 (LIMITED when the FPS cap or V-Sync holds the game). Off by default: while on, PresentMon also tracks GPU work (a little more CPU in PresentMon, not in the game)" />
                                     </UniformGrid>
                                 </StackPanel>
                                 <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,6,0,6" Visibility="Collapsed" />
@@ -1065,7 +1074,7 @@
                                             <TextBlock Text="F4 toggles the overlay" Style="{DynamicResource RowTitle2}" />
                                             <TextBlock Text="Off, or back to your last overlay level" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="F4OverlayToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F4Overlay_Click" ToolTip="F4 (media mode, no Fn) is reserved for the overlay" />
+                                        <CheckBox x:Name="F4OverlayToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F4Overlay_Click" ToolTip="F4 (media mode, no Fn) is reserved for the overlay. Shift + F4 cycles its levels" />
                                     </Grid>
                                 </Border>
                             </UniformGrid>

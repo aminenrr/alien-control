@@ -70,7 +70,7 @@ public class OverlayTests
     {
         Assert.Equal(Need.Frames, OverlayLevels.Needs(1));
         Assert.Equal(Need.None, OverlayLevels.Needs(0));
-        Assert.False(OverlayLevels.Needs(2).HasFlag(Need.Acpi));   // level 2 has no temps or fans
+        Assert.True(OverlayLevels.Needs(2).HasFlag(Need.Acpi));    // ov.15: level 2 shows CPU and GPU temps (Amine)
         Assert.True(OverlayLevels.Needs(3).HasFlag(Need.Clocks));
         Assert.True(OverlayLevels.Needs(4).HasFlag(Need.Cores));
         Assert.False(OverlayLevels.Needs(3).HasFlag(Need.Cores));
@@ -228,7 +228,7 @@ public class OverlayTests
             Assert.False(n.HasFlag(Need.Refresh));
             Assert.False(n.HasFlag(Need.Battery));
         }
-        Assert.Equal(Item.None, OverlayLevels.Hidden(true, true));
+        Assert.Equal(Item.None, OverlayLevels.Hidden(true, true, true, true));
         Assert.True(OverlayLevels.Items(3, false, Item.None).HasFlag(Item.Battery));
     }
 

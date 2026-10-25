@@ -77,7 +77,11 @@ public partial class MainWindow : Window
             else if (k == 1 && _settings.F3Opens)   // v0.9.16 F3 opens / hides the app (2.0: one view, no compact mode)
                 Dispatcher.BeginInvoke(new Action(() => ((App)Application.Current).ToggleMain()));
             else if (k == 2)   // 2.0: F4 is reserved for the overlay (beta 2)
-                Dispatcher.BeginInvoke(new Action(OnF4Pressed));
+            {
+                // beta1.3-ov ov.15: Shift + F4 cycles the levels; read the keys now, while they're still held
+                var (shift, f4) = OverlayKeys();
+                Dispatcher.BeginInvoke(new Action(() => OnF4Pressed(shift, f4)));
+            }
         };
         InputThread.Invoke(() => _macro.Install());
         SetHint(FanHint, "BIOS controlled", "BIOS");
