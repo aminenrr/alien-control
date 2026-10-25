@@ -3,6 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0 (2026-10-25, stable)
+- 2.0 stable: beta3.6 tested on hardware, no code changes. `main` now points at 2.0.
+
 ## v2.0.0-beta3.6 (2026-10-25, prerelease)
 - Level 2 font: bundled JetBrains Mono NL SemiBold / Bold (Overlay/MonoFont.cs, embedded, extracted to %LocalAppData%\AlienControl\Fonts, private DirectWrite font set / WPF folder font). Cascadia Mono / Consolas fallback.
 
