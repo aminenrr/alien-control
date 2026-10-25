@@ -1,4 +1,5 @@
 using System;
+using AlienControl.Overlay;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -78,6 +79,7 @@ public partial class MainWindow : Window
         F2PresetsToggle.IsChecked = _settings.F2Presets;
         F3OpensToggle.IsChecked = _settings.F3Opens;
         F4OverlayToggle.IsChecked = _settings.F4Overlay;
+        InitOverlay();   // beta1.3-ov
         TaskbarToggle.IsChecked = _settings.ShowInTaskbar;
         ShowInTaskbar = _settings.ShowInTaskbar;
         _macro.LightsHotkey += () => Dispatcher.BeginInvoke(new Action(async () => await CycleLightsAsync()));   // 1.3.1 Ctrl+Alt+F
@@ -87,9 +89,17 @@ public partial class MainWindow : Window
             else if (k == 1 && _settings.F3Opens)   // v0.9.16 F3 opens / hides the app (2.0: one view, no compact mode)
                 Dispatcher.BeginInvoke(new Action(() => ((App)Application.Current).ToggleMain()));
             else if (k == 2)   // 2.0: F4 is reserved for the overlay (beta 2)
-                Dispatcher.BeginInvoke(new Action(OnF4Pressed));
+            {
+                // beta1.3-ov ov.15: Shift + F4 cycles the levels; read the keys now, while they're still held
+                var (shift, f4) = OverlayKeys();
+                Dispatcher.BeginInvoke(new Action(() => OnF4Pressed(shift, f4)));
+            }
         };
+        // beta2 (Amine): plain Shift + F4 cycles the levels too (Shift + Fn+F4 comes through the macro report above)
+        _macro.OverlayHotkey += () => Dispatcher.BeginInvoke(new Action(() => OnF4Pressed(shift: true)));
         InputThread.Invoke(() => _macro.Install());
+        bool f4 = _settings.F4Overlay;
+        InputThread.Invoke(() => _macro.SetOverlayHotkey(f4));
         FanHint.Text = "BIOS";
         GpuHint.Text = "OPTIMUS · 3070 Ti";
         InitTabs();   // 2.0: tab pages, Home preset tiles, Home G-Mode card
@@ -150,7 +160,7 @@ public partial class MainWindow : Window
             else
             {
                 // window hidden: no sensor or power polling at all (the tray idles at zero)
-                _poll.Stop(); _powerTimer.Stop(); CloseSettings();
+                UpdatePolling(); CloseSettings();   // beta1.3-ov: stops both unless the overlay shows sensors
                 // 2.0.0-beta1.2 (Amine): every open (F3, tray icon, tray menu) starts on Home, never the last tab
                 ShowPage(HomePage);
                 // Keep the learned rest-of-laptop power for the AC estimate (saved only when it moved).

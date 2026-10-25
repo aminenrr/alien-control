@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:fx="clr-namespace:AlienControl"
+        xmlns:ov="clr-namespace:AlienControl.Overlay"
         Title="Alien Controls"
         Icon="Assets/app.ico"
         Width="460" Height="840" ResizeMode="NoResize"
@@ -248,28 +249,18 @@
                         </Border>
                     </StackPanel>
 
-                    <!-- OVERLAY (F4): beta 2 -->
-                    <StackPanel Grid.Row="6" ToolTip="The in-game overlay comes in beta 2">
+                    <!-- OVERLAY (F4): beta1.3-ov, live -->
+                    <StackPanel Grid.Row="6">
                         <Grid Style="{DynamicResource Sec2}">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.ChartBar}" />
                             <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Overlay}" Style="{DynamicResource SecTitle2}" />
                             <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
-                            <Border Grid.Column="3" Style="{DynamicResource Badge2}" Margin="0,0,8,0"><TextBlock Text="BETA 2" Style="{DynamicResource BadgeText2}" /></Border>
-                            <TextBlock Grid.Column="4" Text="F4" Style="{DynamicResource SecHint2}" />
+                            <TextBlock x:Name="HomeOverlayHint" Grid.Column="3" Text="F4" Style="{DynamicResource SecHint2}" />
                         </Grid>
-                        <Grid Height="50" Margin="16,0,16,0" Opacity="0.45" IsEnabled="False">
-                            <Border Height="4" CornerRadius="2" VerticalAlignment="Top" Margin="0,12,0,0" Background="{StaticResource Line2}" />
-                            <UniformGrid Columns="5" Margin="-47,0,-47,0">
-                                <Grid><Ellipse Width="20" Height="20" VerticalAlignment="Top" Margin="0,4,0,0" Fill="#E9EEF2" /><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{DynamicResource AccentBrush}" /><TextBlock Text="OFF" Style="{DynamicResource SecHint2}" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="1" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="2" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="3" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="4" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,34,0,0" /></Grid>
-                            </UniformGrid>
-                        </Grid>
+                        <ov:LevelSlider x:Name="HomeOverlaySlider" Margin="16,0,16,0" ToolTip="In-game overlay level, like SteamOS. F4 turns it off or back to your last level, Shift + F4 goes to the next level" />
                     </StackPanel>
 
                     <!-- LIGHTING: swatches + brightness -->
@@ -683,40 +674,32 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- ================= OVERLAY (beta 2) ================= -->
+                <!-- ================= OVERLAY (beta1.3-ov) ================= -->
                 <Grid x:Name="OverlayPage" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="18" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="18" />
+                        <RowDefinition Height="14" />
+                        <RowDefinition Height="*" MinHeight="56" />
+                        <RowDefinition Height="14" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="14" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0">
                         <Grid Style="{DynamicResource Sec2}">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.ChartBar}" />
                             <TextBlock Grid.Column="1" Text="{DynamicResource Str2.OverlayLevel}" Style="{DynamicResource SecTitle2}" />
                             <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
-                            <Border Grid.Column="3" Style="{DynamicResource Badge2}" Margin="0,0,8,0"><TextBlock Text="BETA 2" Style="{DynamicResource BadgeText2}" /></Border>
-                            <TextBlock Grid.Column="4" Text="F4 · OFF / LAST LEVEL" Style="{DynamicResource SecHint2}" />
+                            <TextBlock Grid.Column="3" Text="F4 · OFF  ·  SHIFT+F4 · LEVEL" Style="{DynamicResource SecHint2}" ToolTip="F4: off, or back to your last level. Shift + F4: next level (1 to 4)" />
                         </Grid>
-                        <Grid Height="44" Margin="16,0,16,0" Opacity="0.45" IsEnabled="False">
-                            <Border Height="4" CornerRadius="2" VerticalAlignment="Top" Margin="0,12,0,0" Background="{StaticResource Line2}" />
-                            <UniformGrid Columns="5" Margin="-47,0,-47,0">
-                                <Grid><Ellipse Width="20" Height="20" VerticalAlignment="Top" Margin="0,4,0,0" Fill="#E9EEF2" /><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{DynamicResource AccentBrush}" /><TextBlock Text="OFF" Style="{DynamicResource SecHint2}" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="1" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="2" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="3" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
-                                <Grid><Rectangle Width="2" Height="7" VerticalAlignment="Top" Margin="0,24,0,0" Fill="{StaticResource Tick2}" /><TextBlock Text="4" Style="{DynamicResource SecHint2}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,32,0,0" /></Grid>
-                            </UniformGrid>
-                        </Grid>
+                        <ov:LevelSlider x:Name="OvTabSlider" Margin="16,0,16,0" />
                     </StackPanel>
 
-                    <!-- preview placeholder (MangoHud level 3 look) with the beta 2 badge -->
+                    <!-- preview: the real renderer with sample values (this tab polls nothing) -->
                     <Border Grid.Row="2" Background="#0A1418" BorderBrush="{DynamicResource Line2}" BorderThickness="1" CornerRadius="6" Padding="6" ClipToBounds="True">
                         <Grid>
                             <Border CornerRadius="4" Opacity="0.9">
@@ -726,29 +709,95 @@
                                     </LinearGradientBrush>
                                 </Border.Background>
                             </Border>
-                            <Border Width="112" HorizontalAlignment="Left" VerticalAlignment="Top" Background="#8C020202" Padding="5,3,5,6" Opacity="0.55">
-                                <StackPanel TextElement.FontSize="8.5" TextElement.Foreground="#FFFFFF">
-                                    <Grid><TextBlock Text="GPU" Foreground="#2E9762" /><TextBlock Text="--%  --°C" HorizontalAlignment="Right" /></Grid>
-                                    <Grid><TextBlock Text="CPU" Foreground="#2E97CB" /><TextBlock Text="--%  --°C" HorizontalAlignment="Right" /></Grid>
-                                    <Grid><TextBlock Text="VRAM" Foreground="#AD64C1" /><TextBlock Text="--GiB" HorizontalAlignment="Right" /></Grid>
-                                    <Grid><TextBlock Text="RAM" Foreground="#C26693" /><TextBlock Text="--GiB" HorizontalAlignment="Right" /></Grid>
-                                    <Grid><TextBlock Text="BATT" Foreground="#FF9078" /><TextBlock Text="--% AC" HorizontalAlignment="Right" /></Grid>
-                                    <Grid><TextBlock Text="DX12" Foreground="#EB5B5B" /><TextBlock Text="--FPS" HorizontalAlignment="Right" /></Grid>
-                                    <Path Data="M0,6 L10,5 L20,7 L30,4 L40,6 L50,0 L60,6 L70,5 L80,7 L90,4 L100,6" Stroke="#00FF00" StrokeThickness="1" Margin="0,4,0,0" />
-                                </StackPanel>
-                            </Border>
-                            <Border Style="{DynamicResource Badge2}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="14,6" Background="#E6090A0C">
-                                <StackPanel>
-                                    <TextBlock Text="COMING IN BETA 2" Style="{DynamicResource BadgeText2}" FontSize="12" HorizontalAlignment="Center" />
-                                    <TextBlock Text="The in-game overlay is not in this build" FontSize="11" Foreground="{StaticResource TextBody}" HorizontalAlignment="Center" Margin="0,3,0,0" />
-                                </StackPanel>
-                            </Border>
+                            <Viewbox x:Name="OvPreviewBox" StretchDirection="DownOnly" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0">
+                                <ov:OverlayPanel x:Name="OvPreview" />
+                            </Viewbox>
+                            <TextBlock x:Name="OvState" Text="" Style="{DynamicResource SecHint2}" FontSize="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="6,0,90,4" TextTrimming="CharacterEllipsis" />
                             <TextBlock Text="PREVIEW" Style="{DynamicResource SecHint2}" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,6,4" />
                         </Grid>
                     </Border>
 
-                    <!-- ADVANCED (layout only in beta 1, nothing is saved) -->
+                    <!-- ov.11 FPS CAP: the NVIDIA driver's Max Frame Rate and V-Sync for the last game the overlay saw (or all games) -->
                     <StackPanel Grid.Row="4">
+                        <Grid Style="{DynamicResource Sec2}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.Gauge}" />
+                            <TextBlock Grid.Column="1" Text="FPS CAP" Style="{DynamicResource SecTitle2}" />
+                            <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
+                            <TextBlock Grid.Column="3" Text="NVIDIA DRIVER · NO INJECTION" Style="{DynamicResource SecHint2}"
+                                       ToolTip="Writes the game's NVIDIA profile (the same one the NVIDIA app edits). Nothing runs in the game and nothing keeps running here. The driver reads it when the game starts" />
+                        </Grid>
+                        <Border x:Name="OvCapCard" Style="{DynamicResource Card2}" Padding="14,8,14,6">
+                            <StackPanel>
+                                <Grid Height="38">
+                                    <StackPanel VerticalAlignment="Center" Margin="0,0,170,0">
+                                        <TextBlock Text="Cap frame rate" Style="{DynamicResource RowTitle2}" />
+                                        <TextBlock x:Name="OvCapSub" Text="Play a game with the overlay on" Style="{DynamicResource RowSub2}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <Border Style="{DynamicResource PillTrack2}" Width="160" Height="24" HorizontalAlignment="Right">
+                                        <UniformGrid Columns="2">
+                                            <RadioButton x:Name="OvCapGame" GroupName="OvCapScope" Content="THIS GAME" Style="{DynamicResource PillItem2}" Click="OvCapScope_Click"
+                                                         ToolTip="Only the last game the overlay saw" />
+                                            <RadioButton x:Name="OvCapAll" GroupName="OvCapScope" Content="ALL" Style="{DynamicResource PillItem2}" Click="OvCapScope_Click"
+                                                         ToolTip="Every game (NVIDIA's global profile). A game's own cap still wins" />
+                                        </UniformGrid>
+                                    </Border>
+                                </Grid>
+                                <Grid Height="28" Margin="0,8,0,0">
+                                    <Border x:Name="OvCapChips" Style="{DynamicResource PillTrack2}" Height="28">
+                                        <UniformGrid Columns="6">
+                                            <RadioButton x:Name="OvCapOff" GroupName="OvCap" Content="OFF" Tag="0" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" ToolTip="No cap (removes ours, NVIDIA's default comes back)" />
+                                            <RadioButton x:Name="OvCap60" GroupName="OvCap" Content="60" Tag="60" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                            <RadioButton x:Name="OvCap120" GroupName="OvCap" Content="120" Tag="120" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                            <RadioButton x:Name="OvCap144" GroupName="OvCap" Content="144" Tag="144" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                            <RadioButton x:Name="OvCapGsync" GroupName="OvCap" Content="G-SYNC" Tag="gsync" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click"
+                                                         ToolTip="Refresh rate minus 3 (237 at 240 Hz): stays inside the G-Sync range, no tearing and no V-Sync lag. Turns driver V-Sync on" />
+                                            <RadioButton x:Name="OvCapMore" GroupName="OvCap" Content="···" Tag="custom" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" ToolTip="Your own number" />
+                                        </UniformGrid>
+                                    </Border>
+                                    <Grid x:Name="OvCapCustom" Visibility="Collapsed">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="150" /><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Border Style="{DynamicResource PillTrack2}" Height="28">
+                                            <UniformGrid Columns="2">
+                                                <RadioButton GroupName="OvCapC" Content="OFF" Tag="0" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                                <RadioButton GroupName="OvCapC" Content="G-SYNC" Tag="gsync" Style="{DynamicResource PillItem2}" Click="OvCapChip_Click" />
+                                            </UniformGrid>
+                                        </Border>
+                                        <Border Grid.Column="2" Background="{DynamicResource AccentSelBg}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4"
+                                                MouseWheel="OvCapWheel" ToolTip="Click - / +, or scroll. Shift = 10 at a time">
+                                            <Grid>
+                                                <TextBlock Text="−" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="12,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="-1" MouseLeftButtonUp="OvCapStep_Click" Background="Transparent" />
+                                                <TextBlock x:Name="OvCapValue" Text="165 FPS" Style="{DynamicResource SecHint2}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <TextBlock Text="+" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="12,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="1" MouseLeftButtonUp="OvCapStep_Click" Background="Transparent" />
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                                <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,8,0,0" />
+                                <Grid Height="34">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="V-Sync in driver" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
+                                        <TextBlock Text="on with G-Sync" Style="{DynamicResource RowSub2}" VerticalAlignment="Center" Margin="8,1,0,0" />
+                                    </StackPanel>
+                                    <!-- ov.13: picks are staged, APPLY writes them (Amine: show an apply button) -->
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <CheckBox x:Name="OvCapVsync" Style="{DynamicResource Toggle2}" VerticalAlignment="Center" Click="OvCapVsync_Click"
+                                                  ToolTip="NVIDIA's Vertical sync: On for this game. With G-Sync and the cap it never kicks in, it just catches a frame that would tear. Turn V-Sync off in the game" />
+                                        <Button x:Name="OvCapApply" Style="{DynamicResource ButtonPrimary2}" Content="APPLY" Height="24" FontSize="10.5" Padding="12,0" Margin="10,0,0,0"
+                                                IsEnabled="False" Click="OvCapApply_Click" ToolTip="Writes the cap and V-Sync into the game's NVIDIA profile. Restart the game after" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ADVANCED -->
+                    <StackPanel Grid.Row="6">
                         <Grid Style="{DynamicResource Sec2}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
@@ -756,72 +805,150 @@
                             <ContentControl Style="{DynamicResource SecIcon2}" Content="{DynamicResource Icon.AdjustH}" />
                             <TextBlock Grid.Column="1" Text="{DynamicResource Str2.Advanced}" Style="{DynamicResource SecTitle2}" />
                             <Border Grid.Column="2" Style="{DynamicResource SecLine2}" />
-                            <TextBlock Grid.Column="3" Text="RESET TO STEAMOS" Style="{DynamicResource SecHint2}" Opacity="0.5" />
+                            <TextBlock x:Name="OvReset" Grid.Column="3" Text="RESET TO STEAMOS" Style="{DynamicResource SecHint2}" Cursor="Hand"
+                                       MouseLeftButtonUp="OvReset_Click" ToolTip="Resets this level&#x27;s look: top left, SteamOS size, 50 % background, no move. Other levels keep theirs" />
                         </Grid>
-                        <Border Style="{DynamicResource Card2}" Height="292" Padding="14,10,14,10">
-                            <StackPanel IsEnabled="False" Opacity="0.5">
+                        <Border Style="{DynamicResource Card2}" Padding="14,8,14,10">
+                            <StackPanel>
                                 <Grid Height="50">
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="Position" Style="{DynamicResource RowTitle2}" />
-                                        <TextBlock Text="Top left, like SteamOS" Style="{DynamicResource RowSub2}" />
+                                        <TextBlock x:Name="OvPosText" Text="Top left, like SteamOS" Style="{DynamicResource RowSub2}" />
                                     </StackPanel>
-                                    <Border Width="100" Height="46" HorizontalAlignment="Right" Background="{StaticResource Track2Brush}" BorderBrush="{DynamicResource Line2}" BorderThickness="1" CornerRadius="4" Padding="6,5">
-                                        <UniformGrid Columns="3" Rows="2">
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{DynamicResource AccentBrush}" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
-                                            <Border Margin="1,1,4,3" CornerRadius="2" Background="{StaticResource Line2}" />
+                                    <Border Width="100" Height="46" HorizontalAlignment="Right" Background="#0B0D10" BorderBrush="{DynamicResource Line2}" BorderThickness="1" CornerRadius="4" Padding="6,5">
+                                        <UniformGrid x:Name="OvPosGrid" Columns="3" Rows="2">
+                                            <Border Tag="0" Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" Cursor="Hand" MouseLeftButtonUp="OvPos_Click" ToolTip="Top left" />
+                                            <Border Tag="1" Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" Cursor="Hand" MouseLeftButtonUp="OvPos_Click" ToolTip="Top centre" />
+                                            <Border Tag="2" Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" Cursor="Hand" MouseLeftButtonUp="OvPos_Click" ToolTip="Top right" />
+                                            <Border Tag="3" Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" Cursor="Hand" MouseLeftButtonUp="OvPos_Click" ToolTip="Bottom left" />
+                                            <Border Tag="4" Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" Cursor="Hand" MouseLeftButtonUp="OvPos_Click" ToolTip="Bottom centre" />
+                                            <Border Tag="5" Margin="1,1,4,3" CornerRadius="2" Background="#1C2127" Cursor="Hand" MouseLeftButtonUp="OvPos_Click" ToolTip="Bottom right" />
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
-                                <Grid Height="30" Margin="0,8,0,0">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="Size" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                    <Slider Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="50" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                    <TextBlock Grid.Column="2" Text="100%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
-                                </Grid>
-                                <Grid Height="30">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="110" /><ColumnDefinition Width="*" /><ColumnDefinition Width="50" /></Grid.ColumnDefinitions>
-                                    <TextBlock Text="Background" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                    <Slider Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="50" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                    <TextBlock Grid.Column="2" Text="50%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource AccentBrush}" />
+                                <!-- ov.12: Size and Move as three steppers in one row (Amine picked mock v15 A, the sliders took too much height) -->
+                                <Grid Margin="0,4,0,6">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="SIZE" Style="{DynamicResource SecHint2}" FontSize="9" Margin="2,0,0,4" />
+                                        <Border Height="26" Background="{DynamicResource AccentSelBg}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4"
+                                                Tag="Size" MouseWheel="OvStepWheel" ToolTip="100 % = SteamOS size. Click - / +, or scroll. Shift = 25. Double click the number to reset">
+                                            <Grid>
+                                                <TextBlock Text="−" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="Size:-1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                                <TextBlock x:Name="OvSizeValue" Text="100%" Style="{DynamicResource SecHint2}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" Tag="Size" MouseLeftButtonDown="OvStepReset" Background="Transparent" />
+                                                <TextBlock Text="+" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="Size:1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="MOVE ←→" Style="{DynamicResource SecHint2}" FontSize="9" Margin="2,0,0,4" />
+                                        <Border Height="26" Background="{DynamicResource AccentSelBg}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4"
+                                                Tag="X" MouseWheel="OvStepWheel" ToolTip="Nudge left / right from the chosen spot, in % of the screen. Scroll works, Shift = 10. Double click the number to reset. It never leaves the screen">
+                                            <Grid>
+                                                <TextBlock Text="−" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="X:-1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                                <TextBlock x:Name="OvXValue" Text="0" Style="{DynamicResource SecHint2}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" Tag="X" MouseLeftButtonDown="OvStepReset" Background="Transparent" />
+                                                <TextBlock Text="+" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="X:1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="MOVE ↑↓" Style="{DynamicResource SecHint2}" FontSize="9" Margin="2,0,0,4" />
+                                        <Border Height="26" Background="{DynamicResource AccentSelBg}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="4"
+                                                Tag="Y" MouseWheel="OvStepWheel" ToolTip="Nudge up / down from the chosen spot, in % of the screen. Scroll works, Shift = 10. Double click the number to reset. It never leaves the screen">
+                                            <Grid>
+                                                <TextBlock Text="−" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="Y:-1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                                <TextBlock x:Name="OvYValue" Text="0" Style="{DynamicResource SecHint2}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" Tag="Y" MouseLeftButtonDown="OvStepReset" Background="Transparent" />
+                                                <TextBlock Text="+" Style="{DynamicResource SecHint2}" FontSize="15" Foreground="{DynamicResource AccentBrush}" Padding="10,0" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                           Cursor="Hand" Tag="Y:1" MouseLeftButtonUp="OvStep_Click" Background="Transparent" />
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
                                 </Grid>
                                 <Grid Height="32">
                                     <TextBlock Text="Update every (ms)" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                    <Border Style="{DynamicResource PillTrack2}" Width="172" Height="26" HorizontalAlignment="Right">
-                                        <UniformGrid Columns="3">
-                                            <RadioButton GroupName="OvUpdate" Content="250" Style="{DynamicResource PillItem2}" />
-                                            <RadioButton GroupName="OvUpdate" Content="500" Style="{DynamicResource PillItem2}" IsChecked="True" />
-                                            <RadioButton GroupName="OvUpdate" Content="1000" Style="{DynamicResource PillItem2}" />
-                                        </UniformGrid>
-                                    </Border>
-                                </Grid>
-                                <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,6,0,6" />
-                                <Grid Height="30">
-                                    <TextBlock Text="Customize level" Style="{DynamicResource RowTitle2}" VerticalAlignment="Center" />
-                                    <Border Style="{DynamicResource PillTrack2}" Width="172" Height="26" HorizontalAlignment="Right">
+                                    <Border Style="{DynamicResource PillTrack2}" Width="224" Height="26" HorizontalAlignment="Right">
                                         <UniformGrid Columns="4">
-                                            <RadioButton GroupName="OvLevel" Content="1" Style="{DynamicResource PillItem2}" />
-                                            <RadioButton GroupName="OvLevel" Content="2" Style="{DynamicResource PillItem2}" />
-                                            <RadioButton GroupName="OvLevel" Content="3" Style="{DynamicResource PillItem2}" IsChecked="True" />
-                                            <RadioButton GroupName="OvLevel" Content="4" Style="{DynamicResource PillItem2}" />
+                                            <RadioButton x:Name="OvUpd250" GroupName="OvUpdate" Content="250" Tag="250" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click" />
+                                            <RadioButton x:Name="OvUpd500" GroupName="OvUpdate" Content="500" Tag="500" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click" />
+                                            <RadioButton x:Name="OvUpd1000" GroupName="OvUpdate" Content="1000" Tag="1000" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click" />
+                                            <RadioButton x:Name="OvUpdLive" GroupName="OvUpdate" Content="LIVE" Tag="live" Style="{DynamicResource PillItem2}" Click="OvUpdate_Click"
+                                                         ToolTip="Numbers every 250 ms. The frametime graph scrolls every refresh at any setting (ov.15)" />
                                         </UniformGrid>
                                     </Border>
                                 </Grid>
-                                <UniformGrid Columns="2" Margin="0,8,0,0" TextElement.FontSize="11.5" TextElement.Foreground="{StaticResource TextBody}">
-                                    <TextBlock Text="☑  GPU load, temp" Margin="0,1" />
-                                    <TextBlock Text="☑  CPU load, temp" Margin="0,1" />
-                                    <TextBlock Text="☑  Clocks" Margin="0,1" />
-                                    <TextBlock Text="☑  Power" Margin="0,1" />
-                                    <TextBlock Text="☑  VRAM and RAM" Margin="0,1" />
-                                    <TextBlock Text="☑  Battery" Margin="0,1" />
-                                    <TextBlock Text="☑  Frametime graph" Margin="0,1" />
-                                    <TextBlock Text="☐  Per thread CPU" Margin="0,1" />
-                                    <TextBlock Text="☐  Fans" Margin="0,1" />
-                                    <TextBlock Text="☐  Refresh rate" Margin="0,1" />
-                                </UniformGrid>
+                                <!-- ov.9: Show on overlay, three lit / unlit buttons (Amine picked tiles, mockup A) -->
+                                <StackPanel Margin="0,6,0,0">
+                                    <StackPanel.Resources>
+                                        <Geometry x:Key="OvIcLat">M3 12h4l3 8l4 -16l3 8h4</Geometry>
+                                        <Geometry x:Key="OvIcHz">M4 4h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10a1 1 0 0 1 1 -1z M7 20h10 M9 16v4 M15 16v4</Geometry>
+                                        <Geometry x:Key="OvIcBatt">M6 7h11a2 2 0 0 1 2 2v1h1v4h-1v1a2 2 0 0 1 -2 2h-11a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2z M7 10v4 M10 10v4</Geometry>
+                                        <!-- ov.15 clock and bound tiles -->
+                                        <Geometry x:Key="OvIcClock">M12 3a9 9 0 1 0 0.01 0z M12 7v5l3 2</Geometry>
+                                        <Geometry x:Key="OvIcBound">M3 6h8v12h-8z M13 6h8v12h-8z M5 14h4 M15 10h4</Geometry>
+                                        <Style x:Key="OvShowTile" TargetType="CheckBox">
+                                            <Setter Property="Cursor" Value="Hand" />
+                                            <Setter Property="Height" Value="50" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="CheckBox">
+                                                        <Border x:Name="Bd" Background="#0B0D10" BorderBrush="{DynamicResource LineSoft}" BorderThickness="1" CornerRadius="5">
+                                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                                <Viewbox Width="18" Height="18">
+                                                                    <Path x:Name="Ic" Width="24" Height="24" Data="{TemplateBinding Tag}" Stroke="#4A535C" StrokeThickness="1.8"
+                                                                          StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                                </Viewbox>
+                                                                <TextBlock x:Name="Lb" Text="{TemplateBinding Content}" Style="{DynamicResource SecHint2}" FontSize="9.5" HorizontalAlignment="Center" Margin="0,5,0,0" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSelBg}" />
+                                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                <Setter TargetName="Ic" Property="Stroke" Value="{DynamicResource AccentBrush}" />
+                                                                <Setter TargetName="Lb" Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Bd" Property="Opacity" Value="0.85" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </StackPanel.Resources>
+                                    <TextBlock Text="Show on overlay" Style="{DynamicResource RowTitle2}" />
+                                    <TextBlock x:Name="OvShowSub" Text="On: refresh, battery" Style="{DynamicResource RowSub2}" TextTrimming="CharacterEllipsis"
+                                               ToolTip="Lit = shown. Off = gone from every level and not read" />
+                                    <UniformGrid Columns="5" Margin="0,8,0,0">
+                                        <CheckBox x:Name="OvExtraToggle" Style="{StaticResource OvShowTile}" Content="LATENCY" Margin="0,0,4,0" Click="OvExtra_Click"
+                                                  Tag="{StaticResource OvIcLat}"
+                                                  ToolTip="Latency and real / generated FPS on levels 2 to 4 (and flip mode on 4). Off by default: PresentMon also tracks display, frame type and PC latency (a little more CPU in PresentMon, not in the game)" />
+                                        <CheckBox x:Name="OvShowRefresh" Style="{StaticResource OvShowTile}" Content="REFRESH" Margin="4,0,4,0" Click="OvShow_Click"
+                                                  Tag="{StaticResource OvIcHz}"
+                                                  ToolTip="The panel's real refresh rate (follows G-Sync) on levels 2, 3 and 4. Off: not shown and not measured" />
+                                        <CheckBox x:Name="OvShowBattery" Style="{StaticResource OvShowTile}" Content="BATTERY" Margin="4,0,4,0" Click="OvShow_Click"
+                                                  Tag="{StaticResource OvIcBatt}"
+                                                  ToolTip="Battery % and AC / watts on levels 2, 3 and 4. Off: not shown and not read" />
+                                        <CheckBox x:Name="OvShowClock" Style="{StaticResource OvShowTile}" Content="CLOCK" Margin="4,0,4,0" Click="OvShow_Click"
+                                                  Tag="{StaticResource OvIcClock}"
+                                                  ToolTip="The time (HH:mm) on levels 3 and 4. Off by default" />
+                                        <CheckBox x:Name="OvShowBound" Style="{StaticResource OvShowTile}" Content="BOUND" Margin="4,0,0,0" Click="OvShow_Click"
+                                                  Tag="{StaticResource OvIcBound}"
+                                                  ToolTip="CPU or GPU bound estimate on levels 3 and 4 (LIMITED when the FPS cap or V-Sync holds the game). Off by default: while on, PresentMon also tracks GPU work (a little more CPU in PresentMon, not in the game)" />
+                                    </UniformGrid>
+                                </StackPanel>
+                                <Border Height="1" Background="{DynamicResource LineSoft}" Margin="0,6,0,6" Visibility="Collapsed" />
+                                <TextBlock x:Name="OvLevelInfo" Style="{DynamicResource RowTitle2}" Text="Level 3" Visibility="Collapsed"
+                                           ToolTip="Frametimes from PresentMon (ETW, no injection, anti cheat safe). Shows over windowed and borderless games." />
+                                <TextBlock x:Name="OvLevelItems" Style="{DynamicResource RowSub2}" TextWrapping="Wrap" Margin="0,3,0,0" MaxHeight="34" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -861,7 +988,7 @@
                     <!-- tab 1: GENERAL · KEYS -->
                     <Grid x:Name="SetPage1">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" /><RowDefinition Height="3*" /><RowDefinition Height="18" /><RowDefinition Height="Auto" /><RowDefinition Height="4*" />
+                            <RowDefinition Height="Auto" /><RowDefinition Height="4*" /><RowDefinition Height="18" /><RowDefinition Height="Auto" /><RowDefinition Height="4*" />
                         </Grid.RowDefinitions>
                         <Grid Style="{DynamicResource Sec2}">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -887,6 +1014,18 @@
                                             <TextBlock Text="Turns off all animations" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
                                         <CheckBox x:Name="ReduceMotionToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="ReduceMotion_Click" AutomationProperties.Name="On: no animations" ToolTip="On: no animations" />
+                                    </Grid>
+                                </Border>
+                                <Border Style="{DynamicResource RowLine2}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="150" /><ColumnDefinition Width="42" /></Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                            <TextBlock Text="Overlay background" Style="{DynamicResource RowTitle2}" />
+                                            <TextBlock Text="50 % = SteamOS, every level" Style="{DynamicResource RowSub2}" />
+                                        </StackPanel>
+                                        <Slider x:Name="OvBgSlider" Grid.Column="1" Style="{DynamicResource LightSlider}" Minimum="0" Maximum="100" Value="50" TickFrequency="5" IsSnapToTickEnabled="True"
+                                                IsMoveToPointEnabled="True" ValueChanged="OvBg_Changed" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="How dark the overlay's panel is. 0 = no panel, text only" />
+                                        <TextBlock x:Name="OvBgValue" Grid.Column="2" Text="50%" Style="{DynamicResource SecHint2}" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}" />
                                     </Grid>
                                 </Border>
                                 <Border Style="{DynamicResource RowLine2}">
@@ -940,9 +1079,9 @@
                                     <Grid>
                                         <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
                                             <TextBlock Text="F4 toggles the overlay" Style="{DynamicResource RowTitle2}" />
-                                            <TextBlock Text="Off, or back to your last level. Overlay comes in beta 2" Style="{DynamicResource RowSub2}" />
+                                            <TextBlock Text="Off, or back to your last overlay level" Style="{DynamicResource RowSub2}" />
                                         </StackPanel>
-                                        <CheckBox x:Name="F4OverlayToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F4Overlay_Click" AutomationProperties.Name="F4 (media mode, no Fn) is reserved for the overlay" ToolTip="F4 (media mode, no Fn) is reserved for the overlay" />
+                                        <CheckBox x:Name="F4OverlayToggle" Style="{DynamicResource Toggle2}" HorizontalAlignment="Right" Click="F4Overlay_Click" AutomationProperties.Name="F4 is reserved for the overlay. Shift + F4 cycles its levels" ToolTip="F4 (media mode, no Fn) is reserved for the overlay. Shift + F4 cycles its levels" />
                                     </Grid>
                                 </Border>
                             </UniformGrid>

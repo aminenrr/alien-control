@@ -108,6 +108,64 @@ public sealed class Settings
     public bool F3Opens { get; set; } = true;
     /// <summary>2.0: F4 (Macro C, media mode) is reserved for the overlay (beta 2). Default on. In beta 1 it only shows a hint.</summary>
     public bool F4Overlay { get; set; } = true;
+
+    // beta1.3-ov: the in-game overlay (MangoHud style). Level 0 = off (nothing runs), 1 to 4 = SteamOS levels.
+    public int OverlayLevel { get; set; } = 0;
+    /// <summary>F4 brings back this level after off.</summary>
+    public int OverlayLastLevel { get; set; } = 3;
+    /// <summary>0 top left (SteamOS), 1 top centre, 2 top right, 3 bottom left, 4 bottom centre, 5 bottom right.</summary>
+    public int OverlayPosition { get; set; } = 0;
+    /// <summary>Size in % of MangoHud's 24 px font (100 = SteamOS size).</summary>
+    public int OverlaySize { get; set; } = 100;
+    /// <summary>Background opacity in % (MangoHud default 50).</summary>
+    public int OverlayBg { get; set; } = 50;
+    /// <summary>Update interval in ms: 250, 500 (MangoHud default fps_sampling_period) or 1000.</summary>
+    public int OverlayUpdateMs { get; set; } = 500;
+    /// <summary>ov.7: LIVE update: the frametime graph redraws ~30 times a second. Off by default (costs a little CPU in this app).</summary>
+    public bool OverlaySmoothGraph { get; set; } = false;
+    /// <summary>ov.9 Show on overlay: refresh rate / battery on every level that has them. On by default (as before).</summary>
+    public bool OverlayShowRefresh { get; set; } = true;
+    public bool OverlayShowBattery { get; set; } = true;
+    /// <summary>ov.15 (Amine): the clock (levels 3 and 4) and the CPU / GPU bound estimate (levels 3 and 4). Off by
+    /// default; bound off = PresentMon tracks no GPU work.</summary>
+    public bool OverlayShowClock { get; set; } = false;
+    public bool OverlayShowBound { get; set; } = false;
+    /// <summary>ov.15: how the in-game overlay draws: "d2d" (Direct2D + DirectComposition, default) or "wpf" (the old
+    /// window, kept as the fallback and for comparing). No UI: settings.json only.</summary>
+    public string OverlayRenderer { get; set; } = "d2d";
+    /// <summary>Nudge from the chosen spot, in % of the screen: X -50 (left) .. 50 (right), Y -50 (up) .. 50 (down).
+    /// The overlay always stays on screen.</summary>
+    public int OverlayOffsetX { get; set; } = 0;
+    public int OverlayOffsetY { get; set; } = 0;
+    /// <summary>Latency and frame gen (real / generated fps). Off by default: PresentMon collects none of it while off.</summary>
+    public bool OverlayLatencyFg { get; set; } = false;
+
+    /// <summary>ov.11 FPS cap (NVIDIA driver profile): the last game the overlay saw (exe and a readable name), the scope
+    /// (false = this game, true = all games) and the last custom value. The cap and V-Sync themselves live in the
+    /// driver's profile, never here, so the NVIDIA app and this card always agree.</summary>
+    public string? FpsCapGame { get; set; }
+    public string? FpsCapTitle { get; set; }
+    public bool FpsCapAll { get; set; } = false;
+    public int FpsCapCustom { get; set; } = 165;
+
+    /// <summary>ov.3 (Amine): each level remembers its own look: position, size, background, move X / Y.
+    /// Index 0 = level 1 ... 3 = level 4. The single OverlayPosition / Size / Bg / OffsetX / OffsetY above are only
+    /// the seed for settings files from ov.1 / ov.2.</summary>
+    public List<OverlayLook>? OverlayLooks { get; set; }
+
+    public OverlayLook LookFor(int level)
+    {
+        EnsureLooks();
+        return OverlayLooks![Math.Clamp(level, 1, 4) - 1];
+    }
+
+    private void EnsureLooks()
+    {
+        if (OverlayLooks is { Count: 4 } && !OverlayLooks.Contains(null!)) return;
+        OverlayLooks = new List<OverlayLook>();
+        for (int i = 0; i < 4; i++)
+            OverlayLooks.Add(new OverlayLook { Position = OverlayPosition, Size = OverlaySize, Bg = OverlayBg, X = OverlayOffsetX, Y = OverlayOffsetY });
+    }
     /// <summary>v1.1: off = no taskbar button, the app only lives in the tray (minimize hides to the tray).</summary>
     public bool ShowInTaskbar { get; set; } = true;
 
@@ -240,6 +298,27 @@ public sealed class Settings
         MaxFanBoost = C(MaxFanBoost, 0, 100, d.MaxFanBoost);
         FanMaxRpm = C(FanMaxRpm, 1000, 8000, d.FanMaxRpm);
         KeyboardDevice = C(KeyboardDevice, 0, 3, d.KeyboardDevice);
+        // beta1.3-ov overlay
+        OverlayLevel = C(OverlayLevel, 0, 4, d.OverlayLevel);
+        OverlayLastLevel = C(OverlayLastLevel, 1, 4, d.OverlayLastLevel);
+        OverlayPosition = C(OverlayPosition, 0, 5, d.OverlayPosition);
+        OverlaySize = C(OverlaySize, 50, 150, d.OverlaySize);
+        OverlayBg = C(OverlayBg, 0, 100, d.OverlayBg);
+        if (OverlayUpdateMs is not (250 or 500 or 1000)) OverlayUpdateMs = d.OverlayUpdateMs;
+        if (OverlayRenderer is not ("d2d" or "wpf")) OverlayRenderer = d.OverlayRenderer;   // ov.15
+        OverlayOffsetX = C(OverlayOffsetX, -50, 50, 0);
+        OverlayOffsetY = C(OverlayOffsetY, -50, 50, 0);
+        EnsureLooks();
+        foreach (var l in OverlayLooks!)
+        {
+            l.Position = C(l.Position, 0, 5, 0);
+            l.Size = C(l.Size, 50, 150, 100);
+            l.Bg = C(l.Bg, 0, 100, 50);
+            l.X = C(l.X, -50, 50, 0);
+            l.Y = C(l.Y, -50, 50, 0);
+        }
+        FpsCapCustom = C(FpsCapCustom, NvDrs.MinFps, NvDrs.MaxFps, d.FpsCapCustom);
+        if (FpsCapGame is { Length: > 260 }) FpsCapGame = null;
         KeyboardLightCount = C(KeyboardLightCount, 1, 136, d.KeyboardLightCount);
         ChassisDevice = C(ChassisDevice, 0, 3, d.ChassisDevice);
         ChassisLights = (ChassisLights ?? d.ChassisLights).Where(id => id is >= 0 and <= 15 && id != PowerButtonLight).Distinct().ToArray();
@@ -409,4 +488,26 @@ public sealed class Settings
         }
         catch (Exception ex) { return last ?? ex; }
     }
+}
+
+/// <summary>ov.3: one overlay level's look. Defaults = SteamOS (top left, 100 %, 50 % background, no move).</summary>
+public sealed class OverlayLook
+{
+    public int Position { get; set; } = 0;
+    public int Size { get; set; } = 100;
+    public int Bg { get; set; } = 50;
+    public int X { get; set; } = 0;
+    public int Y { get; set; } = 0;
+
+    /// <summary>ov.12 stepper: 5 % a click (Shift 25), 50 to 150, lands on a multiple of 5.</summary>
+    public static int StepSize(int v, int dir, bool shift)
+    {
+        int step = shift ? 25 : 5;
+        int n = (int)Math.Round(v / 5.0) * 5 + Math.Sign(dir) * step;
+        return Math.Clamp(n, 50, 150);
+    }
+
+    /// <summary>ov.12 stepper: 1 % a click (Shift 10), -50 to +50.</summary>
+    public static int StepOffset(int v, int dir, bool shift) =>
+        Math.Clamp(v + Math.Sign(dir) * (shift ? 10 : 1), -50, 50);
 }

@@ -3,6 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta2 (2026-10-25, prerelease)
+The in-game overlay (beta1.3-ov) merged into 2.0. Full notes to follow.
+
 ## v2.0.0-beta1.6 (2026-10-24, prerelease)
 Updating takes over from the running copy (Amine). Tested on the laptop 2026-10-24 (the hand over itself needs the next version to test).
 - **Newer copy takes over** (Amine: beta1.5 started while beta1.4 sat in the tray only woke beta1.4, so the Program

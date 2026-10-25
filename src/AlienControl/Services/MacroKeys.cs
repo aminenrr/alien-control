@@ -24,6 +24,27 @@ public sealed class MacroKeys : IDisposable
     [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr h, int id);
     private const int LightsHotkeyId = 0xA1F;
     private const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_NOREPEAT = 0x4000, VK_F = 0x46;
+    // beta2 (Amine): Shift + F4 (the plain F4 key, media mode off) cycles the overlay levels. The keyboard sends a normal
+    // Shift+F4 then, not the Alienware macro report Shift + Fn+F4 sends, so it is a system hotkey like Ctrl+Alt+F.
+    private const int OverlayHotkeyId = 0xA20;
+    private const uint MOD_SHIFT = 0x4, VK_F4 = 0x73;
+    private bool _overlayKey;
+
+    /// <summary>beta2: Shift + F4 pressed (raised on the input thread). Registered only while F4 drives the overlay.</summary>
+    public event Action? OverlayHotkey;
+
+    /// <summary>beta2: turns the Shift + F4 hotkey on or off (input thread). Off gives Shift + F4 back to the apps.</summary>
+    public void SetOverlayHotkey(bool on)
+    {
+        if (_src is null || on == _overlayKey) return;
+        _overlayKey = on;
+        if (!on) { UnregisterHotKey(_src.Handle, OverlayHotkeyId); return; }
+        if (!RegisterHotKey(_src.Handle, OverlayHotkeyId, MOD_SHIFT | MOD_NOREPEAT, VK_F4))
+        {
+            _overlayKey = false;
+            Log.Info("MacroKeys", $"Shift+F4 not registered (error {Marshal.GetLastWin32Error()}, another app may own it)");
+        }
+    }
 
     /// <summary>1.3.1: Ctrl + Alt + F (all lights: full, off, 50%). A system hotkey on this message window: no hook,
     /// no polling, held keys don't repeat. Raised on the input thread.</summary>
@@ -69,6 +90,7 @@ public sealed class MacroKeys : IDisposable
         if (msg == WM_HOTKEY)
         {
             if (wParam.ToInt32() == LightsHotkeyId) { LightsHotkey?.Invoke(); handled = true; }
+            else if (wParam.ToInt32() == OverlayHotkeyId) { OverlayHotkey?.Invoke(); handled = true; }
             return IntPtr.Zero;
         }
         if (msg != WM_INPUT) return IntPtr.Zero;
@@ -137,7 +159,7 @@ public sealed class MacroKeys : IDisposable
     {
         if (_src is null) return;
         try { RegisterRawInputDevices(new[] { new RID { Page = 0x0C, Usage = 0x01, Flags = RIDEV_REMOVE } }, 1, (uint)Marshal.SizeOf<RID>()); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MacroKeys.cs:81", __e); }
-        try { UnregisterHotKey(_src.Handle, LightsHotkeyId); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MacroKeys.Hotkey", __e); }
+        try { UnregisterHotKey(_src.Handle, OverlayHotkeyId); UnregisterHotKey(_src.Handle, LightsHotkeyId); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MacroKeys.Hotkey", __e); }
         _src.Dispose(); _src = null;
     }
 }

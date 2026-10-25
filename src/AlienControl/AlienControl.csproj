@@ -12,13 +12,18 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>2.0.0</Version>
     <!-- the footer and Settings show the informational version (v2.0.0-beta1.4); release.yml checks it matches the tag -->
-    <InformationalVersion>2.0.0-beta1.6</InformationalVersion>
+    <InformationalVersion>2.0.0-beta2</InformationalVersion>
     <Product>Alien Controls</Product>
     <AssemblyTitle>Alien Controls</AssemblyTitle>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- ov.11 RAM: a tray app with a small heap. No background GC thread, and the GC compacts harder before growing. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
 
   <!-- Publish (dotnet publish -r win-x64): one framework-dependent exe, ReadyToRun-precompiled for fast start.
        No compression (it unpacks into RAM) and no trimming (WPF uses reflection, trimming is unsupported). -->
@@ -45,6 +50,10 @@
          System.Diagnostics.PerformanceCounter package too: Microsoft.WindowsDesktop.App 8.0 already ships it (build
          review #1 and #7, the exe drops from about 11.6 MB to about 3.7 MB) -->
     <PackageReference Include="System.Management" Version="8.0.0" />
+    <!-- ov.15: the overlay window draws with Direct2D + DirectComposition (Vortice, MIT). WPF stays as the fallback. -->
+    <PackageReference Include="Vortice.Direct2D1" Version="3.8.3" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+    <PackageReference Include="Vortice.DirectComposition" Version="3.8.3" />
   </ItemGroup>
 
   <!-- T-Troll's alienfan-cli / alienfx-cli binaries (and their DLLs) are dropped in tools/ and shipped next to the exe. -->

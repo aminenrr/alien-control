@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Linq;
+using AlienControl.Overlay;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -79,7 +80,8 @@ public partial class MainWindow
 
     private async Task RefreshSensorsAsync()
     {
-        if (_polling || !_fan.IsAvailable || !SensorsShown) return;   // 2.0: only read what is on screen
+        // 2.0: only read what is on screen. beta1.3-ov: or what the overlay level shows (temps, fans, usage)
+        if (_polling || !_fan.IsAvailable || !(SensorsShown || OvNeeds(Need.Acpi) || OvNeeds(Need.Usage))) return;
         _polling = true;
         try
         {
@@ -107,13 +109,16 @@ public partial class MainWindow
             SetFanPercent(CpuFanText, CpuFanBar, cpuFan);
             SetFanPercent(GpuFanText, GpuFanBar, gpuFan);
             TuneFans.Text = $"{CpuFanText.Text} / {GpuFanText.Text} %";
-            if (!HomePage.IsVisible) return;   // 2.0: RAM, VRAM, CPU % and GPU % are only on Home
+            // 2.0: RAM, VRAM, CPU % and GPU % are only on Home. beta1.3-ov: or when the overlay level shows them
+            bool homeShown = HomePage.IsVisible && SensorsShown;
+            if (!homeShown && !OvNeeds(Need.Usage)) { OverlayTakeSensors(s, gpu, null, null, null, null); return; }
 
             // 2.0.0-beta1.4 (ui review #5): RAM / VRAM / CPU % / GPU % are read on a worker thread (one PDH query, see
             // SystemStats); the UI thread only assigns the numbers
             bool igpu = IgpuTilesActive;   // 2.0.0-beta1.4 (Amine): then GPU USE reads the Intel GPU
             var h = await Task.Run(() => ReadHomeStats(igpu));
-            if (!HomePage.IsVisible) return;
+            OverlayTakeSensors(s, gpu, h.Cpu, h.Gpu, h.Ram, h.Vram);   // beta1.3-ov: one reader, shared with the overlay
+            if (!HomePage.IsVisible || !homeShown) return;
             if (h.Ram is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
             if (h.Vram is { } vram) SetMem(VramText, VramTextUnit, VramBar, vram.Used, vram.Total);
             // 1.3.0-beta.1 CPU % / GPU %
@@ -197,9 +202,9 @@ public partial class MainWindow
     private bool _powerBusy;
     private async Task RefreshPowerAsync()
     {
-        if (_powerBusy || !SensorsShown) return;
+        if (_powerBusy || !(SensorsShown || OvNeeds(Need.Power))) return;   // beta1.3-ov: or the overlay shows watts
         _powerBusy = true;
-        try { ShowPower(await Task.Run(_power.Sample)); }
+        try { var r = await Task.Run(_power.Sample); ShowPower(r); OverlayTakePower(r); }   // beta1.3-ov
         catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Sensors.cs:133", __e); }
         finally { _powerBusy = false; }
     }

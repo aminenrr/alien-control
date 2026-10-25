@@ -6,3 +6,4 @@ src/AlienControl/tools/*.exe
 src/AlienControl/tools/*.dll
 publish/
 __pycache__/
+src/AlienControl/tools/PresentMon/
