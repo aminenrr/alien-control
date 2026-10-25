@@ -95,7 +95,7 @@ public sealed class OverlayView
     public string GraphRange { get; set; } = "";
 
     private bool ShowGen => (Items & Item.FrameGen) != 0 && GenFps >= 1;
-    private string LatLabel => LatPc ? "PC LAT" : "LATENCY";
+    private string LatLabel => LatPc ? "PC LAT" : "DISP LAT";   // beta2.3: honest label, present to screen only (no Reflex)
     private string LatValue => double.IsNaN(LatMs) ? "--" : LatMs.ToString(LatMs < 10 ? "0.0" : "0");
 
     /// <summary>Short label for PresentMon's PresentMode. Independent flip is what G-Sync / VRR wants; composed means
@@ -359,7 +359,7 @@ public sealed class OverlayView
             l.Add(new("FPS", EngineC, c.ToArray(), false));
         }
         if ((it & Item.FrameTime) != 0) l.Add(new("", White, new[] { new Cell(FrameMs.ToString("0.0"), "ms") }, false));
-        if ((it & Item.Latency) != 0) l.Add(new(LatPc ? "PC LAT" : "LAT", DimC, new[] { new Cell(LatValue, "ms") }, false));
+        if ((it & Item.Latency) != 0) l.Add(new(LatPc ? "PC LAT" : "DISP", DimC, new[] { new Cell(LatValue, "ms") }, false));
         if ((it & Item.FrameGraph) != 0) l.Add(new("", White, Array.Empty<Cell>(), true));
         if ((it & (Item.Cpu | Item.CpuTemp)) != 0)
         {

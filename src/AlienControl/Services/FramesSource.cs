@@ -266,7 +266,7 @@ public sealed class FramesSource : IDisposable
 
     private int _colApp = -1, _colPid = -1, _colRuntime = -1, _colMs = -1, _colT = -1;
     private int _colType = -1, _colPcLat = -1, _colDispLat = -1, _colMode = -1, _colSwap = -1, _colMax = -1;
-    private int _colGpuBusy = -1, _colSync = -1;   // ov.15
+    private int _colGpuBusy = -1, _colSync = -1, _colDispChange = -1;   // ov.15; beta2.3 display change
 
     /// <summary>Reads the header once, then one frame per line. Lines that don't belong to the foreground process are dropped.</summary>
     private void ReadLoop(Process p)
@@ -326,7 +326,7 @@ public sealed class FramesSource : IDisposable
         var cols = line.Split(',');
         _colApp = _colPid = _colRuntime = _colMs = _colT = -1;
         _colType = _colPcLat = _colDispLat = _colMode = _colSwap = -1;
-        _colGpuBusy = _colSync = _colUntil = -1;
+        _colGpuBusy = _colSync = _colUntil = _colDispChange = -1;
         // beta2 (Amine: LATENCY showed --): the columns this PresentMon sends, once per start
         Log.Info("Frames", "columns: " + line);
         int tRank = 0; _tScale = 1.0;
@@ -350,13 +350,15 @@ public sealed class FramesSource : IDisposable
             else if (c.Equals("MsGPUBusy", StringComparison.OrdinalIgnoreCase) || c.Equals("GPUBusy", StringComparison.OrdinalIgnoreCase)) _colGpuBusy = i;
             else if (_colGpuBusy < 0 && c.Equals("MsGPUActive", StringComparison.OrdinalIgnoreCase)) _colGpuBusy = i;
             else if (c.Equals("SyncInterval", StringComparison.OrdinalIgnoreCase)) _colSync = i;
+            // beta2.3 (Amine: FG graph zigzag 0.3 / 14 ms): time between frames reaching the screen (latency toggle on)
+            else if (c.Equals("MsBetweenDisplayChange", StringComparison.OrdinalIgnoreCase)) _colDispChange = i;
             // beta2: display latency under its other names, and the time until display as the last fallback
             else if (_colDispLat < 0 && (c.Equals("MsDisplayLatency", StringComparison.OrdinalIgnoreCase) || c.Equals("MsDisplayedLatency", StringComparison.OrdinalIgnoreCase))) _colDispLat = i;
             else if (c.Equals("MsUntilDisplayed", StringComparison.OrdinalIgnoreCase) || c.Equals("UntilDisplayed", StringComparison.OrdinalIgnoreCase)) _colUntil = i;
         }
         _colMax = Math.Max(Math.Max(Math.Max(_colApp, _colPid), Math.Max(_colRuntime, _colMs)), Math.Max(Math.Max(_colT, _colType),
                   Math.Max(Math.Max(_colPcLat, _colDispLat), Math.Max(_colMode, _colSwap))));
-        _colMax = Math.Max(_colMax, Math.Max(Math.Max(_colGpuBusy, _colSync), _colUntil));
+        _colMax = Math.Max(_colMax, Math.Max(Math.Max(_colGpuBusy, _colSync), Math.Max(_colUntil, _colDispChange)));
         _starts = new int[_colMax + 2];
         if (_colT < 0) Log.Info("Frames", "no time column, using arrival time");
         return _colPid >= 0 && _colMs >= 0;
@@ -399,6 +401,14 @@ public sealed class FramesSource : IDisposable
         if (!float.TryParse(Col(span, _colMs, n), flt, inv, out float ms)) return false;
         if (ms <= 0 || ms > 5000) return false;
         if (!PrimarySwapchain(Col(span, _colSwap, n), pid, now)) return false;
+        // beta2.3: with display tracking (latency toggle on) the frametime is what reached the screen, like PresentMon's
+        // own overlay: frame gen presents its pair back to back (0.3 / 14 ms) and the driver paces them later, so
+        // MsBetweenPresents zigzags while the screen gets even frames. Frames that never reached the screen are dropped.
+        if (_colDispChange >= 0)
+        {
+            if (_colDispChange >= n || !float.TryParse(Col(span, _colDispChange, n), flt, inv, out float dc) || dc <= 0 || dc > 5000) return false;
+            ms = dc;
+        }
         double t = double.NaN;
         if (_colT >= 0 && _colT < n && double.TryParse(Col(span, _colT, n), flt, inv, out double tv)) t = tv * _tScale;
         if (_colT < 0) t = now / (double)Stopwatch.Frequency;   // beta2.1: no time column, arrival time beats no time at all

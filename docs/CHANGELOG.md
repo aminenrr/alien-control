@@ -3,6 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta2.3 (2026-10-25, prerelease)
+Untested. Latency toggle on: frametime = MsBetweenDisplayChange (frames not displayed dropped), fixes the FG zigzag. LATENCY label renamed DISP LAT.
+
 ## v2.0.0-beta2.2 (2026-10-25, prerelease)
 FPS and graph fixed again (Amine: beta2.1 still 0 FPS). Untested.
 - Lean PresentMon args back to ov.14 (no --track_frame_type): frame type without display tracking overflowed PresentMon's present buffer.

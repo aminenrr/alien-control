@@ -244,4 +244,27 @@ public class Overlay15Tests
         Assert.True(FramesSource.IsGenerated("Intel XeFG"));
         Assert.Contains("--set_circular_buffer_size 8192", FramesSource.Args(false));
     }
+
+    // beta2.3: FG presents its pair back to back, the screen gets them evenly; the graph follows the screen
+    [Fact]
+    public void Display_change_is_the_frametime_when_tracked()
+    {
+        const string h = "Application,ProcessID,SwapChainAddress,PresentRuntime,FrameType,CPUStartTime,MsBetweenPresents,MsBetweenDisplayChange";
+        var f = new FramesSource();
+        Assert.True(f.ParseHeader(h));
+        f.SetForegroundForTest(3);
+        double t = 0;
+        for (int i = 0; i < 100; i++)
+        {
+            float ms = i % 2 == 1 ? 0.3f : 13.7f;
+            t += ms / 1000.0;
+            var tt = t.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            f.OnLine($"game.exe,3,0x1,DXGI,Application,{tt},{ms.ToString(System.Globalization.CultureInfo.InvariantCulture)},7.0");
+        }
+        Assert.False(f.OnLine("game.exe,3,0x1,DXGI,Application,1.0,7.0,NA"));   // never reached the screen
+        var buf = new FramesSource.Frame[128];
+        int n = f.CopyRecent(buf);
+        Assert.Equal(100, n);
+        for (int i = 0; i < n; i++) Assert.Equal(7f, buf[i].Ms, 3);
+    }
 }
