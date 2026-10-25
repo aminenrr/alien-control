@@ -170,6 +170,33 @@ internal sealed class D2DOverlay : IDisposable
             using var fonts = _dw.GetSystemFontCollection(false);
             _family = fonts.FindFamilyName("Ubuntu", out _) ? "Ubuntu" : "Segoe UI";
             _monoFamily = fonts.FindFamilyName("Cascadia Mono", out _) ? "Cascadia Mono" : "Consolas";
+            _monoFonts = LoadMono();
+            if (_monoFonts != null) _monoFamily = MonoFont.Family;
+        }
+
+        /// <summary>beta3.6: the bundled JetBrains Mono as a private font collection (Windows 10 1703+), or null.</summary>
+        private IDWriteFontCollection? _monoFonts;
+        private IDWriteFontCollection? LoadMono()
+        {
+            try
+            {
+                if (MonoFont.Dir is not string dir) return null;
+                using var f3 = _dw.QueryInterfaceOrNull<IDWriteFactory3>();
+                if (f3 == null) return null;
+                using var b = f3.CreateFontSetBuilder();
+                using var b1 = b.QueryInterface<IDWriteFontSetBuilder1>();
+                foreach (var name in MonoFont.Files)
+                {
+                    using var file = _dw.CreateFontFileReference(System.IO.Path.Combine(dir, name), null);
+                    b1.AddFontFile(file);
+                }
+                using var set = b.CreateFontSet();
+                var c = f3.CreateFontCollectionFromFontSet(set);
+                if (c.FindFamilyName(MonoFont.Family, out _)) return c;
+                c.Dispose();
+            }
+            catch { }
+            return null;
         }
 
         private IDWriteTextFormat Format(float size, bool bold)
@@ -177,8 +204,8 @@ internal sealed class D2DOverlay : IDisposable
             if (_formats.TryGetValue((size, bold, Mono), out var f)) return f;
             if (_formats.Count >= 8) { foreach (var x in _formats.Values) x.Dispose(); _formats.Clear(); }   // overlay resized a lot
             f = Mono
-                ? _dw.CreateTextFormat(_monoFamily, bold ? FontWeight.Bold : FontWeight.SemiBold,   // beta3.1 (Amine): fat like the Metal HUD
-                    Vortice.DirectWrite.FontStyle.Normal, FontStretch.Normal, size)
+                ? _dw.CreateTextFormat(_monoFamily, _monoFonts, bold ? FontWeight.Bold : FontWeight.SemiBold,   // beta3.1 (Amine): fat like the Metal HUD
+                    Vortice.DirectWrite.FontStyle.Normal, FontStretch.Normal, size, "en-us")
                 : _dw.CreateTextFormat(_family, bold ? FontWeight.Bold : FontWeight.SemiBold, Vortice.DirectWrite.FontStyle.Normal, FontStretch.Normal, size);
             f.WordWrapping = WordWrapping.NoWrap;
             _formats[(size, bold, Mono)] = f;
@@ -262,6 +289,7 @@ internal sealed class D2DOverlay : IDisposable
             _brushes.Clear();
             foreach (var f in _formats.Values) f.Dispose();
             _round?.Dispose();
+            _monoFonts?.Dispose();
             _dw.Dispose();
         }
     }

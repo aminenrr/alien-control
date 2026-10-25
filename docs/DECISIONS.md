@@ -27,7 +27,7 @@ Why things are the way they are. Newest decisions win.
 - Home G-Mode switch = the window version of F1 (silent). Home preset tiles = the tray path (`ApplyProfileAsync`).
 - Brightness and colour exist on Home and Lights: one setting, both controls stay in step.
 - Kept the 1.3.5 effect list (the mockup shows a shorter sample list) so no saved effect disappears.
-- Fonts: the mockups use Barlow / Inter; the app keeps Segoe UI Variable + Cascadia Mono (no bundled fonts yet).
+- Fonts: the mockups use Barlow / Inter; the app keeps Segoe UI Variable + Cascadia Mono (no bundled fonts), except the overlay Metal level which bundles JetBrains Mono NL (OFL) since SF Mono is Apple only.
 - Credits mention PresentMon as "will use" until beta2 ships it.
 
 ## Scope and stack (2026-10-14)

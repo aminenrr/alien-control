@@ -41,7 +41,18 @@ public sealed class OverlayPanel : FrameworkElement
     {
         private static readonly Typeface Face = new(new FontFamily("Ubuntu, Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
         private static readonly Typeface FaceBold = new(new FontFamily("Ubuntu, Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
-        private static readonly Typeface FaceMono = new(new FontFamily("Cascadia Mono, Consolas"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        private static readonly Typeface FaceMono = new(MonoFamily(), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
+        /// <summary>beta3.6: the bundled JetBrains Mono (see MonoFont), Cascadia Mono / Consolas when it's missing.</summary>
+        private static FontFamily MonoFamily()
+        {
+            try
+            {
+                if (MonoFont.Dir is string dir)
+                    return new FontFamily(new Uri(dir.TrimEnd('\\') + "\\"), "./#" + MonoFont.Family + ", Cascadia Mono, Consolas");
+            }
+            catch { }
+            return new FontFamily("Cascadia Mono, Consolas");
+        }
         /// <summary>beta3: the Metal level draws in a monospace face.</summary>
         public bool Mono { get; set; }
         private readonly Visual _owner;

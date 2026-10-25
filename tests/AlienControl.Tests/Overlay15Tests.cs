@@ -338,4 +338,11 @@ public class Overlay15Tests
         Assert.True(OverlayView.GsyncState(238, 240, 239, true));     // at the max: can't tell, keep the last
         Assert.Null(OverlayView.GsyncState(null, 240, 140, null));
     }
+
+    [Fact]
+    public void Metal_font_ships_in_the_exe()
+    {
+        var names = typeof(MonoFont).Assembly.GetManifestResourceNames();
+        foreach (var f in MonoFont.Files) Assert.Contains("AlienControl.Fonts." + f, names);
+    }
 }

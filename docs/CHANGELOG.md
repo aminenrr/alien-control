@@ -3,6 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta3.6 (2026-10-25, prerelease)
+- Level 2 font: bundled JetBrains Mono NL SemiBold / Bold (Overlay/MonoFont.cs, embedded, extracted to %LocalAppData%\AlienControl\Fonts, private DirectWrite font set / WPF folder font). Cascadia Mono / Consolas fallback.
+
 ## v2.0.0-beta3.5 (2026-10-25, prerelease)
 - Level 2: FPS max / Frame min from the fastest 10 frame average (uneven pacing read 4651 fps), FPS capped at 9999.
 - Level 2 graph: scale 4x the frame interval (min 20 ms), red only for real hitches (2.5x the interval and +10 ms), so a zigzag no longer paints the whole graph red.
