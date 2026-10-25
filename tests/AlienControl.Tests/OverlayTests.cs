@@ -10,7 +10,7 @@ namespace AlienControl.Tests;
 /// <summary>beta1.3-ov: PresentMon parsing, fps math and the level presets.</summary>
 public class OverlayTests
 {
-    private const string Header = "Application,ProcessID,SwapChainAddress,PresentRuntime,SyncInterval,PresentFlags,CPUStartTime,MsBetweenSimulationStart,MsBetweenPresents,MsBetweenDisplayChange,MsInPresentAPI";
+    private const string Header = "Application,ProcessID,SwapChainAddress,PresentRuntime,SyncInterval,PresentFlags,CPUStartTime,MsBetweenSimulationStart,MsBetweenPresents,MsUntilRenderComplete,MsInPresentAPI";
 
     [Fact]
     public void Header_finds_the_columns()
