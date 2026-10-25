@@ -12,13 +12,9 @@ status keys, toasts and chimes. One 440 x 820 window (Legend theme only), tabs H
 a two-tab Settings page. Runs elevated, starts at logon through a scheduled task.
 
 ## Branches
-Since 2.0.0-beta2 (2026-10-25) everything is on `v2.0`; the overlay branch `beta1.3-ov` is merged and retired, the
-old two agent rules in `docs/BRANCHES-2.0.md` are history. `main` stays 1.3.x until 2.0.0 stable.
-
-Overlay releases after the merge: beta2.1 to 2.5 (PresentMon parsing, FPS like RTSS, per frame graph), beta3 (levels
-reworked: old level 1 dropped, old level 2 strip is level 1, level 2 = Metal HUD style, `Settings.OverlayLevelsV3`
-migration), beta3.1 (rounded, bolder), beta3.2 (Metal values in brackets), beta3.3 / 3.4 (Mem spacing, graph min / max over the 200 drawn
-frames, perf log aware of G-SYNC).
+See [BRANCHES.md](BRANCHES.md). `main` = stable 2.0, `v2.0` = work branch, `v1.3` = the old 1.x line. The two agent
+setup of the 2.0 betas (`beta1.3-ov`, `merge/beta2`) is over and those branches are deleted; the old 1.x beta checklists
+are in `docs/archive/`.
 
 ## Architecture
 **App** (`App.xaml.cs`): single instance, tray icon and menu, theme loading (`ApplyTheme`: Legend.xaml then
@@ -83,27 +79,19 @@ No third-party UI library since beta1.4 (WPF-UI removed).
   copy), Log frame gaps removed, NVIDIA tray icon after iGPU only, OC card greyed while the RTX is off. See
   [releases/v2.0.0-beta1.4.md](releases/v2.0.0-beta1.4.md). Tested on the laptop 2026-10-24: all good. The NVIDIA tray icon missed once right after the update, then came back 3 out of 3 after a reboot. Its startup copy skipped alienfan-cli.exe / alienfx-cli.exe kept next to the exe (sensors and shortcuts dead after a reboot): fixed in **v2.0.0-beta1.5** ([releases/v2.0.0-beta1.5.md](releases/v2.0.0-beta1.5.md)), which also makes the NVIDIA tray check wait for NVDisplay.Container. Tested OK on the laptop 2026-10-24 (after quitting beta1.4 first). **v2.0.0-beta1.6** ([releases/v2.0.0-beta1.6.md](releases/v2.0.0-beta1.6.md)): a newer copy takes over from the running one (Local\AlienControls.Quit event + mutex hand over), and the boot-time Startup.GetTask warning is gone. Tested OK on the laptop 2026-10-24; the hand over itself is first exercised by the next version (beta2). IGCL has no GPU temperature sensor on the m15 R7, so iGPU temp is the CPU package.
 
-## Still to do
-**Beta 2 (the in-game overlay)**, in this order:
-1. **SensorHub owned by App**: every read in one place on one worker thread; Home, Tuning and each overlay level
-   subscribe to what they show; no subscribers means nothing polls. Required: CPU % and GPU % are "since last call"
-   readers, so two readers corrupt each other.
-2. **One state store and command gate** for profile, G-Mode, OC and lights, shared by the window, tray, toasts and
-   overlay (today the gate lives in MainWindow).
-3. **Rate limits per source**: ACPI / WMI reads at most every 1 s (hold the last value); FPS, NVML and power can run
-   at overlay speed.
-4. **PresentMon as a Frames source**, preferably in-process ETW (TraceEvent, MIT): fixed session name, kill a stale
-   session at start, stop it on every exit path and when the last overlay subscriber goes.
-5. **Overlay window** on its own UI thread, click-through, frozen brushes, one drawing surface for the graph, levels
-   1 to 4 as in `mockups/2.0/07-overlay-level-*.png`; F4 toggles it.
-6. **Settings**: an overlay section (unknown keys already survive a downgrade).
+- **beta2 to beta3.6 (the in-game overlay)**: PresentMon frametimes (no injection, click through window, Direct2D
+  with a WPF fallback), 4 levels plus Advanced, F4 / Shift + F4, latency toggle, per game FPS cap and V-Sync through
+  the NVIDIA profile (`Services/NvDrs.cs`), level 2 in the Apple Metal HUD style (JetBrains Mono, bundled). See the
+  CHANGELOG for each step.
+- **2.0.0** (2026-10-25): stable, tested on the laptop.
 
-**Smaller open items**
+## Still to do
+- Real 2.0 screenshots in the README (the mockups stand in for now).
+- Overlay redraws can trail the game under G-SYNC in heavy titles (DWM bound); the perf log tracks it.
 - Slide `GC.TryStartNoGCRegion` change from the review: needs an A/B on the laptop.
 - With Rainbow / Spectrum, fills use cyan but text keeps the last picked colour (decide if that should change).
-- Tooltips use the UI font in normal case (the mockup showed mono caps); revisit if Amine wants caps.
-- Remaining review notes not acted on: build.md #11 (DynamicResource for keys that never change; kept dynamic where
-  the accent tint needs it) and #18 (layered window cost, not measured).
+- Remaining review notes not acted on: build.md #11 (DynamicResource for keys that never change) and #18 (layered
+  window cost, not measured).
 
 ## Known risks / not verified on hardware
 - **Fixed in beta1.4**: the startup task ran the exe as admin from a user-writable folder (Downloads / Desktop), so any
@@ -128,14 +116,11 @@ No third-party UI library since beta1.4 (WPF-UI removed).
    checklist of concrete laptop steps (Amine always wants one).
 3. Push the tag `v<version>`. `release.yml` checks that the tag matches the version and that the notes file exists,
    checks XAML keys, runs the tests, publishes win-x64 and attaches the zip (with README and LICENSE) and
-   `SHA256SUMS` to a GitHub release whose body is the notes file. Mark 2.0 betas as pre-release.
+   `SHA256SUMS` to a GitHub release whose body is the notes file. A tag with a `-` (betas) is published as a pre-release automatically. For a stable, also fast-forward `main` to `v2.0`.
 
 ## Working from the Hark sandbox
-There are no git push credentials. Use the GitHub connector (`apicall github`): create a branch with
-`git_ref_create`, upload each changed file with `contents_put` (base64, with the current blob sha when updating;
-call apicall from Python for big files like MainWindow.xaml to stay under the argv limit), `contents_delete` removed
-files, `pull_create` into `v2.0`, wait for the build workflow, `pull_merge` (squash), then `git_ref_create` the tag at
-the squash commit. Local compile check: .NET 8 SDK in /tmp and `dotnet build -p:EnableWindowsTargeting=true`.
+Push straight to `v2.0` with git and tag there (see Releasing). Local compile check: .NET 8 SDK and
+`dotnet build -p:EnableWindowsTargeting=true`; the tests only run in CI (Windows).
 
 ## Conventions
 - Comments tag each change with its version, plus "(Amine)" when it was his call.

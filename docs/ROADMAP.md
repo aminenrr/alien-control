@@ -23,7 +23,7 @@
 - [x] 1.2.0-beta.5 Card-swap view switch, no freeze when spamming F3/F4.
 
 ## 1.3
-- [x] 1.3.0-beta.1 (one pre-release, tested with docs/BETA-1.3.0-CHECKLIST.md): code review fixes #1-#19, keyboard
+- [x] 1.3.0-beta.1 (one pre-release, tested with docs/archive/BETA-1.3.0-CHECKLIST.md): code review fixes #1-#19, keyboard
   light timeout, CPU % / GPU % row, refresh-timed slide engine (normal-window option tried and dropped).
 - [x] 1.3.0-beta.2: chime pack (Soft / Classic), toast style (Pill / Classic), settings page with tabs.
 - [x] 1.3.0 (2026-10-18): stable, tested on the m15 R7, plus the chime crackle fix (best effort for now, much less
@@ -35,7 +35,7 @@
   features section with the Lights menu, rounder / shorter notifications, using the 1.3.1 mockups as images.
 - [-] 1.3.1-beta.3 (superseded by beta.4): Keyboard off really off (brightness 0 after every CLI run), Turn off / Turn on tile, accent while on, no focus border.
 - [x] 1.3.1-beta.2: Lights menu (laptop button, lit = on, All off / All on), status-key fix, F7 test, Classic toast
-  corners, shorter Pill. Test with docs/BETA-1.3.1-CHECKLIST.md.
+  corners, shorter Pill. Test with docs/archive/BETA-1.3.1-CHECKLIST.md.
 - [ ] 1.3.1-beta.3 (only if the F7 test shows something): the Keyboard tile follows F7.
 - [x] 1.1.1 patch: shows as "Alien Controls" in startup lists, startup task renamed (old one migrated).
 
@@ -50,9 +50,11 @@
 - [x] 2.0.0-beta1 (pre-release, branch v2.0): the new look only (docs/mockups/2.0). Tabs Home / Tuning / Lights /
   Overlay in a fixed 440 x 820 window, Settings with two tabs, Legend only (Fluent removed), compact view removed,
   F3 opens / hides, F4 reserved, Fans Auto / Max, sensors read only for the tab on screen. Untested on the laptop.
-- [ ] 2.0.0-beta2: the overlay (PresentMon ETW, click-through window, levels 1 to 4 like MangoHud, Advanced settings,
-  F4 off / last level). App and overlay share the same pollers.
-- [ ] Real 2.0 screenshots in the README once beta1 is tested.
+- [x] 2.0.0-beta1.1 to beta1.6: review fixes, startup task security, newer copy takes over. Tested.
+- [x] 2.0.0-beta2 to beta3.6: the overlay (PresentMon, click-through Direct2D window, levels 1 to 4 + Advanced, F4 /
+  Shift + F4, latency toggle, FPS cap and V-Sync per game, level 2 Metal HUD style). App and overlay share the pollers.
+- [x] 2.0.0 (2026-10-25): stable, tested on the m15 R7. `main` now on 2.0.
+- [ ] Real 2.0 screenshots in the README.
 
 ## Later
 - Effect speed; map keyboard columns for the rainbow wave.
@@ -64,6 +66,6 @@
 
 ## Not planned
 - Fluent Acrylic / see-through blur: tried in 1.1.0-beta.2 (native Windows 11 backdrop). It didn't look good enough and cost extra CPU and RAM, so it was removed.
-- Driver updater, XMP toggle (stock RAM has no XMP profile). (The overlay / FPS counter moved to 2.0.0-beta2.)
+- Driver updater, XMP toggle (stock RAM has no XMP profile). (The overlay / FPS counter shipped in 2.0.)
 - NVIDIA private-call reverse engineering (GPU OC stays on public NVML offsets), forking or editing alienfx-tools.
 - Profiles that change the GPU mode or use Ultimate.

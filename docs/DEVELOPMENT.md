@@ -26,7 +26,7 @@ Needs the .NET 8 SDK on Windows (or `EnableWindowsTargeting` to compile-check on
 |---|---|
 | `App.xaml(.cs)` | tray icon, theme loading (`ApplyTheme`: Legend.xaml + Legend2.xaml), F3 toggle (`ToggleMain`), single window |
 | `MainWindow.xaml(.cs)` | 2.0: the fixed 440 x 820 card (header 52, tabs 40, page, status 38, footer 52), the four tab pages and the settings page markup, sensor loop, hints, accent |
-| `MainWindow.Tabs.cs` | 2.0: tab switching, polling only for the tab on screen (`SensorsShown` / `UpdatePolling`), Home preset tiles and G-Mode switch, F4 hint (overlay in beta 2) |
+| `MainWindow.Tabs.cs` | 2.0: tab switching, polling only for the tab on screen (`SensorsShown` / `UpdatePolling`), Home preset tiles and G-Mode switch, F4 hint |
 | `Services/SysExe.cs` | v1.2 full System32 paths for the Windows tools the app runs |
 | `MainWindow.Settings.cs` | settings page (gear): 2.0 two tabs (General · Keys, Alerts · Advanced), back / Esc, dimmed dependent rows, chime pack, toast style, frame-gap log |
 | `Services/Sounds.cs` | 1.3.0-beta.2 chime packs (`Assets/Sounds/{Soft,Classic}`), only the active pack cached |
@@ -34,6 +34,9 @@ Needs the .NET 8 SDK on Windows (or `EnableWindowsTargeting` to compile-check on
 | `MainWindow.Oc.cs` | GPU overclock: NVML offsets, keep-or-revert test, G-Mode / Performance scope (`OcInPerformance`, 2.0 G-MODE / + PERF pill), OC toast tag |
 | `MainWindow.Window.cs`, `.Sensors.cs`, `.Modes.cs`, `.Gpu.cs` | 2.0.0-beta1.4 split: placement / scaling / slide / AllowClose, sensor reads, command gate and power modes, GPU mode row. See [STATUS.md](STATUS.md) |
 | `MainWindow.Presets.cs` | header preset button (2.0: hidden on Home, click cycles like F2, right click = list popup) |
+| `MainWindow.Overlay.cs`, `MainWindow.FpsCap.cs` | 2.0 Overlay tab: levels, Advanced, F4 / Shift + F4, FPS cap and V-Sync card |
+| `Overlay/` | the in-game overlay: `OverlayHost` (window thread, teardown after off), `D2DOverlay` (Direct2D + DirectComposition, WPF `OverlayPanel` fallback), `OverlayView` (layout and drawing of every level, Metal level 2), `OverlayLevels`, `MonoFont` (bundled JetBrains Mono) |
+| `Services/FramesSource.cs` | PresentMon CLI frames (CSV parse, swapchain filter, playhead), `VblankCounter.cs` refresh / G-SYNC, `NvDrs.cs` NVIDIA profile FPS cap and V-Sync, `CpuCores.cs` |
 | `Services/AwccSensors.cs` | v1.1 direct WMI temps and fan RPM (`AWCCWmiMethodFunction.Thermal_Information`), CLI fallback in `AlienFan` |
 | `Motion.cs` | all animations (v0.8.2, values and spline curves updated in v0.8.6), disabled by Reduce motion. The window slide is native since v0.8.8: `MainWindow.xaml.cs` (`PrepareShow` / `PlayOpen` / `HideToTray`) drives `Services/WindowSlide.cs` |
 | `Services/WindowSlide.cs` | native window slide: since 1.3 a short-lived thread steps it once per composition (DwmFlush) with async `SetWindowPos`, cubic-bezier curves |

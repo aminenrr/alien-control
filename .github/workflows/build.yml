@@ -29,7 +29,7 @@ jobs:
           cache-dependency-path: '**/*.csproj'
       # 2.0.0-beta1.4: duplicate keys, keys declared in both theme files and missing keys (was a PowerShell
       # duplicate-key check only)
-      - name: PresentMon (beta1.3-ov overlay frames, MIT, pinned)
+      - name: PresentMon (overlay frames, MIT, pinned)
         shell: pwsh
         run: |
           $d = "src/AlienControl/tools/PresentMon"

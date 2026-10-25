@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x
-      - name: PresentMon (beta1.3-ov overlay frames, MIT, pinned)
+      - name: PresentMon (overlay frames, MIT, pinned)
         shell: pwsh
         run: |
           $d = "src/AlienControl/tools/PresentMon"

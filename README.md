@@ -22,6 +22,8 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 ## Contents
 
 - [Screenshots](#screenshots)
+  - [2.0: Home, Tuning, Lights](#20-home-tuning-lights)
+  - [Overlay and settings](#overlay-and-settings)
   - [Notifications (F1, F2, plug / unplug)](#notifications-f1-f2-plug--unplug)
 - [Features](#features)
 - [Idle cost](#idle-cost)
@@ -51,7 +53,7 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 
 ## Screenshots
 
-### 2.0 (beta): Home, Tuning, Lights
+### 2.0: Home, Tuning, Lights
 
 | Home | Tuning | Lights |
 |---|---|---|
@@ -63,8 +65,7 @@ Command Center, whose background services keep *WMI Provider Host* busy.
 |---|---|---|
 | ![Overlay](docs/mockups/2.0/04-overlay.png) | ![Settings 1](docs/mockups/2.0/05-settings-general-keys.png) | ![Settings 2](docs/mockups/2.0/06-settings-alerts-advanced.png) |
 
-*2.0 images are the approved design mockups (values are samples); real screenshots replace them once the beta is tested
-on the laptop.*
+*2.0 images are the approved design mockups (values are samples); real screenshots will replace them.*
 
 ### Notifications (F1, F2, plug / unplug)
 
@@ -125,6 +126,7 @@ How it stays that small:
 - [Decisions log](docs/DECISIONS.md): why the app works the way it does
 - [Project status](docs/STATUS.md): what's done, what's next, architecture and how to release (start here)
 - [Development guide](docs/DEVELOPMENT.md): code layout, build, themes, mockups, workflow
+- [Branches](docs/BRANCHES.md): where work happens and how a stable ships
 - [Changelog](docs/CHANGELOG.md) and [Roadmap](docs/ROADMAP.md)
 
 ## How it works
@@ -363,7 +365,7 @@ to control the laptop, to work out the hardware details in [docs/HARDWARE.md](do
 scripts I ran on the laptop (power mode map, light IDs, the macro keys, the GPU overclock limits), and to help write and
 debug the code, the theme generator, the docs and the design mockups. The README screenshots are real, except the
 plug / unplug toasts, which were recreated from a real toast. I tested every feature myself on my own laptop
-(see [docs/RC-CHECKLIST.md](docs/RC-CHECKLIST.md)).
+(see [docs/archive/RC-CHECKLIST.md](docs/archive/RC-CHECKLIST.md)).
 
 The AI (LLM) tools were used responsibly:
 
@@ -384,11 +386,11 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**2.0.0** (stable): the 2.0 look (tabs, Legend only, no compact view) plus the in-game overlay (PresentMon frametimes, 4 levels, level 2 in the Apple Metal HUD style, FPS cap). See [docs/STATUS.md](docs/STATUS.md). The previous stable was **v1.3.5** (branch `v1.3`).
-toasts from 1.3.4), on top of **v1.3.0** (settings page with tabs, pill toasts, soft chimes, keyboard light timeout,
-CPU / GPU %, smoother slides, security hardening). Known: the chime crackle is fixed as far as possible for now (much less noticeable); a faint one can remain during hardware switches. Download it from the
-[Releases page](https://github.com/aminenrr/alien-control/releases/latest). Full history in the
-[CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md).
+**2.0.0** (stable, 2026-10-25): the 2.0 look (tabs, Legend only, no compact view) plus the in-game overlay
+(PresentMon frametimes, 4 levels, level 2 in the Apple Metal HUD style, per game FPS cap). Download it from the
+[Releases page](https://github.com/aminenrr/alien-control/releases/latest). The previous stable, **v1.3.5**, stays on
+the `v1.3` branch. Full history in the [CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md),
+current state in [docs/STATUS.md](docs/STATUS.md).
 
 ## Issues and support
 
