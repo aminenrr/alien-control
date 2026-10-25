@@ -177,7 +177,8 @@ internal sealed class D2DOverlay : IDisposable
             if (_formats.TryGetValue((size, bold, Mono), out var f)) return f;
             if (_formats.Count >= 8) { foreach (var x in _formats.Values) x.Dispose(); _formats.Clear(); }   // overlay resized a lot
             f = Mono
-                ? _dw.CreateTextFormat(_monoFamily, bold ? FontWeight.Bold : FontWeight.Normal, Vortice.DirectWrite.FontStyle.Normal, FontStretch.Normal, size)
+                ? _dw.CreateTextFormat(_monoFamily, bold ? FontWeight.Bold : FontWeight.SemiBold,   // beta3.1 (Amine): fat like the Metal HUD
+                    Vortice.DirectWrite.FontStyle.Normal, FontStretch.Normal, size)
                 : _dw.CreateTextFormat(_family, bold ? FontWeight.Bold : FontWeight.SemiBold, Vortice.DirectWrite.FontStyle.Normal, FontStretch.Normal, size);
             f.WordWrapping = WordWrapping.NoWrap;
             _formats[(size, bold, Mono)] = f;
@@ -228,6 +229,12 @@ internal sealed class D2DOverlay : IDisposable
         {
             if (w <= 0 || h <= 0) return;
             _ctx.FillRectangle(new Vortice.RawRectF((float)x, (float)y, (float)(x + w), (float)(y + h)), Brush(c));
+        }
+
+        public void FillRounded(double x, double y, double w, double h, double r, Rgba c)
+        {
+            if (w <= 0 || h <= 0) return;
+            _ctx.FillRoundedRectangle(new RoundedRectangle(new Vortice.RawRectF((float)x, (float)y, (float)(x + w), (float)(y + h)), (float)r, (float)r), Brush(c));
         }
 
         private ID2D1StrokeStyle? _round;

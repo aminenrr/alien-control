@@ -41,7 +41,7 @@ public sealed class OverlayPanel : FrameworkElement
     {
         private static readonly Typeface Face = new(new FontFamily("Ubuntu, Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
         private static readonly Typeface FaceBold = new(new FontFamily("Ubuntu, Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
-        private static readonly Typeface FaceMono = new(new FontFamily("Cascadia Mono, Consolas"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+        private static readonly Typeface FaceMono = new(new FontFamily("Cascadia Mono, Consolas"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal);
         /// <summary>beta3: the Metal level draws in a monospace face.</summary>
         public bool Mono { get; set; }
         private readonly Visual _owner;
@@ -84,6 +84,12 @@ public sealed class OverlayPanel : FrameworkElement
         {
             if (Dc is null || w <= 0 || h <= 0) return;
             Dc.DrawRectangle(B(c), null, new Rect(x, y, w, h));
+        }
+
+        public void FillRounded(double x, double y, double w, double h, double r, Rgba c)
+        {
+            if (Dc is null || w <= 0 || h <= 0) return;
+            Dc.DrawRoundedRectangle(B(c), null, new Rect(x, y, w, h), r, r);
         }
 
         public void Polyline(ReadOnlySpan<double> pts, Rgba c, double width)

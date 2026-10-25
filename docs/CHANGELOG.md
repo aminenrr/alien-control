@@ -3,6 +3,9 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.0-beta3.1 (2026-10-25, prerelease)
+Metal level: IOverlayCanvas.FillRounded (D2D FillRoundedRectangle, WPF DrawRoundedRectangle), mono SemiBold, MFs 20, MPad 12.
+
 ## v2.0.0-beta3 (2026-10-25, prerelease)
 Untested. Levels: FPS only dropped, old L2 strip -> L1, new L2 Metal HUD (OverlayView.BuildMetal / RenderMetal, mono face via IOverlayCanvas.Mono, Item.Resolution / Item.Gsync from the refresh poll, GsyncState from vblank vs mode Hz). Settings.OverlayLevelsV3 moves level + looks once.
 

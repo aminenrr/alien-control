@@ -22,6 +22,8 @@ public interface IOverlayCanvas
     /// <summary>beta3: text in the monospace face (the Metal HUD level) instead of the MangoHud one, until set back.
     /// Canvases without a monospace face ignore it.</summary>
     bool Mono { get => false; set { } }
+    /// <summary>beta3.1: a rounded rectangle (the Metal level's panel). Canvases without one fill it square.</summary>
+    void FillRounded(double x, double y, double w, double h, double r, Rgba c) => Fill(x, y, w, h, c);
 }
 
 /// <summary>
@@ -240,7 +242,9 @@ public sealed class OverlayView
     public void Render(IOverlayCanvas c)
     {
         if (Level <= 0 || Size.W <= 0) return;
-        c.Fill(0, 0, Size.W, Size.H, new Rgba(2, 2, 2, (byte)Math.Round(Math.Clamp(BgAlpha, 0, 1) * 255)));
+        var bg = new Rgba(2, 2, 2, (byte)Math.Round(Math.Clamp(BgAlpha, 0, 1) * 255));
+        if (Level == 2) c.FillRounded(0, 0, Size.W, Size.H, 12 * Scale, bg);   // beta3.1 (Amine): rounded like the Metal HUD
+        else c.Fill(0, 0, Size.W, Size.H, bg);
         if (Level == 1) RenderHorizontal(c);
         else if (Level == 2) RenderMetal(c);
         else RenderVertical(c);
@@ -521,9 +525,10 @@ public sealed class OverlayView
     private double _mGraphHi = 20;
     private bool? _gsyncLast;
 
-    private double MFs => 19 * Scale;
-    private double MRowH => MFs * 1.3;
+    private double MFs => 20 * Scale;
+    private double MRowH => MFs * 1.22;
     private double MGraphH => 58 * Scale;
+    private double MPad => 12 * Scale;   // beta3.1: more room inside the rounded corners
 
     /// <summary>G-SYNC from what the panel does: the counted refresh (vblanks) follows the game well under the mode's
     /// Hz = on; the counted refresh sits at the mode's Hz while the game runs well under it = off. With the game at or
@@ -602,7 +607,7 @@ public sealed class OverlayView
         {
             double gap = c.TextWidth("  ", MFs, false);
             double w = c.TextWidth("Frame Interval  100.00ms", MFs, false);   // a steady width, the graph fills it
-            double h = Pad * 2;
+            double h = MPad * 2;
             foreach (var r in _mrows)
             {
                 if (r.Spacer) { h += MRowH * 0.35; continue; }
@@ -612,7 +617,7 @@ public sealed class OverlayView
             }
             // graph scale: about 2.5x the average frame interval, in 5 ms steps so it doesn't wobble with every update
             _mGraphHi = Math.Clamp(Math.Ceiling(FrameMs * 2.5 / 5) * 5, 10, 100);
-            return (Math.Ceiling(w + Pad * 2), Math.Ceiling(h));
+            return (Math.Ceiling(w + MPad * 2), Math.Ceiling(h));
         }
         finally { c.Mono = mono; }
     }
@@ -623,7 +628,7 @@ public sealed class OverlayView
         c.Mono = true;
         try
         {
-            double x = Pad, xr = Size.W - Pad, y = Pad;
+            double x = MPad, xr = Size.W - MPad, y = MPad;
             foreach (var r in _mrows)
             {
                 if (r.Spacer) { y += MRowH * 0.35; continue; }
