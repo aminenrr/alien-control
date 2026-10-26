@@ -323,6 +323,17 @@ public class Overlay15Tests
         Assert.Equal("54ms", rows[lat].Find(OverlayView.MCols));
         Assert.Equal("Frame:", rows[lat - 1].Label);                                          // right after Frame
 
+        // 2.0.1 (Amine): the driver's G-SYNC answer wins; no game = "--" instead of 0.00
+        v.Data = v.Data with { VrrOn = true };
+        Assert.Contains(v.BuildMetal(), r => r.Find(OverlayView.MCols) == "G-SYNC On");
+        v.Data = v.Data with { VrrOn = false };
+        Assert.Contains(v.BuildMetal(), r => r.Find(OverlayView.MCols) == "G-SYNC Off");
+        v.Fps = 0; v.Low1 = 0; v.FrameMs = 0;
+        var idle = v.BuildMetal();
+        Assert.Equal("--", idle.Single(r => r.Label == "FPS:").Find(15));
+        Assert.Equal("--", idle.Single(r => r.Label == "Frame:").Find(15));
+        v.Fps = 139.84; v.Low1 = 117.2; v.FrameMs = 7.15;
+
         var c = new FakeCanvas();
         var (w, h) = v.Measure(c);
         Assert.True(w > 0 && h > 0);

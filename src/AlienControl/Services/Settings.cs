@@ -155,6 +155,9 @@ public sealed class Settings
     /// <summary>beta3 (Amine): levels moved (FPS only dropped, old level 2 is level 1, level 2 is the Metal HUD). False
     /// on older settings files: the level and the looks move over once in Normalize.</summary>
     public bool OverlayLevelsV3 { get; set; }
+    /// <summary>2.0.1 (Amine, NVIDIA overlay style): Move X / Y now count from the chosen corner toward the screen
+    /// centre (0 = in the corner, + = closer to the centre). False on older files: the old signed nudges flip once.</summary>
+    public bool OverlayMoveV2 { get; set; }
 
     public OverlayLook LookFor(int level)
     {
@@ -220,7 +223,7 @@ public sealed class Settings
                     continue;
                 }
                 if (s is null) continue;
-                bool migrated = s.SettingsVersion < CurrentVersion || s.DroppedRetired || !s.OverlayLevelsV3;   // beta3 levels move once
+                bool migrated = s.SettingsVersion < CurrentVersion || s.DroppedRetired || !s.OverlayLevelsV3 || !s.OverlayMoveV2;   // beta3 levels, 2.0.1 move: once
                 s.Clamp();
                 if (migrated || path != FilePath) s.Save();
                 return s;
@@ -331,7 +334,10 @@ public sealed class Settings
             l.Bg = C(l.Bg, 0, 100, 50);
             l.X = C(l.X, -50, 50, 0);
             l.Y = C(l.Y, -50, 50, 0);
+            if (!OverlayMoveV2) l.MigrateMoveV2();   // 2.0.1: signed screen nudge -> distance from the corner
+            l.ClampMove();
         }
+        OverlayMoveV2 = true;
         FpsCapCustom = C(FpsCapCustom, NvDrs.MinFps, NvDrs.MaxFps, d.FpsCapCustom);
         if (FpsCapGame is { Length: > 260 }) FpsCapGame = null;
         KeyboardLightCount = C(KeyboardLightCount, 1, 136, d.KeyboardLightCount);
@@ -523,6 +529,50 @@ public sealed class OverlayLook
     }
 
     /// <summary>ov.12 stepper: 1 % a click (Shift 10), -50 to +50.</summary>
-    public static int StepOffset(int v, int dir, bool shift) =>
-        Math.Clamp(v + Math.Sign(dir) * (shift ? 10 : 1), -50, 50);
+    public static int StepOffset(int v, int dir, bool shift) => StepOffset(v, dir, shift, -50);
+
+    /// <summary>2.0.1: the same stepper with a floor (0 for a value that counts from a corner).</summary>
+    public static int StepOffset(int v, int dir, bool shift, int min) =>
+        Math.Clamp(v + Math.Sign(dir) * (shift ? 10 : 1), min, 50);
+
+    // ---------- 2.0.1 (Amine): Move counts from the corner toward the centre, like the NVIDIA overlay ----------
+
+    /// <summary>Top centre / bottom centre have no "inward" sideways, so X there stays a signed shift (+ = right).</summary>
+    public static bool CentreColumn(int position) => position % 3 == 1;
+    /// <summary>Lowest X for a spot: 0 on the corners (0 = in the corner), -50 in the centre column.</summary>
+    public static int MinX(int position) => CentreColumn(position) ? -50 : 0;
+
+    /// <summary>Keeps X / Y in range for the current spot (call after the spot changes).</summary>
+    public void ClampMove()
+    {
+        X = Math.Clamp(X, MinX(Position), 50);
+        Y = Math.Clamp(Y, 0, 50);
+    }
+
+    /// <summary>Settings from 2.0.0 and older: X was + = right, Y was + = down from the spot. Flip the right column
+    /// and the bottom row so the overlay stays where it was (anything that pointed off screen becomes 0).</summary>
+    public void MigrateMoveV2()
+    {
+        if (Position % 3 == 2) X = -X;
+        if (Position >= 3) Y = -Y;
+        ClampMove();
+    }
+
+    /// <summary>Top left corner of the overlay (w x h) inside an area (left, top, width, height) for a spot and its
+    /// Move values: X / Y are % of the area, measured from the chosen corner toward the centre. Always inside.</summary>
+    public static (double X, double Y) Place(int position, int x, int y, double left, double top, double width, double height,
+        double w, double h)
+    {
+        int col = position % 3;
+        double px = col switch
+        {
+            0 => left + width * x / 100.0,
+            1 => left + (width - w) / 2 + width * x / 100.0,
+            _ => left + width - w - width * x / 100.0,
+        };
+        double py = position < 3 ? top + height * y / 100.0 : top + height - h - height * y / 100.0;
+        px = Math.Clamp(px, left, Math.Max(left, left + width - w));
+        py = Math.Clamp(py, top, Math.Max(top, top + height - h));
+        return (px, py);
+    }
 }
