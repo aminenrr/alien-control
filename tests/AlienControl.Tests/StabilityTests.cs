@@ -45,3 +45,16 @@ public class StabilityTests
     public void Failed_gmode_read_is_unknown_not_off(string output, bool? expected) =>
         Assert.Equal(expected, AlienFan.ParseGMode(output));
 }
+
+/// <summary>2.0.2 review: the exit cleanup keeps a test's OcPending marker unless +0 is confirmed.</summary>
+public class OcExitPendingTests
+{
+    [Theory]
+    [InlineData(true, true, false, true)]    // +0 written OK
+    [InlineData(false, true, false, false)]  // reset skipped (RTX off / switching) or failed: driver unknown, keep it
+    [InlineData(false, true, true, false)]
+    [InlineData(false, false, false, true)]  // driver known at +0, nothing in flight
+    [InlineData(false, false, true, false)]  // +0 only assumed, driver check still owed: keep it
+    public void Pending_is_cleared_only_when_zero_is_confirmed(bool resetOk, bool mayBeOn, bool unverified, bool clears) =>
+        Assert.Equal(clears, GpuOc.ExitClearsPending(resetOk, mayBeOn, unverified));
+}

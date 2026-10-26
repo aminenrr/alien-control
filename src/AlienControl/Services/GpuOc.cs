@@ -13,6 +13,12 @@ namespace AlienControl.Services;
 /// </summary>
 public static class GpuOc
 {
+    /// <summary>2.0.2 (review, Amine): whether the exit cleanup may clear a test's OcPending marker. Only when the +0
+    /// write went through, or when the app reliably knows the driver is at +0 (last confirmed write or read was +0,
+    /// nothing non-zero in flight, not waiting on a driver check). A skipped reset (RTX off or switching) keeps it.</summary>
+    internal static bool ExitClearsPending(bool resetOk, bool mayBeOn, bool unverified) =>
+        resetOk || (!mayBeOn && !unverified);
+
     /// <summary>2.0.0-beta1.4 (Amine, bug B): false when nvml.dll isn't in System32 (no NVIDIA driver), so the OC card
     /// is greyed instead of failing on Apply.</summary>
     public static bool NvmlPresent => System.IO.File.Exists(System.IO.Path.Combine(Environment.SystemDirectory, "nvml.dll"));

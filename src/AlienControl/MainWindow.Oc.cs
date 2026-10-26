@@ -293,16 +293,21 @@ public partial class MainWindow
     {
         _ocTimer.Stop();
         bool mayBeOn = OcMayBeOn;
-        string? err = null;
+        bool resetOk = false;
         if (mayBeOn && !OcUnavailable)   // 2.0.0-beta1.4: never NVML while the RTX is off
         {
             WaitOcWrite(2000);
+            string? err;
             // 2.0.0-beta1.3: bounded wait for the shared NVML lock, so a stuck driver call can't hang the exit
             try { err = GpuOc.Set(0, 0, lockTimeoutMs: 2000); }
             catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Oc.cs:207", __e); err = __e.Message; /* exiting anyway */ }
             Services.Log.Info("Exit", err is null ? "GPU OC +0" : "GPU OC +0 failed: " + err);
+            resetOk = err is null;
         }
-        if (_ocTesting && err is null) { _settings.OcPending = false; _settings.Save(); }
+        // 2.0.2 (review, Amine): a reset skipped because the RTX is off or switching (OcUnavailable) leaves the driver
+        // state unknown, so the test marker stays for StartupOcAsync
+        if (_ocTesting && GpuOc.ExitClearsPending(resetOk, mayBeOn, _ocUnverified)) { _settings.OcPending = false; _settings.Save(); }
+        else if (_ocTesting) Services.Log.Info("Exit", "OC test pending, +0 not confirmed: kept for the next launch");
     }
 
     /// <summary>2.0.2: waits (bounded) for the OC write in flight. Never throws.</summary>
