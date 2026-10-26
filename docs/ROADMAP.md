@@ -54,6 +54,10 @@
 - [x] 2.0.0-beta2 to beta3.6: the overlay (PresentMon, click-through Direct2D window, levels 1 to 4 + Advanced, F4 /
   Shift + F4, latency toggle, FPS cap and V-Sync per game, level 2 Metal HUD style). App and overlay share the pollers.
 - [x] 2.0.0 (2026-10-25): stable, tested on the m15 R7. `main` now on 2.0.
+- [x] 2.0.1 (2026-10-26): NVIDIA style overlay Move, PERF / G-MODE pill colours, Metal HUD polish (G-SYNC from the
+  driver). Tested.
+- [x] 2.0.2 (2026-10-26): stability fixes (resume in G-Mode, CLI timeouts, OC exit and recovery, double GPU switch).
+  Tested.
 - [ ] Real 2.0 screenshots in the README.
 
 ## Later
@@ -65,6 +69,7 @@
 - Maybe: faster charging (Dell ExpressCharge via `PrimaryBattChargeCfg`), removed from the UI in v0.8.5.
 
 ## Not planned
+- E-core / EcoQoS scheduling for the app's own threads: looked at during 2.0, dropped (not worth it).
 - Fluent Acrylic / see-through blur: tried in 1.1.0-beta.2 (native Windows 11 backdrop). It didn't look good enough and cost extra CPU and RAM, so it was removed.
 - Driver updater, XMP toggle (stock RAM has no XMP profile). (The overlay / FPS counter shipped in 2.0.)
 - NVIDIA private-call reverse engineering (GPU OC stays on public NVML offsets), forking or editing alienfx-tools.

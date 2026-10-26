@@ -1,6 +1,6 @@
 # Project status (for anyone picking this up)
 
-Last updated: 2026-10-25, **v2.0.0** (stable) on `main` and `v2.0`. The previous stable was v1.3.5 (branch `v1.3`).
+Last updated: 2026-10-26, **v2.0.2** (stable) on `main` and `v2.0`. The previous stable was v1.3.5 (branch `v1.3`).
 Read this first, then [DEVELOPMENT.md](DEVELOPMENT.md) (code layout, build), [DECISIONS.md](DECISIONS.md) (why),
 [HARDWARE.md](HARDWARE.md) (what was measured on the m15 R7) and the 2.0 spec in
 [mockups/2.0/HANDOFF.md](mockups/2.0/HANDOFF.md).
@@ -84,6 +84,15 @@ No third-party UI library since beta1.4 (WPF-UI removed).
   the NVIDIA profile (`Services/NvDrs.cs`), level 2 in the Apple Metal HUD style (JetBrains Mono, bundled). See the
   CHANGELOG for each step.
 - **2.0.0** (2026-10-25): stable, tested on the laptop.
+- **2.0.1** (2026-10-26): overlay Move counted from the corner (NVIDIA style, `OverlayLook.Place`, old values migrated
+  once through `Settings.OverlayMoveV2`), PERF / G-MODE pill in each mode's own colour, Metal level `--` when idle and
+  G-SYNC from `NvAPI_Disp_GetVRRInfo` (refresh guess as fallback). Tested on the laptop.
+- **2.0.2** (2026-10-26): stability fixes from the 2026-10-26 audit (PR #24). Resume in G-Mode keeps an unknown (null)
+  G-Mode read unknown and retries once; a timed out alienfan-cli is killed and its exit confirmed before the hardware
+  queue moves on; quitting awaits an in-flight OC write before the +0 reset; a second `pnputil` GPU switch is refused
+  while one is pending; the `OcPending` recovery marker is only cleared by a confirmed +0 (or a committed Keep), and
+  startup recovery waits until the RTX is back. Tests in `tests/AlienControl.Tests/StabilityTests.cs`. Tested on the
+  laptop.
 
 ## Still to do
 - Real 2.0 screenshots in the README (the mockups stand in for now).
@@ -119,7 +128,8 @@ No third-party UI library since beta1.4 (WPF-UI removed).
    `SHA256SUMS` to a GitHub release whose body is the notes file. A tag with a `-` (betas) is published as a pre-release automatically. For a stable, also fast-forward `main` to `v2.0`.
 
 ## Working from the Hark sandbox
-Push straight to `v2.0` with git and tag there (see Releasing). Local compile check: .NET 8 SDK and
+No git push credentials there: commits go through the GitHub git data API onto a `fix/...` branch, a PR into `v2.0`
+runs CI, then merge and create the tag ref (see Releasing). Local compile check: .NET 8 SDK and
 `dotnet build -p:EnableWindowsTargeting=true`; the tests only run in CI (Windows).
 
 ## Conventions

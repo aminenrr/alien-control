@@ -84,11 +84,15 @@ Command Center, whose background services keep *WMI Provider Host* busy.
   brightness, backlight timeout, status keys) and **Overlay**. **F3** opens / hides it, games included
   (borderless). The compact view of 1.1 to 1.3 is gone.
 - **In-game overlay** (2.0): frametimes from PresentMon (no injection, click through), 4 levels (1 horizontal strip, 2 Metal HUD style, 3 and 4 MangoHud style) plus Advanced, latency toggle, per game FPS cap and V-Sync through the NVIDIA driver profile. Off = nothing runs.
+  Move works like the NVIDIA overlay (2.0.1): both steppers count from the chosen corner toward the screen centre. The
+  Metal level reads G-SYNC On / Off from the NVIDIA driver when the RTX drives the screen.
 - Presets from the tray, the header preset button, the window or **F2**: Battery, Quiet, Balanced, Performance (power mode, CPU boost, refresh rate), plus Custom.
 - **F1 G-Mode**: fans max, Aggressive CPU boost, optional GPU overclock (core / memory offsets, AC only, keep-or-revert test).
-- **GPU OC in Performance** (v1.3.4): the **G-MODE / + PERF** pill in the GPU Overclock header (2.0; a toggle with the
-  Performance icon before). **+ PERF** = your kept offsets also run in the Performance preset on AC. **G-MODE** (default)
-  = G-Mode only. The Performance and G-Mode on toasts show **OC +core / +mem** in red when
+  Since 2.0.2 an OC test that is reverted, times out or fails only counts as done once the GPU reads +0 again; if the
+  app quits or crashes first (or the RTX is off), it puts the GPU back to +0 on the next launch.
+- **GPU OC in Performance** (v1.3.4): the **PERF / G-MODE** pill in the GPU Overclock header (2.0; a toggle with the
+  Performance icon before; PERF lights red and G-MODE white since 2.0.1). **PERF** = your kept offsets also run in the
+  Performance preset on AC. **G-MODE** (default) = G-Mode only. The Performance and G-Mode on toasts show **OC +core / +mem** in red when
   it runs, or a grey **OC off**.
 - **Auto preset**: Battery when unplugged, your last preset when plugged back in.
 - Fans, temps, **CPU % / GPU %** (v1.3) and CPU / GPU / total power readout while the window is open. Temps and fans come straight from the AWCC WMI interface (v1.1, ~2.5x faster than the CLI, CLI fallback).
@@ -117,7 +121,7 @@ How it stays that small:
 - Sensors (temps, fans, watts) are polled only while the window is open on a tab that shows them (Home, Tuning); closed, nothing polls.
 - Status keys (mute, mic, touchpad) update from Windows events (audio endpoint and registry callbacks), with a 30 s safety check.
 - Memory is trimmed a minute after the window hides or a toast closes (a quick reopen stays snappy), and 10 s after starting to the tray.
-- One framework-dependent ReadyToRun exe (faster start, no self-contained runtime). The release zip is ~3.3 MB.
+- One framework-dependent ReadyToRun exe (faster start, no self-contained runtime). The release zip is ~5.7 MB (it bundles PresentMon for the overlay).
 - No blur or Mica.
 
 ## Documentation
@@ -386,8 +390,11 @@ administrator and talks to the BIOS, the fans and the GPU.
 
 ## Status
 
-**2.0.0** (stable, 2026-10-25): the 2.0 look (tabs, Legend only, no compact view) plus the in-game overlay
-(PresentMon frametimes, 4 levels, level 2 in the Apple Metal HUD style, per game FPS cap). Download it from the
+**2.0.2** (stable, 2026-10-26): stability fixes on top of 2.0.1 (waking in G-Mode, hung hardware commands, quitting
+during an overclock change, double GPU mode switches, OC test recovery). 2.0.1 brought NVIDIA style overlay Move,
+the PERF / G-MODE pill colours and Metal HUD polish. 2.0.0 (2026-10-25) was the 2.0 look (tabs, Legend only, no
+compact view) plus the in-game overlay (PresentMon frametimes, 4 levels, level 2 in the Apple Metal HUD style, per
+game FPS cap). Download it from the
 [Releases page](https://github.com/aminenrr/alien-control/releases/latest). The previous stable, **v1.3.5**, stays on
 the `v1.3` branch. Full history in the [CHANGELOG](docs/CHANGELOG.md), next ideas in the [Roadmap](docs/ROADMAP.md),
 current state in [docs/STATUS.md](docs/STATUS.md).
