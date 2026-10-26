@@ -286,13 +286,14 @@ public partial class MainWindow
             }
             finally { _ocBusy = false; _ocWrite = null; }
         }
-        // 2.0.2 (review, Amine): finish a startup recovery that waited for the RTX: +0 now confirmed by a write or a
-        // driver read (_ocApplied was left unknown, so only those set it to (0, 0))
-        if (GpuOc.PendingRecoveryDone(_settings.OcPending, _ocTesting, _ocApplied))
+        // 2.0.2 (review, Amine): finish a pending recovery (startup, revert / timeout, failed apply): the driver is
+        // confirmed at the intended state by a write or a driver read (those paths leave _ocApplied unknown or at the
+        // test values, so only a confirmed write or read makes it equal want)
+        if (GpuOc.PendingRecoveryDone(_settings.OcPending, _ocTesting, _ocApplied, want))
         {
             _settings.OcPending = false;
             _settings.Save();
-            Services.Log.Info("GPU OC", "deferred OC test recovery done: driver at +0");
+            Services.Log.Info("GPU OC", $"OC test recovery done: driver at {Fmt(want)}");
         }
         if (_ocDirty) { _ocDirty = false; await SyncOcAsync(); return; }   // e.g. unplugged during the write: +0 now
         UpdateOcUi();
@@ -320,8 +321,9 @@ public partial class MainWindow
         }
         // 2.0.2 (review, Amine): a reset skipped because the RTX is off or switching (OcUnavailable) leaves the driver
         // state unknown, so the test marker stays for StartupOcAsync
-        if (_ocTesting && GpuOc.ExitClearsPending(resetOk, mayBeOn, _ocUnverified)) { _settings.OcPending = false; _settings.Save(); }
-        else if (_ocTesting) Services.Log.Info("Exit", "OC test pending, +0 not confirmed: kept for the next launch");
+        // 2.0.2 (review): also a recovery still pending outside a test (revert / timeout / failed apply)
+        if (_settings.OcPending && GpuOc.ExitClearsPending(resetOk, mayBeOn, _ocUnverified)) { _settings.OcPending = false; _settings.Save(); }
+        else if (_settings.OcPending) Services.Log.Info("Exit", "OC test pending, +0 not confirmed: kept for the next launch");
     }
 
     /// <summary>2.0.2: waits (bounded) for the OC write in flight. Never throws.</summary>
@@ -388,10 +390,12 @@ public partial class MainWindow
             finally { _ocWrite = null; }
             if (err is not null)
             {
-                _settings.OcPending = false;
-                _settings.Save();
+                // 2.0.2 (review, Amine): GpuOc.Set's rollback after a failed write isn't checked, so the driver may hold
+                // part of the test. OcPending stays and the driver state is unknown; the sync queued below (finally)
+                // writes the intended state (+0, or the kept offsets) and clears the marker once that's confirmed.
                 _ocApplied = null;
                 _ocError = err;
+                _ocDirty = true;
                 Status(err);
                 UpdateOcUi();
                 return;
@@ -430,9 +434,11 @@ public partial class MainWindow
             _settings.OcCore = a.Core;
             _settings.OcMem = a.Mem;
             _settings.OcOn = true;
+            _settings.OcPending = false;   // the test values are committed
         }
         else _settings.OcOn = false;
-        _settings.OcPending = false;
+        // 2.0.2 (review, Amine): Revert / timeout / left G-Mode keep OcPending until SyncOcAsync confirms +0 (it can
+        // skip the write while the RTX is unavailable); PendingRecoveryDone clears it there
         _settings.Save();
         await SyncOcAsync();   // Revert / timeout / left G-Mode: writes +0
     }

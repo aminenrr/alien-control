@@ -67,7 +67,7 @@ public class OcStartupRecoveryTests
     {
         Assert.False(GpuOc.StartupRecovered(rtxOff: true, err: null));
         // _ocApplied stays null, so a later sync can't count it as recovered without a write or read
-        Assert.False(GpuOc.PendingRecoveryDone(pending: true, testing: false, applied: null));
+        Assert.False(GpuOc.PendingRecoveryDone(pending: true, testing: false, applied: null, want: (0, 0)));
     }
 
     [Fact]
@@ -82,20 +82,48 @@ public class OcStartupRecoveryTests
     public void Pending_to_recovered_once_the_rtx_is_back()
     {
         (int, int)? applied = null;                                        // startup: RTX off, deferred
-        Assert.False(GpuOc.PendingRecoveryDone(true, false, applied));
+        Assert.False(GpuOc.PendingRecoveryDone(true, false, applied, (0, 0)));
         applied = null;                                                    // RTX back, +0 write failed
-        Assert.False(GpuOc.PendingRecoveryDone(true, false, applied));
+        Assert.False(GpuOc.PendingRecoveryDone(true, false, applied, (0, 0)));
         applied = (0, 0);                                                  // +0 written or read back
-        Assert.True(GpuOc.PendingRecoveryDone(true, false, applied));
+        Assert.True(GpuOc.PendingRecoveryDone(true, false, applied, (0, 0)));
     }
 
     [Theory]
     [InlineData(false, false)]   // nothing pending
     [InlineData(true, true)]     // a running test owns the marker
     public void Never_clears_outside_a_deferred_recovery(bool pending, bool testing) =>
-        Assert.False(GpuOc.PendingRecoveryDone(pending, testing, (0, 0)));
+        Assert.False(GpuOc.PendingRecoveryDone(pending, testing, (0, 0), (0, 0)));
 
     [Fact]
     public void Non_zero_driver_state_is_not_recovered() =>
-        Assert.False(GpuOc.PendingRecoveryDone(true, false, (100, 200)));
+        Assert.False(GpuOc.PendingRecoveryDone(true, false, (100, 200), (0, 0)));
+}
+
+/// <summary>2.0.2 review: revert / timeout and a failed apply keep OcPending until the driver is confirmed.</summary>
+public class OcRevertAndFailedApplyTests
+{
+    [Fact]
+    public void Revert_while_the_rtx_switches_keeps_the_marker()
+    {
+        // test values still cached, +0 skipped (OcUnavailable): not recovered
+        Assert.False(GpuOc.PendingRecoveryDone(true, false, (150, 400), (0, 0)));
+        // then the exit can't confirm +0 either (RTX off: no write; test values may be on): still kept
+        Assert.False(GpuOc.ExitClearsPending(resetOk: false, mayBeOn: true, unverified: false));
+    }
+
+    [Fact]
+    public void Revert_clears_once_zero_is_written_or_read() =>
+        Assert.True(GpuOc.PendingRecoveryDone(true, false, (0, 0), (0, 0)));
+
+    [Fact]
+    public void Failed_apply_with_unchecked_rollback_keeps_the_marker() =>
+        Assert.False(GpuOc.PendingRecoveryDone(true, false, null, (0, 0)));
+
+    [Fact]
+    public void Failed_apply_clears_once_the_kept_offsets_are_back()
+    {
+        Assert.False(GpuOc.PendingRecoveryDone(true, false, null, (100, 300)));
+        Assert.True(GpuOc.PendingRecoveryDone(true, false, (100, 300), (100, 300)));
+    }
 }
