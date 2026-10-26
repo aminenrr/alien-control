@@ -571,7 +571,8 @@ public sealed class OverlayView
             Rgba gc = DimC;
             if ((it & Item.Gsync) != 0)
             {
-                _gsyncLast = GsyncState(d.RefreshHz, d.ModeHz, Fps, _gsyncLast);
+                // 2.0.1 (Amine): the driver's answer when it gives one, else the guess from the counted refresh
+                _gsyncLast = d.VrrOn ?? GsyncState(d.RefreshHz, d.ModeHz, Fps, _gsyncLast);
                 gs = _gsyncLast switch { true => "G-SYNC On", false => "G-SYNC Off", _ => "G-SYNC --" };
                 if (_gsyncLast == true) gc = MetalGreen;
             }
@@ -581,12 +582,14 @@ public sealed class OverlayView
         // beta3.5: min / max over the frames the graph shows, from 10 frame averages for the fast end so uneven pacing
         // (0.2 ms / 14 ms pairs) doesn't read as 4651 fps; the slowest frame stays raw so a hitch still shows
         var (mn, mx) = MetalRange(Graph, GraphCount);
-        bool have = mx > 0;
+        // 2.0.1 (Amine): no game (no frames) = "--" everywhere instead of 0.00
+        bool live = Fps > 0;
+        bool have = live && mx > 0;
         if ((it & Item.Fps) != 0)
-            r.Add(Br("FPS:", Fps.ToString("0.00"), (it & Item.Low1) != 0 ? Low1.ToString("0.00") : "",
+            r.Add(Br("FPS:", live ? Fps.ToString("0.00") : "--", (it & Item.Low1) != 0 ? (live && Low1 > 0 ? Low1.ToString("0.00") : "--") : "",
                 have ? Math.Min(9999, 1000 / mn).ToString("0.00") : "--", White, MetalRed, White));
         if ((it & Item.FrameTime) != 0)
-            r.Add(Br("Frame:", FrameMs.ToString("0.00"), have ? mn.ToString("0.00") : "--", have ? mx.ToString("0.00") : "--", MetalBlue, MetalBlue, MetalRed));
+            r.Add(Br("Frame:", live && FrameMs > 0 ? FrameMs.ToString("0.00") : "--", have ? mn.ToString("0.00") : "--", have ? mx.ToString("0.00") : "--", MetalBlue, MetalBlue, MetalRed));
         if ((it & Item.Latency) != 0) r.Add(Lr("Latency:", White, LatValue == "--" ? "--" : LatValue + "ms", White));
         if ((it & Item.FrameGraph) != 0) r.Add(new(Array.Empty<MSeg>(), Graph: true));
         if ((it & (Item.Gpu | Item.GpuTemp | Item.GpuPower)) != 0)

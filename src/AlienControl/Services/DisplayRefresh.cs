@@ -70,6 +70,12 @@ public static class DisplayRefresh
     /// when no internal panel is active (lid closed) or it can't be read.</summary>
     private static string? TargetDevice() => GpuMode.InternalPanelGdiName() ?? PrimaryDevice();
 
+    /// <summary>2.0.1: the GDI name of the display this class reads (\\.\DISPLAY1), for the NVAPI G-SYNC check.</summary>
+    public static string? Device()
+    {
+        try { return TargetDevice(); } catch { return null; }
+    }
+
     private static DEVMODE NewMode() => new() { dmSize = (short)Marshal.SizeOf<DEVMODE>(), dmDeviceName = "", dmFormName = "" };
 
     public sealed record State(int CurrentHz, int Width, int Height, IReadOnlyList<int> AvailableHz);

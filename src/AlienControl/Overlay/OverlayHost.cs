@@ -518,11 +518,9 @@ public sealed class OverlayHost : IDisposable
         var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
         if (!GetMonitorInfo(mon, ref mi)) return;
         var r = mi.rcMonitor;
-        int x = (_position % 3) switch { 0 => r.Left, 1 => r.Left + (r.Right - r.Left - w) / 2, _ => r.Right - w };
-        int y = _position < 3 ? r.Top : r.Bottom - h;
-        // the X / Y nudge (% of the screen), clamped so the overlay never leaves the monitor
-        x = Math.Clamp(x + (r.Right - r.Left) * _offX / 100, r.Left, Math.Max(r.Left, r.Right - w));
-        y = Math.Clamp(y + (r.Bottom - r.Top) * _offY / 100, r.Top, Math.Max(r.Top, r.Bottom - h));
+        // 2.0.1 (Amine): Move counts from the chosen corner toward the centre, like the NVIDIA overlay
+        var (fx, fy) = OverlayLook.Place(_position, _offX, _offY, r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top, w, h);
+        int x = (int)Math.Round(fx), y = (int)Math.Round(fy);
         if (hwnd == _hwnd) SetWindowPos(hwnd, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE);
         else SetWindowPos(hwnd, HWND_TOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE);
     }
