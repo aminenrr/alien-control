@@ -95,15 +95,21 @@ public partial class MainWindow
         if (_settings.OcPending)
         {
             // the app (or the driver) died during a test: never come back with offsets nobody kept
-            _settings.OcPending = false;
             _settings.OcOn = false;
             _settings.Save();
-            // 2.0.0-beta1.4 (bug B): no NVML write while the RTX is disabled (it is at stock when it comes back)
+            // 2.0.0-beta1.4 (bug B): no NVML write while the RTX is disabled
             bool rtxOff = await Task.Run(() => GpuMode.Adapters().Find(a => a.IsNvidia)?.Disabled == true || !GpuOc.NvmlPresent);
             var err = rtxOff ? null : await Task.Run(() => GpuOc.Set(0, 0));
-            _ocApplied = err is null ? (0, 0) : null;
+            // 2.0.2 (review, Amine): OcPending is only cleared once +0 is confirmed. A disabled RTX is not proof the
+            // offsets reset (unverified on the m15 R7), so the state stays unknown (_ocApplied null) and the marker
+            // stays saved; SyncOcAsync writes +0 once the RTX is usable and clears it then. A failed write or an exit
+            // before that leaves it for the next launch.
+            bool recovered = GpuOc.StartupRecovered(rtxOff, err);
+            if (recovered) { _settings.OcPending = false; _settings.Save(); }
+            else Services.Log.Info("GPU OC", rtxOff ? "OC test pending, RTX unavailable: +0 deferred until it is back" : "OC test pending, +0 failed: " + err);
+            _ocApplied = recovered ? (0, 0) : null;
             // 2.0.0-beta1.3: settings fell back to defaults (first start, reset, both files torn): the same +0, silent
-            if (err is not null || !_settings.LoadedDefaults) Status(err ?? "GPU OC: the last test wasn't kept, clocks are back to stock.");
+            if (err is not null || (recovered && !_settings.LoadedDefaults)) Status(err ?? "GPU OC: the last test wasn't kept, clocks are back to stock.");
         }
         else if (!_settings.OcOn)
         {
@@ -279,6 +285,14 @@ public partial class MainWindow
                 if (err is not null) Status(err);
             }
             finally { _ocBusy = false; _ocWrite = null; }
+        }
+        // 2.0.2 (review, Amine): finish a startup recovery that waited for the RTX: +0 now confirmed by a write or a
+        // driver read (_ocApplied was left unknown, so only those set it to (0, 0))
+        if (GpuOc.PendingRecoveryDone(_settings.OcPending, _ocTesting, _ocApplied))
+        {
+            _settings.OcPending = false;
+            _settings.Save();
+            Services.Log.Info("GPU OC", "deferred OC test recovery done: driver at +0");
         }
         if (_ocDirty) { _ocDirty = false; await SyncOcAsync(); return; }   // e.g. unplugged during the write: +0 now
         UpdateOcUi();

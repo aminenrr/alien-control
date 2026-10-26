@@ -58,3 +58,44 @@ public class OcExitPendingTests
     public void Pending_is_cleared_only_when_zero_is_confirmed(bool resetOk, bool mayBeOn, bool unverified, bool clears) =>
         Assert.Equal(clears, GpuOc.ExitClearsPending(resetOk, mayBeOn, unverified));
 }
+
+/// <summary>2.0.2 review: a pending OC test recovery waits for the RTX and only clears on a confirmed +0.</summary>
+public class OcStartupRecoveryTests
+{
+    [Fact]
+    public void Rtx_off_at_startup_keeps_the_marker_and_leaves_the_state_unknown()
+    {
+        Assert.False(GpuOc.StartupRecovered(rtxOff: true, err: null));
+        // _ocApplied stays null, so a later sync can't count it as recovered without a write or read
+        Assert.False(GpuOc.PendingRecoveryDone(pending: true, testing: false, applied: null));
+    }
+
+    [Fact]
+    public void Failed_startup_write_keeps_the_marker() =>
+        Assert.False(GpuOc.StartupRecovered(rtxOff: false, err: "NVML busy"));
+
+    [Fact]
+    public void Successful_startup_write_clears_the_marker() =>
+        Assert.True(GpuOc.StartupRecovered(rtxOff: false, err: null));
+
+    [Fact]
+    public void Pending_to_recovered_once_the_rtx_is_back()
+    {
+        (int, int)? applied = null;                                        // startup: RTX off, deferred
+        Assert.False(GpuOc.PendingRecoveryDone(true, false, applied));
+        applied = null;                                                    // RTX back, +0 write failed
+        Assert.False(GpuOc.PendingRecoveryDone(true, false, applied));
+        applied = (0, 0);                                                  // +0 written or read back
+        Assert.True(GpuOc.PendingRecoveryDone(true, false, applied));
+    }
+
+    [Theory]
+    [InlineData(false, false)]   // nothing pending
+    [InlineData(true, true)]     // a running test owns the marker
+    public void Never_clears_outside_a_deferred_recovery(bool pending, bool testing) =>
+        Assert.False(GpuOc.PendingRecoveryDone(pending, testing, (0, 0)));
+
+    [Fact]
+    public void Non_zero_driver_state_is_not_recovered() =>
+        Assert.False(GpuOc.PendingRecoveryDone(true, false, (100, 200)));
+}

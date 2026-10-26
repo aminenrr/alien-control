@@ -19,6 +19,15 @@ public static class GpuOc
     internal static bool ExitClearsPending(bool resetOk, bool mayBeOn, bool unverified) =>
         resetOk || (!mayBeOn && !unverified);
 
+    /// <summary>2.0.2 (review, Amine): startup recovery of a pending test is done only when the +0 write ran and
+    /// worked. RTX disabled = skipped, not done.</summary>
+    internal static bool StartupRecovered(bool rtxOff, string? err) => !rtxOff && err is null;
+
+    /// <summary>2.0.2 (review, Amine): a recovery left pending at startup is done once the driver is confirmed at +0
+    /// outside a test (during a test OcPending belongs to the test).</summary>
+    internal static bool PendingRecoveryDone(bool pending, bool testing, (int Core, int Mem)? applied) =>
+        pending && !testing && applied is (0, 0);
+
     /// <summary>2.0.0-beta1.4 (Amine, bug B): false when nvml.dll isn't in System32 (no NVIDIA driver), so the OC card
     /// is greyed instead of failing on Apply.</summary>
     public static bool NvmlPresent => System.IO.File.Exists(System.IO.Path.Combine(Environment.SystemDirectory, "nvml.dll"));
