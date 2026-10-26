@@ -150,14 +150,18 @@ public sealed class FramesSource : IDisposable
             _running = true;
             _startedAt = Stopwatch.GetTimestamp();
             lock (_lock) { _head = 0; _count = 0; _targetPid = 0; _targetApp = ""; _runtime = ""; _presentMode = ""; _syncInterval = -1; }
-            _reader = new Thread(() => ReadLoop(p)) { IsBackground = true, Name = "PresentMon reader",
+            // diag pass 2: with overlay-diag.json the raw pipe is read by a Highest-priority pump that stamps each chunk,
+            // and the reader parses lines behind it (W_k). Without diag this is p.StandardOutput, as in 2.0.2.
+            OverlayDiag.Pump? pump = OverlayDiag.On && OverlayDiag.Cfg.Pump ? OverlayDiag.Pump.Start(p.StandardOutput.BaseStream, "diag stdout pump") : null;
+            TextReader rd = pump is null ? p.StandardOutput : new StreamReader(pump, p.StandardOutput.CurrentEncoding, false, 4096);
+            _reader = new Thread(() => ReadLoop(p, rd, pump)) { IsBackground = true, Name = "PresentMon reader",
                 Priority = OverlayDiag.On ? OverlayDiag.ReaderPriority() : ThreadPriority.BelowNormal };
             _reader.Start();
             if (OverlayDiag.On)
             {
                 OverlayDiag.PresentMonCpu = () => { try { return p.HasExited ? TimeSpan.Zero : p.TotalProcessorTime; } catch { return TimeSpan.Zero; } };
-                OverlayDiag.StartProbe(p.StandardOutput.BaseStream, () => _running && ReferenceEquals(_proc, p));
-                Log.Info("Diag", $"PresentMon args: {args}; reader priority {_reader.Priority}");
+                OverlayDiag.StartEtwControl(SessionName, () => _running && _proc is not null);
+                Log.Info("Diag", $"PresentMon args: {args}; reader priority {_reader.Priority}; pump {(pump is not null)}");
             }
             Log.Info("Frames", (Extended ? $"PresentMon started (latency and frame gen, tier {_tier})" : "PresentMon started") + (TrackGpu ? ", GPU tracking" : "")
                 + (_staleSession ? ", replacing a leftover session" : ""));
@@ -281,17 +285,18 @@ public sealed class FramesSource : IDisposable
     private int _colGpuBusy = -1, _colSync = -1, _colDispChange = -1;   // ov.15; beta2.3 display change
 
     /// <summary>Reads the header once, then one frame per line. Lines that don't belong to the foreground process are dropped.</summary>
-    private void ReadLoop(Process p)
+    private void ReadLoop(Process p, TextReader reader, OverlayDiag.Pump? pump)
     {
         try
         {
-            var reader = p.StandardOutput;
             string? line;
             bool header = false;
             // read to EOF even after Stop, so PresentMon never blocks on a full pipe while it shuts down
             while ((line = reader.ReadLine()) is not null)
             {
                 if (!_running || !ReferenceEquals(_proc, p)) continue;
+                // diag pass 2: --track_etw_status lines ("[ETW Status] ...") are interleaved with the CSV; not rows
+                if (OverlayDiag.On && line.Length > 0 && line[0] == '[' && OverlayDiag.OnEtwStatusLine(Stopwatch.GetTimestamp(), line)) continue;
                 if (!header)
                 {
                     if (!line.StartsWith("Application", StringComparison.OrdinalIgnoreCase)) continue;
@@ -299,7 +304,7 @@ public sealed class FramesSource : IDisposable
                     header = true;
                     continue;
                 }
-                if (OverlayDiag.On) OverlayDiag.OnRow(Stopwatch.GetTimestamp(), line.Length + 2);
+                if (OverlayDiag.On) OverlayDiag.OnRow(Stopwatch.GetTimestamp(), line.Length + 2, pump?.LastQpc ?? 0, pump?.LastSeq ?? 0);
                 OnLine(line);
             }
             if (_running && ReferenceEquals(_proc, p))

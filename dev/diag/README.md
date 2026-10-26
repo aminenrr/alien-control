@@ -4,10 +4,32 @@ Opt-in measurement of the overlay's telemetry and render path. Nothing changes u
 `%AppData%\AlienControl\overlay-diag.json` exists with `"enabled": true` (read once at app start, so restart the
 app after editing it). Without the file the build behaves like 2.0.2.
 
+Pass 2 (ETW flush A/B, the current protocol):
+
 ```json
-{ "enabled": true, "playhead": "ab", "fixedMs": 50, "abSeconds": 20,
-  "readerPriority": "BelowNormal", "pipeProbe": true, "etwStatus": true, "raw": true }
+{ "enabled": true, "playhead": "off", "readerPriority": "BelowNormal", "pump": true,
+  "flush": "ab", "flushCycle": [0, 250, 100, 50], "flushSeconds": 30,
+  "etwStatus": true, "etwQuery": true, "raw": true }
 ```
+
+Pass 1 (Playhead A/B): `{ "enabled": true, "playhead": "ab", "fixedMs": 50, "abSeconds": 20, "flush": "0" }`.
+
+- `flush`: `"0"` = no explicit flush (the baseline, exactly pass 1's data path), `"250"` / `"100"` / `"50"` = call
+  `ControlTrace(0, "AlienControlsOverlay", props, EVENT_TRACE_CONTROL_FLUSH)` on that period, `"ab"` = cycle `flushCycle`
+  every `flushSeconds` (first 2 s after each switch out of the stats). Nothing else changes between periods: same
+  PresentMon process and arguments, same reader, same Playhead mode, same renderer. FlushTimer is never touched
+  (Windows' minimum is 1 s); every period is explicit flush calls. Each call is logged with its return code, call
+  time and actual interval; the flush thread's CPU time is logged per window. The first success and any failing rc
+  are written to crash.log, and `ETW control: ... elevated true/false` records the process rights.
+- `pump`: a Highest-priority thread reads PresentMon's raw stdout and stamps each chunk as ReadFile returns it (W);
+  the reader (at `readerPriority`) parses lines behind it. Replaces pass 1's PeekNamedPipe probe, which could not
+  work: on a synchronous pipe handle PeekNamedPipe waits behind the reader's blocking ReadFile, so its stamp went
+  stale and reader delay grew without bound.
+- `etwStatus`: PresentMon 2.6.0 does not write the Etw* CSV columns for our column set (the unified metrics writer
+  in CsvOutput.cpp skips them); it prints `[ETW Status] BufferFillPct=.. EventsLost=.. BuffersLost=..,
+  OverflowedPresents=..` on stdout once a second. Those lines are parsed (etw_pm.csv) and no longer counted as rows.
+- `etwQuery`: once a second `ControlTrace QUERY` on the same session (etw_query.csv): buffer size and count, free
+  buffers, FlushTimer, LogFileMode, EventsLost, RealTimeBuffersLost, LogBuffersLost, BuffersWritten.
 
 - `playhead`: `adaptive` (2.0.2), `fixed` (same clock mapping and glide, constant `fixedMs` hold), `off` (edge = newest
   arrived frame), or `ab` (cycles adaptive, fixed, off every `abSeconds`; the first 2 s after a switch stay out of the
@@ -25,7 +47,7 @@ app after editing it). Without the file the build behaves like 2.0.2.
 | C_i | CPUStartQPC of game frame i |
 | P_i | TimeInQPC: the game's Present() call |
 | A_i | its CSV row arrived (ReadLine returned) |
-| W_k / B_k | pipe first had bytes (1 ms probe, PeekNamedPipe) / first row of batch k read; a batch ends after 2 ms silence |
+| W_k / B_k | raw stdout chunk holding batch k's first row returned by ReadFile on the pump thread / that row read by the reader; a batch ends after 2 ms silence |
 | S_j | graph sampled for overlay frame j (FillGraph); e = the newest frame drawn at the right edge |
 | Q0_j / Q1_j | Present() called / returned |
 | V_j | display QPC of present j from IDXGISwapChain::GetFrameStatistics (SyncQPCTime when PresentCount matches) |
@@ -34,7 +56,9 @@ app after editing it). Without the file the build behaves like 2.0.2.
 - D_data = A_e - P_e, D_wait = S_j - A_e (ring + Playhead hold + loop wait), D_present = V_j - S_j.
 - Age_e2e = D_data + D_wait + D_present by construction (analyze.py checks it). Playhead's delay is logged as context and
   never added, so arrival delay and hold are not double counted.
-- Reader delay = B_k - W_k. Batch gap = B_k - B_(k-1).
+- Reader delay = B_k - W_k (analyze.py checks W_k <= B_k on every batch). Batch gap = B_k - B_(k-1).
+- Newest row A-P = for each batch, arrival minus Present() of its newest game frame: how stale the freshest data is
+  when it lands. The decisive pass 2 figure, with rows A-P and Age_e2e, per flush period.
 - DirectComposition's NextEstimatedFrameTime gives a separate "dcomp est" age, context only, never mixed with V.
 
 ## Output
@@ -54,8 +78,16 @@ app after editing it). Without the file the build behaves like 2.0.2.
 - stdout: `fflush` after every CSV row (CsvOutput.cpp), so no CRT block buffering.
 - Output thread (OutputThread.cpp): drains completed presents, writes them, then `Sleep(100)`. Rows leave in batches
   at most every ~100 ms whatever ETW does.
+- Pass 1 measured ~1 s batches (983 / 1092 ms), not 100 ms, and every row of a batch within 2 to 4 ms.
 
-## Protocol
+## Protocol (pass 2)
+
+1. Same setup as pass 1. Control Resonant, FG **off** (frame type isn't tracked in lean mode yet), steady scene.
+2. Pass 2 json above (`playhead: off`, `flush: ab`): 4 minutes = two full cycles of 0 / 250 / 100 / 50 ms.
+3. Same in Castlevania.
+4. Send crash.log and the new diag run folder.
+
+## Protocol (pass 1)
 
 1. Same game, same display setup (G-SYNC on, 240 Hz panel, same overlay level with the graph, Present mode untouched).
    Castlevania (light) and ratchet-probe or sp26-cod (heavy).

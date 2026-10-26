@@ -64,4 +64,73 @@ public class OverlayDiagTests
         Assert.Equal(123.0, buf[0].T, 6);
         Assert.Equal(0, buf[0].Pq);   // Pq is only parsed with diag on
     }
+
+    // ---------- diag pass 2 ----------
+
+    [Fact]
+    public void Pump_stamps_the_chunk_each_line_came_from()
+    {
+        var pump = new OverlayDiag.Pump();
+        var enc = System.Text.Encoding.ASCII;
+        var a = enc.GetBytes("Application,ProcessID\nrow1\nrow2\n");
+        var b = enc.GetBytes("row3\n");
+        pump.Push(a, a.Length, 1000);
+        pump.Push(b, b.Length, 5000);
+        pump.Complete();
+        var rd = new System.IO.StreamReader(pump, enc, false, 4096);
+        Assert.Equal("Application,ProcessID", rd.ReadLine());
+        Assert.Equal("row1", rd.ReadLine());
+        Assert.Equal(1000, pump.LastQpc);
+        Assert.Equal("row2", rd.ReadLine());
+        Assert.Equal("row3", rd.ReadLine());
+        Assert.Equal(5000, pump.LastQpc);
+        Assert.Equal(2, pump.LastSeq);
+        Assert.Null(rd.ReadLine());
+    }
+
+    [Fact]
+    public void Etw_status_line_is_parsed()
+    {
+        Assert.True(OverlayDiag.TryParseEtwStatus("[ETW Status] BufferFillPct=12.5% BuffersInUse=32 TotalBuffers=256 EventsLost=7 BuffersLost=1, OverflowedPresents=3", out var e));
+        Assert.Equal(12.5, e.FillPct, 3);
+        Assert.Equal(32, e.InUse);
+        Assert.Equal(256, e.Total);
+        Assert.Equal(7, e.EventsLost);
+        Assert.Equal(1, e.BuffersLost);
+        Assert.Equal(3, e.Overflowed);
+        Assert.False(OverlayDiag.TryParseEtwStatus("Castlevania.exe,1234,0x1,DXGI", out _));
+    }
+
+    [Fact]
+    public void Flush_schedule_baseline_fixed_and_cycle()
+    {
+        long f = Stopwatch.Frequency, st = 0;
+        var c = new OverlayDiag.Config();
+        Assert.Equal(0, OverlayDiag.FlushMsAt(c, 1, ref st));           // default: no explicit flush
+        c.Flush = "100";
+        Assert.Equal(100, OverlayDiag.FlushMsAt(c, 1, ref st));
+        c.Flush = "ab"; c.FlushSeconds = 30; st = 0;
+        long t0 = 10 * f;
+        Assert.Equal(0, OverlayDiag.FlushMsAt(c, t0, ref st));
+        Assert.Equal(250, OverlayDiag.FlushMsAt(c, t0 + 31 * f, ref st));
+        Assert.Equal(100, OverlayDiag.FlushMsAt(c, t0 + 61 * f, ref st));
+        Assert.Equal(50, OverlayDiag.FlushMsAt(c, t0 + 91 * f, ref st));
+        Assert.Equal(0, OverlayDiag.FlushMsAt(c, t0 + 121 * f, ref st));
+        Assert.Equal("off flush50", OverlayDiag.Label(OverlayDiag.PlayMode.Off, 50));
+        Assert.Equal("adaptive noflush", OverlayDiag.Label(OverlayDiag.PlayMode.Adaptive, 0));
+    }
+
+    [Fact]
+    public void Trace_properties_offsets_match_x64_layout()
+    {
+        var p = System.Runtime.InteropServices.Marshal.AllocHGlobal(OverlayDiag.PropsSize);
+        try
+        {
+            for (int i = 0; i < OverlayDiag.PropsSize; i += 4) System.Runtime.InteropServices.Marshal.WriteInt32(p, i, i);
+            var q = OverlayDiag.ReadProps(0, p);
+            Assert.Equal(48u, q.BufferKb); Assert.Equal(64u, q.LogFileMode); Assert.Equal(68u, q.FlushTimer);
+            Assert.Equal(88u, q.EventsLost); Assert.Equal(100u, q.RealTimeBuffersLost);
+        }
+        finally { System.Runtime.InteropServices.Marshal.FreeHGlobal(p); }
+    }
 }

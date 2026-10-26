@@ -18,8 +18,10 @@ namespace AlienControl.Services;
 ///
 /// All timestamps are QPC ticks (Stopwatch.GetTimestamp, the same counter PresentMon prints with --qpc_time).
 ///   C_i = PresentMon CPUStartQPC of game frame i          P_i = PresentMon TimeInQPC (the game's Present() call)
-///   A_i = arrival QPC of its CSV row (ReadLine returned)   B_k = first arrival of batch k, W_k = when the pipe first
-///                                                          had bytes for batch k (probe thread, PeekNamedPipe)
+///   A_i = arrival QPC of its CSV row (ReadLine returned)   B_k = first arrival of batch k, W_k = when the raw stdout
+///                                                          chunk holding batch k's first row came out of ReadFile on the
+///                                                          Highest-priority pump thread (diag pass 2; pass 1's PeekNamedPipe
+///                                                          probe was serialized behind the reader's blocking ReadFile)
 ///   For overlay frame j: S_j = graph sampled (FillGraph), e = the newest frame drawn at the right edge,
 ///   Q0_j / Q1_j = Present() called / returned, V_j = display QPC from IDXGISwapChain::GetFrameStatistics.
 ///   D_data = A_e - P_e   D_wait = S_j - A_e (ring + Playhead hold + loop wait)   D_present = V_j - S_j
@@ -37,9 +39,19 @@ public static class OverlayDiag
         public int FixedMs { get; set; } = 50;
         public int AbSeconds { get; set; } = 20;
         public string ReaderPriority { get; set; } = "BelowNormal";
-        public bool PipeProbe { get; set; } = true;
+        public bool PipeProbe { get; set; } = true;   // pass 1 only, ignored now (see Pump)
         public bool EtwStatus { get; set; } = true;
         public bool Raw { get; set; } = true;
+        // diag pass 2 (Amine 2026-10-26)
+        /// <summary>Stamp raw stdout chunks on a Highest-priority pump thread (W_k), the reader parses lines behind it.</summary>
+        public bool Pump { get; set; } = true;
+        /// <summary>Explicit ControlTrace(EVENT_TRACE_CONTROL_FLUSH) on our PresentMon session: "0" (none, the baseline),
+        /// a period in ms ("250", "100", "50"), or "ab" (cycles FlushCycle every FlushSeconds).</summary>
+        public string Flush { get; set; } = "0";
+        public int[] FlushCycle { get; set; } = { 0, 250, 100, 50 };
+        public int FlushSeconds { get; set; } = 30;
+        /// <summary>Query the session ourselves (ControlTrace QUERY) once a second: events / buffers lost, buffers, timer.</summary>
+        public bool EtwQuery { get; set; } = true;
     }
 
     public static readonly Config Cfg = LoadCfg();
@@ -55,6 +67,9 @@ public static class OverlayDiag
             var c = JsonSerializer.Deserialize<Config>(File.ReadAllText(path), new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new Config();
             c.FixedMs = Math.Clamp(c.FixedMs, 0, 1000);
             c.AbSeconds = Math.Clamp(c.AbSeconds, 5, 600);
+            c.FlushSeconds = Math.Clamp(c.FlushSeconds, 5, 600);
+            if (c.FlushCycle is null || c.FlushCycle.Length == 0) c.FlushCycle = new[] { 0, 250, 100, 50 };
+            for (int i = 0; i < c.FlushCycle.Length; i++) c.FlushCycle[i] = c.FlushCycle[i] <= 0 ? 0 : Math.Clamp(c.FlushCycle[i], 10, 1000);
             return c;
         }
         catch (Exception e) { Log.Warn("Diag.Config", e); return new Config(); }
@@ -74,22 +89,38 @@ public static class OverlayDiag
         return slot switch { 0 => PlayMode.Adaptive, 1 => PlayMode.Fixed, _ => PlayMode.Off };
     }
 
+    private static long _flushStart;
+    /// <summary>diag pass 2: the explicit flush period in force at now (ms, 0 = none).</summary>
+    public static int FlushMs(long now) => FlushMsAt(Cfg, now, ref _flushStart);
+
+    internal static int FlushMsAt(Config c, long now, ref long start)
+    {
+        var f = (c.Flush ?? "0").Trim().ToLowerInvariant();
+        if (f != "ab") return int.TryParse(f, out int v) && v > 0 ? Math.Clamp(v, 10, 1000) : 0;
+        if (start == 0) start = now;
+        long slot = (long)((now - start) / (c.FlushSeconds * F)) % c.FlushCycle.Length;
+        return c.FlushCycle[slot];
+    }
+
+    public static string Label(PlayMode m, int flushMs) => ModeName(m) + (flushMs > 0 ? $" flush{flushMs}" : " noflush");
+
     public static string ModeName(PlayMode m) => m switch { PlayMode.Fixed => $"fixed{Cfg.FixedMs}", PlayMode.Off => "off", _ => "adaptive" };
 
     // ---------- reader side (PresentMon reader thread) ----------
 
     private static readonly object _l = new();
-    private static long _lastLine, _batchStart, _batchAvail;
-    private static int _batchRows, _batchBytes;
+    private static long _lastLine, _batchStart, _batchAvail, _batchChunk;
+    private static int _batchRows, _batchBytes, _batchFlush;
     private static long _batchId;
-    public static long AvailSince;   // written by the probe thread
-    private static int _probeMissed;
+    private static int _probeMissed;   // batches whose first row had no pump stamp
+    private static long _batchNewestP, _batchNewestA;   // the target row with the newest Present() in the batch
 
     public static ThreadPriority ReaderPriority() =>
         Enum.TryParse<ThreadPriority>(Cfg.ReaderPriority, true, out var p) ? p : ThreadPriority.BelowNormal;
 
-    /// <summary>Every CSV row (all processes), right after ReadLine. A new batch starts after a 2 ms silence.</summary>
-    public static void OnRow(long now, int bytes)
+    /// <summary>Every CSV row (all processes), right after ReadLine. A new batch starts after a 2 ms silence.
+    /// chunkQpc / chunkSeq = the pump stamp of the raw chunk this row came from (0 = no pump).</summary>
+    public static void OnRow(long now, int bytes, long chunkQpc = 0, long chunkSeq = 0)
     {
         lock (_l)
         {
@@ -98,8 +129,9 @@ public static class OverlayDiag
                 CloseBatch();
                 _batchId++;
                 _batchStart = now;
-                long a = Interlocked.Read(ref AvailSince);
-                _batchAvail = a > 0 && a <= now ? a : 0;
+                _batchAvail = chunkQpc > 0 && chunkQpc <= now ? chunkQpc : 0;
+                _batchChunk = chunkSeq;
+                _batchFlush = FlushMs(now);
                 if (_batchAvail == 0) _probeMissed++;
             }
             _batchRows++; _batchBytes += bytes;
@@ -116,7 +148,9 @@ public static class OverlayDiag
         w.BatchRows.Add(_batchRows);
         w.BatchBytes.Add(_batchBytes);
         if (_batchAvail > 0) w.ReaderDelay.Add((_batchStart - _batchAvail) / F * 1000);
-        Raw("batches", $"{_batchId},{_batchStart},{_batchAvail},{_batchRows},{_batchBytes}");
+        if (_batchNewestP > 0) w.NewestInBatch.Add((_batchNewestA - _batchNewestP) / F * 1000);
+        _batchNewestP = 0;
+        Raw("batches", $"{_batchId},{_batchStart},{_batchAvail},{_batchChunk},{_batchRows},{_batchBytes},{_batchFlush}");
         _prevBatchStart = _batchStart;
         _batchRows = 0; _batchBytes = 0;
     }
@@ -129,8 +163,9 @@ public static class OverlayDiag
             var w = Win();
             w.Frames++;
             if (presentQpc > 0) w.DataP.Add((arrival - presentQpc) / F * 1000);
+            if (presentQpc > _batchNewestP) { _batchNewestP = presentQpc; _batchNewestA = arrival; }
             if (cpuQpc > 0) w.DataC.Add((arrival - cpuQpc) / F * 1000);
-            Raw("rows", $"{_batchId},{arrival},{cpuQpc},{presentQpc},{ms.ToString(CultureInfo.InvariantCulture)}");
+            Raw("rows", $"{_batchId},{arrival},{cpuQpc},{presentQpc},{ms.ToString(CultureInfo.InvariantCulture)},{FlushMs(arrival)}");
         }
     }
 
@@ -139,41 +174,237 @@ public static class OverlayDiag
         lock (_l) { var w = Win(); w.Etw = $"fill {fill}%, buffers {inUse}/{total}, events lost {lost}, buffers lost {bufLost}, overflowed presents {overflow}"; }
     }
 
-    // ---------- pipe probe ----------
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool PeekNamedPipe(SafeHandle h, IntPtr buf, uint size, IntPtr read, out uint avail, IntPtr left);
-    [DllImport("winmm.dll")] private static extern uint timeBeginPeriod(uint ms);
-    [DllImport("winmm.dll")] private static extern uint timeEndPeriod(uint ms);
-
-    /// <summary>Polls the stdout pipe every ~1 ms and stamps when bytes first became available, so the reader thread's
-    /// own scheduling delay (W_k to B_k) is measured apart from PresentMon's / ETW's delivery.</summary>
-    public static void StartProbe(Stream s, Func<bool> running)
+    /// <summary>diag pass 2: PresentMon 2.6.0 prints --track_etw_status on stdout as "[ETW Status] BufferFillPct=..%
+    /// BuffersInUse=.. TotalBuffers=.. EventsLost=.. BuffersLost=.., OverflowedPresents=.." once a second (its CSV path
+    /// for our columns never writes the Etw* columns). Returns false when the line isn't one.</summary>
+    public static bool OnEtwStatusLine(long now, string line)
     {
-        if (!Cfg.PipeProbe) return;
-        SafeHandle? h = s switch { FileStream fs => fs.SafeFileHandle, System.IO.Pipes.PipeStream ps => ps.SafePipeHandle, _ => null };
-        if (h is null) { Log.Info("Diag", $"pipe probe off: stream is {s.GetType().Name}"); return; }
+        if (!TryParseEtwStatus(line, out var e)) return false;
+        lock (_l)
+        {
+            var w = Win();
+            w.PmEtw ??= e; w.PmEtwLast = e;
+            Raw("etw_pm", string.Format(CultureInfo.InvariantCulture, "{0},{1:0.0},{2},{3},{4},{5},{6},{7}",
+                now, e.FillPct, e.InUse, e.Total, e.EventsLost, e.BuffersLost, e.Overflowed, FlushMs(now)));
+        }
+        return true;
+    }
+
+    public sealed record EtwPm(double FillPct, long InUse, long Total, long EventsLost, long BuffersLost, long Overflowed);
+
+    internal static bool TryParseEtwStatus(string line, out EtwPm e)
+    {
+        e = new EtwPm(0, 0, 0, 0, 0, 0);
+        if (!line.StartsWith("[ETW Status]", StringComparison.Ordinal)) return false;
+        double V(string key)
+        {
+            int i = line.IndexOf(key + "=", StringComparison.Ordinal);
+            if (i < 0) return double.NaN;
+            i += key.Length + 1;
+            int j = i;
+            while (j < line.Length && (char.IsDigit(line[j]) || line[j] == '.' || line[j] == '-')) j++;
+            return double.TryParse(line.AsSpan(i, j - i), NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : double.NaN;
+        }
+        double fill = V("BufferFillPct"), inUse = V("BuffersInUse"), total = V("TotalBuffers"), lost = V("EventsLost"),
+            bufLost = V("BuffersLost"), ov = V("OverflowedPresents");
+        if (double.IsNaN(lost) || double.IsNaN(bufLost) || double.IsNaN(ov)) return false;
+        e = new EtwPm(double.IsNaN(fill) ? 0 : fill, (long)(double.IsNaN(inUse) ? 0 : inUse), (long)(double.IsNaN(total) ? 0 : total),
+            (long)lost, (long)bufLost, (long)ov);
+        return true;
+    }
+
+    // ---------- pump (diag pass 2) ----------
+
+    /// <summary>Wraps PresentMon's stdout: a Highest-priority thread blocks in Read on the raw pipe and stamps each chunk
+    /// the moment ReadFile returns it (W). The reader thread (its normal priority) parses lines from the queued chunks
+    /// through a StreamReader on top of this, so A - W is the reader's own delay. LastQpc / LastSeq = the stamp of the
+    /// chunk the reader is consuming.</summary>
+    public sealed class Pump : Stream
+    {
+        private readonly BlockingCollection<(byte[] Buf, int Len, long Qpc, long Seq)> _q = new(new ConcurrentQueue<(byte[], int, long, long)>());
+        private byte[]? _cur; private int _curLen, _curPos;
+        public long LastQpc { get; private set; }
+        public long LastSeq { get; private set; }
+        private long _seq;
+
+        /// <summary>Test seam: queue a chunk stamped qpc (the pump thread does this for real).</summary>
+        internal void Push(byte[] b, int len, long qpc) => _q.Add((b, len, qpc, ++_seq));
+        internal void Complete() => _q.CompleteAdding();
+
+        public static Pump Start(Stream raw, string name)
+        {
+            var p = new Pump();
+            new Thread(() =>
+            {
+                try
+                {
+                    while (true)
+                    {
+                        var b = new byte[65536];
+                        int n = raw.Read(b, 0, b.Length);
+                        long t = Stopwatch.GetTimestamp();
+                        if (n <= 0) break;
+                        p.Push(b, n, t);
+                    }
+                }
+                catch (Exception e) { Log.Warn("Diag.Pump", e); }
+                finally { p.Complete(); }
+            }) { IsBackground = true, Name = name, Priority = ThreadPriority.Highest }.Start();
+            return p;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (_cur is null || _curPos >= _curLen)
+            {
+                if (!_q.TryTake(out var c, Timeout.Infinite)) return 0;
+                _cur = c.Buf; _curLen = c.Len; _curPos = 0; LastQpc = c.Qpc; LastSeq = c.Seq;
+            }
+            int n = Math.Min(count, _curLen - _curPos);
+            Buffer.BlockCopy(_cur, _curPos, buffer, offset, n);
+            _curPos += n;
+            return n;
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    // ---------- ETW session control (diag pass 2) ----------
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "ControlTraceW")]
+    private static extern uint ControlTrace(ulong handle, string name, IntPtr props, uint code);
+    private const uint EVENT_TRACE_CONTROL_QUERY = 0, EVENT_TRACE_CONTROL_FLUSH = 3;
+    internal const int PropsSize = 120;            // sizeof(EVENT_TRACE_PROPERTIES) on x64
+    private const int PropsBuf = PropsSize + 2 * 1024 * 2;
+
+    public sealed record EtwQuery(uint Rc, uint BufferKb, uint MinBuf, uint MaxBuf, uint LogFileMode, uint FlushTimer,
+        uint NumberOfBuffers, uint FreeBuffers, uint EventsLost, uint BuffersWritten, uint LogBuffersLost, uint RealTimeBuffersLost);
+
+    private static IntPtr NewProps()
+    {
+        var p = Marshal.AllocHGlobal(PropsBuf);
+        for (int i = 0; i < PropsBuf; i += 4) Marshal.WriteInt32(p, i, 0);
+        Marshal.WriteInt32(p, 0, PropsBuf);          // Wnode.BufferSize
+        Marshal.WriteInt32(p, 116, PropsSize);        // LoggerNameOffset
+        Marshal.WriteInt32(p, 112, PropsSize + 2048); // LogFileNameOffset
+        return p;
+    }
+
+    internal static EtwQuery ReadProps(uint rc, IntPtr p)
+    {
+        uint U(int off) => (uint)Marshal.ReadInt32(p, off);
+        return new EtwQuery(rc, U(48), U(52), U(56), U(64), U(68), U(80), U(84), U(88), U(92), U(96), U(100));
+    }
+
+    public static EtwQuery Query(string session)
+    {
+        var p = NewProps();
+        try { uint rc = ControlTrace(0, session, p, EVENT_TRACE_CONTROL_QUERY); return ReadProps(rc, p); }
+        finally { Marshal.FreeHGlobal(p); }
+    }
+
+    [DllImport("kernel32.dll")] private static extern IntPtr GetCurrentThread();
+    [DllImport("kernel32.dll")] private static extern bool GetThreadTimes(IntPtr h, out long create, out long exit, out long kernel, out long user);
+    private static double ThreadCpuMs() => GetThreadTimes(GetCurrentThread(), out _, out _, out long k, out long u) ? (k + u) / 10000.0 : 0;
+
+    private static double _flushCpuMs;   // flush thread CPU, cumulative (written by that thread)
+
+    /// <summary>Starts the explicit flush thread and the once-a-second session query. Both only touch our own
+    /// PresentMon session (by name) and only while diag is on; with Flush "0" no flush is ever issued.</summary>
+    public static void StartEtwControl(string session, Func<bool> running)
+    {
+        if (_etwStarted) return;
+        _etwStarted = true;
+        bool admin = false;
+        try { using var id = System.Security.Principal.WindowsIdentity.GetCurrent(); admin = new System.Security.Principal.WindowsPrincipal(id).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator); } catch { }
+        Log.Info("Diag", $"ETW control: session {session}, elevated {admin}, flush {Cfg.Flush}" + (Cfg.Flush.Trim().ToLowerInvariant() == "ab" ? $" cycle [{string.Join(",", Cfg.FlushCycle)}] every {Cfg.FlushSeconds} s" : "") + $", query {Cfg.EtwQuery}");
+        if (Cfg.EtwQuery)
+            new Thread(() =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        if (running())
+                        {
+                            long now = Stopwatch.GetTimestamp();
+                            var q = Query(session);
+                            lock (_l)
+                            {
+                                var w = Win();
+                                if (q.Rc == 0) { w.Q0 ??= q; w.QLast = q; } else w.QFail++;
+                                if (q.Rc != 0 && _qNote != q.Rc) { _qNote = q.Rc; Log.Info("Diag", $"ControlTrace QUERY {session} failed rc {q.Rc}"); }
+                                Raw("etw_query", $"{now},{q.Rc},{q.BufferKb},{q.MinBuf},{q.MaxBuf},0x{q.LogFileMode:X},{q.FlushTimer},{q.NumberOfBuffers},{q.FreeBuffers},{q.EventsLost},{q.BuffersWritten},{q.LogBuffersLost},{q.RealTimeBuffersLost},{FlushMs(now)}");
+                            }
+                        }
+                    }
+                    catch (Exception e) { Log.Warn("Diag.Query", e); }
+                    Thread.Sleep(1000);
+                }
+            }) { IsBackground = true, Name = "diag etw query", Priority = ThreadPriority.BelowNormal }.Start();
         new Thread(() =>
         {
             timeBeginPeriod(1);
+            var props = NewProps();
+            long next = 0, prevCall = 0;
+            int prevMode = -1;
             try
             {
-                while (running())
+                while (true)
                 {
-                    if (!PeekNamedPipe(h, IntPtr.Zero, 0, IntPtr.Zero, out uint avail, IntPtr.Zero)) break;
-                    if (avail > 0) { if (Interlocked.Read(ref AvailSince) == 0) Interlocked.Exchange(ref AvailSince, Stopwatch.GetTimestamp()); }
-                    else Interlocked.Exchange(ref AvailSince, 0);
+                    long now = Stopwatch.GetTimestamp();
+                    int ms = FlushMs(now);
+                    if (ms != prevMode) { prevMode = ms; next = now; prevCall = 0; }
+                    if (ms <= 0 || !running()) { Thread.Sleep(5); prevCall = 0; continue; }
+                    if (now >= next)
+                    {
+                        Marshal.WriteInt32(props, 0, PropsBuf);
+                        Marshal.WriteInt32(props, 116, PropsSize);
+                        Marshal.WriteInt32(props, 112, PropsSize + 2048);
+                        double c0 = ThreadCpuMs();
+                        long t0 = Stopwatch.GetTimestamp();
+                        uint rc = ControlTrace(0, session, props, EVENT_TRACE_CONTROL_FLUSH);
+                        long t1 = Stopwatch.GetTimestamp();
+                        _flushCpuMs += ThreadCpuMs() - c0;
+                        double interval = prevCall > 0 ? (t0 - prevCall) / F * 1000 : double.NaN;
+                        prevCall = t0;
+                        lock (_l)
+                        {
+                            var w = Win();
+                            if (rc == 0) w.FlushOk++; else { w.FlushFail++; w.FlushLastRc = rc; }
+                            w.FlushCall.Add((t1 - t0) / F * 1000);
+                            if (!double.IsNaN(interval)) w.FlushInterval.Add(interval);
+                            if (rc != 0 && _fNote != rc) { _fNote = rc; Log.Info("Diag", $"ControlTrace FLUSH {session} failed rc {rc}"); }
+                            if (rc == 0 && !_fOkLogged) { _fOkLogged = true; Log.Info("Diag", $"ControlTrace FLUSH {session} ok (first success, {ms} ms period)"); }
+                            Raw("flushes", string.Format(CultureInfo.InvariantCulture, "{0},{1},{2},{3},{4:0.000},{5:0.00}", t0, t1, ms, rc, (t1 - t0) / F * 1000, interval));
+                        }
+                        next += (long)(ms / 1000.0 * F);
+                        if (next < t1) next = t1 + (long)(ms / 1000.0 * F);   // fell behind: re-anchor, never burst
+                    }
                     Thread.Sleep(1);
                 }
             }
-            catch (Exception e) { Log.Warn("Diag.Probe", e); }
-            finally { timeEndPeriod(1); }
-        }) { IsBackground = true, Name = "diag pipe probe", Priority = ThreadPriority.Highest }.Start();
+            catch (Exception e) { Log.Warn("Diag.Flush", e); }
+            finally { Marshal.FreeHGlobal(props); timeEndPeriod(1); }
+        }) { IsBackground = true, Name = "diag etw flush", Priority = ThreadPriority.AboveNormal }.Start();
     }
+    private static bool _etwStarted, _fOkLogged;
+    private static uint _qNote, _fNote;
+
+    [DllImport("winmm.dll")] private static extern uint timeBeginPeriod(uint ms);
+    [DllImport("winmm.dll")] private static extern uint timeEndPeriod(uint ms);
 
     // ---------- render side ----------
 
-    public struct Sample { public long S, EdgeA, EdgeC, EdgeP; public double Delay; public PlayMode Mode; public bool Has; }
+    public struct Sample { public long S, EdgeA, EdgeC, EdgeP; public double Delay; public PlayMode Mode; public int Flush; public bool Has; }
 
     private readonly struct Pending
     {
@@ -241,10 +472,10 @@ public static class OverlayDiag
                             w.EdgeWait.Add((pd.Smp.S - pd.Smp.EdgeA) / F * 1000);
                         }
                     }
-                    Raw("frames", $"{ModeName(pd.Smp.Mode)},{pd.Smp.S},{pd.Smp.EdgeP},{pd.Smp.EdgeC},{pd.Smp.EdgeA},{pd.Q0},{pd.Q1},{pd.Id},{v},{(pd.Smp.Delay * 1000).ToString("0.0", CultureInfo.InvariantCulture)}");
+                    Raw("frames", $"{Label(pd.Smp.Mode, pd.Smp.Flush)},{pd.Smp.S},{pd.Smp.EdgeP},{pd.Smp.EdgeC},{pd.Smp.EdgeA},{pd.Q0},{pd.Q1},{pd.Id},{v},{(pd.Smp.Delay * 1000).ToString("0.0", CultureInfo.InvariantCulture)}");
                 }
             }
-            else Raw("frames", $"{ModeName(s.Mode)},{s.S},{s.EdgeP},{s.EdgeC},{s.EdgeA},{q0},{q1},{id},0,{(s.Delay * 1000).ToString("0.0", CultureInfo.InvariantCulture)}");
+            else Raw("frames", $"{Label(s.Mode, s.Flush)},{s.S},{s.EdgeP},{s.EdgeC},{s.EdgeA},{q0},{q1},{id},0,{(s.Delay * 1000).ToString("0.0", CultureInfo.InvariantCulture)}");
         }
     }
 
@@ -266,7 +497,10 @@ public static class OverlayDiag
 
     private sealed class Window
     {
-        public PlayMode Mode; public long Start;
+        public PlayMode Mode; public int FlushMs; public long Start;
+        public EtwPm? PmEtw, PmEtwLast; public EtwQuery? Q0, QLast; public int QFail;
+        public int FlushOk, FlushFail; public uint FlushLastRc; public double FlushCpu0;
+        public readonly List<double> FlushCall = new(), FlushInterval = new(), NewestInBatch = new();
         public int Frames, Draws, Missed, Matched, Unmatched, StatsFail;
         public double DcRate; public string Etw = "";
         public readonly List<double> DataP = new(), DataC = new(), Gap = new(), BatchRows = new(), BatchBytes = new(), ReaderDelay = new(),
@@ -276,7 +510,7 @@ public static class OverlayDiag
 
     private static Window? _w;
     private static long _settleUntil;
-    /// <summary>The first 2 s after a Playhead mode switch (the playhead glides to its new target) stay out of the stats;
+    /// <summary>The first 2 s after a Playhead mode or flush period switch stay out of the stats;
     /// the raw CSV keeps them.</summary>
     private static bool Settling(long now) => now < _settleUntil;
     private static TimeSpan _cpu0, _pmCpu0;
@@ -288,11 +522,12 @@ public static class OverlayDiag
     {
         long now = Stopwatch.GetTimestamp();
         var m = Mode(now);
-        if (_w is null || _w.Mode != m || now - _w.Start > F * 10)
+        int fm = FlushMs(now);
+        if (_w is null || _w.Mode != m || _w.FlushMs != fm || now - _w.Start > F * 10)
         {
             if (_w is not null) Flush(_w, now);
-            if (_w is null || _w.Mode != m) _settleUntil = now + (long)(F * 2);
-            _w = new Window { Mode = m, Start = now };
+            if (_w is null || _w.Mode != m || _w.FlushMs != fm) _settleUntil = now + (long)(F * 2);
+            _w = new Window { Mode = m, FlushMs = fm, Start = now, FlushCpu0 = _flushCpuMs };
             try { using var p = Process.GetCurrentProcess(); _cpu0 = p.TotalProcessorTime; } catch { }
             try { _pmCpu0 = PresentMonCpu?.Invoke() ?? TimeSpan.Zero; } catch { _pmCpu0 = TimeSpan.Zero; }
         }
@@ -318,13 +553,25 @@ public static class OverlayDiag
         try { using var p = Process.GetCurrentProcess(); cpu = (p.TotalProcessorTime - _cpu0).TotalSeconds / sec / Environment.ProcessorCount * 100; } catch { }
         try { pm = ((PresentMonCpu?.Invoke() ?? TimeSpan.Zero) - _pmCpu0).TotalSeconds / sec / Environment.ProcessorCount * 100; } catch { }
         var sb = new StringBuilder();
-        sb.Append(CultureInfo.InvariantCulture, $"Diag [{ModeName(w.Mode)}] {Renderer} {Target} {sec:0.0} s, {w.Frames} game frames, {w.Draws} draws, {w.Missed} missed, CPU app {cpu:0.0} % PresentMon {pm:0.0} %\n");
+        sb.Append(CultureInfo.InvariantCulture, $"Diag [{Label(w.Mode, w.FlushMs)}] {Renderer} {Target} {sec:0.0} s, {w.Frames} game frames, {w.Draws} draws, {w.Missed} missed, CPU app {cpu:0.0} % PresentMon {pm:0.0} %\n");
         sb.Append($"  e2e age V-P_edge: {P(w.E2e)} | at sample S-P_edge: {P(w.AgeAtSample)} | dcomp est: {P(w.E2eDcompEst)}\n");
         sb.Append($"  parts (matched frames): D_data A-P {P(w.EdgeDataP)} | D_wait S-A {P(w.EdgeWait)} | D_present V-S {P(w.DPresent)}\n");
         sb.Append($"  all rows: A-P {P(w.DataP)} | A-C {P(w.DataC)} | Playhead delay {P(w.Delay)}\n");
-        sb.Append($"  batches: gap {P(w.Gap)} | rows {P(w.BatchRows, "")} | bytes {P(w.BatchBytes, "")} | reader delay W-B {P(w.ReaderDelay)}, probe missed {_probeMissed}\n");
+        sb.Append($"  batches: gap {P(w.Gap)} | rows {P(w.BatchRows, "")} | bytes {P(w.BatchBytes, "")} | newest row A-P {P(w.NewestInBatch)} | reader delay B-W {P(w.ReaderDelay)}, no stamp {_probeMissed}\n");
+        double fcpu = _flushCpuMs - w.FlushCpu0;
+        string rcNote = w.FlushFail > 0 ? $" (last rc {w.FlushLastRc})" : "";
+        sb.Append(FormattableString.Invariant($"  flush: period {w.FlushMs} ms, ok {w.FlushOk}, failed {w.FlushFail}{rcNote} | interval {P(w.FlushInterval)} | call {P(w.FlushCall)} | flush thread CPU {fcpu:0.0} ms ({fcpu / 10 / sec:0.00} % of one core)\n"));
+        if (w.PmEtw is { } e0 && w.PmEtwLast is { } e1)
+            sb.Append(FormattableString.Invariant($"  ETW (PresentMon): fill {e1.FillPct:0.0} %, buffers {e1.InUse}/{e1.Total}, events lost {e1.EventsLost} (+{e1.EventsLost - e0.EventsLost}), buffers lost {e1.BuffersLost} (+{e1.BuffersLost - e0.BuffersLost}), overflowed presents {e1.Overflowed} (+{e1.Overflowed - e0.Overflowed})\n"));
+        else sb.Append("  ETW (PresentMon): no status line this window\n");
+        if (w.Q0 is { } q0 && w.QLast is { } q1)
+        {
+            string qf = w.QFail > 0 ? $", {w.QFail} failed" : "";
+            sb.Append(FormattableString.Invariant($"  ETW (query): {q1.BufferKb} KB x {q1.NumberOfBuffers} (free {q1.FreeBuffers}, min {q1.MinBuf}, max {q1.MaxBuf}), FlushTimer {q1.FlushTimer} s, mode 0x{q1.LogFileMode:X}, events lost {q1.EventsLost} (+{(long)q1.EventsLost - q0.EventsLost}), RT buffers lost {q1.RealTimeBuffersLost} (+{(long)q1.RealTimeBuffersLost - q0.RealTimeBuffersLost}), log buffers lost {q1.LogBuffersLost}, buffers written +{(long)q1.BuffersWritten - q0.BuffersWritten}{qf}\n"));
+        }
+        else if (w.QFail > 0) sb.Append($"  ETW (query): {w.QFail} failed\n");
         sb.Append($"  present: block {P(w.PresentBlock)} | Q1->V {P(w.PresentToDisp)} | stats matched {w.Matched}, unmatched {w.Unmatched}, failed {w.StatsFail} | composition {w.DcRate:0.#} Hz");
-        if (w.Etw.Length > 0) sb.Append($"\n  ETW: {w.Etw}");
+        if (w.Etw.Length > 0) sb.Append($"\n  ETW (csv): {w.Etw}");
         _probeMissed = 0;
         Log.Info("Diag", sb.ToString());
     }
@@ -347,15 +594,18 @@ public static class OverlayDiag
     {
         _dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl", "diag", DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture));
         Directory.CreateDirectory(_dir);
-        File.WriteAllText(Path.Combine(_dir, "meta.txt"), $"qpc_frequency={Stopwatch.Frequency}\nplayhead={Cfg.Playhead}\nfixed_ms={Cfg.FixedMs}\nab_seconds={Cfg.AbSeconds}\nreader_priority={Cfg.ReaderPriority}\n");
+        File.WriteAllText(Path.Combine(_dir, "meta.txt"), $"qpc_frequency={Stopwatch.Frequency}\nplayhead={Cfg.Playhead}\nfixed_ms={Cfg.FixedMs}\nab_seconds={Cfg.AbSeconds}\nreader_priority={Cfg.ReaderPriority}\npump={Cfg.Pump}\nflush={Cfg.Flush}\nflush_cycle={string.Join(" ", Cfg.FlushCycle)}\nflush_seconds={Cfg.FlushSeconds}\n");
         Log.Info("Diag", "raw CSV in " + _dir);
         _writer = new Thread(() =>
         {
             var writers = new Dictionary<string, StreamWriter>();
             var heads = new Dictionary<string, string>
             {
-                ["rows"] = "batch,arrival_qpc,cpustart_qpc,present_qpc,ms",
-                ["batches"] = "batch,start_qpc,avail_qpc,rows,bytes",
+                ["rows"] = "batch,arrival_qpc,cpustart_qpc,present_qpc,ms,flush_ms",
+                ["batches"] = "batch,start_qpc,chunk_qpc,chunk_seq,rows,bytes,flush_ms",
+                ["flushes"] = "call_qpc,return_qpc,period_ms,rc,call_ms,interval_ms",
+                ["etw_pm"] = "qpc,fill_pct,in_use,total,events_lost,buffers_lost,overflowed_presents,flush_ms",
+                ["etw_query"] = "qpc,rc,buffer_kb,min_buffers,max_buffers,log_file_mode,flush_timer_s,number_of_buffers,free_buffers,events_lost,buffers_written,log_buffers_lost,realtime_buffers_lost,flush_ms",
                 ["frames"] = "mode,sample_qpc,edge_present_qpc,edge_cpustart_qpc,edge_arrival_qpc,present_call_qpc,present_ret_qpc,present_id,display_qpc,playhead_delay_ms",
             };
             while (true)

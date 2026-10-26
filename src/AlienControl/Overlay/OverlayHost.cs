@@ -335,7 +335,7 @@ public sealed class OverlayHost : IDisposable
             _diagSample = e < 0 ? default : new OverlayDiag.Sample
             {
                 Has = true, S = sampled, EdgeA = _gbuf[e].Ticks, EdgeP = _gbuf[e].Pq,
-                EdgeC = (long)Math.Round(_gbuf[e].T * Stopwatch.Frequency), Delay = _play.Delay, Mode = _play.Mode,
+                EdgeC = (long)Math.Round(_gbuf[e].T * Stopwatch.Frequency), Delay = _play.Delay, Mode = _play.Mode, Flush = OverlayDiag.FlushMs(sampled),
             };
         }
     }
