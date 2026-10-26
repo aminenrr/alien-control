@@ -64,6 +64,7 @@ public sealed class OverlayHost : IDisposable
     private readonly double[] _gT = new double[1024];
     private readonly float[] _gMs = new float[1024];
     private readonly FramesSource.Playhead _play = new();
+    private OverlayDiag.Sample _diagSample;   // diag: what the last FillGraph put at the right edge (under _vl)
     private readonly OverlayPerf _perf = new();
 
     public OverlayHost(FramesSource frames) { _frames = frames; }
@@ -276,9 +277,11 @@ public sealed class OverlayHost : IDisposable
     private void OnWpfRendering(object? sender, EventArgs e)
     {
         if (_panel is null) return;
-        lock (_vl) FillGraph(_view);
+        OverlayDiag.Sample ds;
+        lock (_vl) { FillGraph(_view); ds = _diagSample; }
         _panel.InvalidateVisual();
         _perf.Frame();
+        if (OverlayDiag.On) OverlayDiag.OnWpfFrame(ds);
     }
 
     // ---------- numbers and graph ----------
@@ -299,6 +302,7 @@ public sealed class OverlayHost : IDisposable
         // games raise themselves on focus; keep the overlay above them (cheap, no activation)
         if (++_topTick % Math.Max(1, 1000 / _updateMs) == 0) Place();
         _perf.MaybeLog();
+        if (OverlayDiag.On) { OverlayDiag.Renderer = Renderer; OverlayDiag.Tick(); }
     }
 
     /// <summary>The graph's frames up to the playhead (a burst behind, so it scrolls evenly) into the view.</summary>
@@ -306,7 +310,9 @@ public sealed class OverlayHost : IDisposable
     {
         if (!v.HasGraph) { v.GraphCount = 0; return; }
         int total = _frames.CopyRecent(_gbuf);
-        int n = _play.Visible(new ReadOnlySpan<FramesSource.Frame>(_gbuf, 0, total), Stopwatch.GetTimestamp());
+        long sampled = Stopwatch.GetTimestamp();
+        if (OverlayDiag.On) { _play.Mode = OverlayDiag.Mode(sampled); _play.FixedSec = OverlayDiag.Cfg.FixedMs / 1000.0; }
+        int n = _play.Visible(new ReadOnlySpan<FramesSource.Frame>(_gbuf, 0, total), sampled);
         // beta2.4: subpixel slide between the newest shown frame and the next one due
         double frac = 0;
         if (n > 0 && n < total)
@@ -321,6 +327,17 @@ public sealed class OverlayHost : IDisposable
         v.Graph = _gMs;
         v.GraphCount = m;
         v.GraphNow = m > 0 ? Math.Max(_play.Now, _gT[m - 1]) : _play.Now;
+        if (OverlayDiag.On)
+        {
+            // diag: the right edge = the newest frame drawn (index n - 1 skipping hidden ones)
+            int e = n - 1;
+            while (e >= 0 && _gbuf[e].Hidden) e--;
+            _diagSample = e < 0 ? default : new OverlayDiag.Sample
+            {
+                Has = true, S = sampled, EdgeA = _gbuf[e].Ticks, EdgeP = _gbuf[e].Pq,
+                EdgeC = (long)Math.Round(_gbuf[e].T * Stopwatch.Frequency), Delay = _play.Delay, Mode = _play.Mode,
+            };
+        }
     }
 
     /// <summary>Frame stats into a view. fps over the last 250 ms (ov.14), lows over the newest 2048 frames, stutters
@@ -440,10 +457,11 @@ public sealed class OverlayHost : IDisposable
                 if (!_renderShow) { _wake.WaitOne(500); continue; }
                 bool graph;
                 bool ok;
+                OverlayDiag.Sample ds = default;
                 lock (_vl)
                 {
                     graph = _view.HasGraph;
-                    if (graph) FillGraph(_view);
+                    if (graph) { FillGraph(_view); ds = _diagSample; }
                     if (_dirty)
                     {
                         _view.Measure(gfx.Measurer);
@@ -477,6 +495,7 @@ public sealed class OverlayHost : IDisposable
                     continue;
                 }
                 _perf.Frame(graph);
+                if (OverlayDiag.On && graph) gfx.ReportDiag(ds, _perf.Hz, _perf.GameMs);
                 if (!graph) _wake.WaitOne(1000);   // nothing moves until the next numbers
             }
         }
@@ -642,6 +661,9 @@ internal sealed class OverlayPerf
     }
 
     public void Stop() { lock (_l) _on = false; }
+
+    /// <summary>diag: the refresh rate the miss rule uses.</summary>
+    public int Hz { get { lock (_l) return _hz; } }
 
     private void Reset(long now)
     {

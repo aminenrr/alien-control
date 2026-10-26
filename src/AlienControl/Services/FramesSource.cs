@@ -30,7 +30,8 @@ public sealed class FramesSource : IDisposable
     /// Reflex style PC latency (input to display) rather than PresentMon's display latency (frame start to display).</summary>
     public readonly record struct Frame(long Ticks, double T, float Ms, bool Gen = false, float Lat = float.NaN, bool PcLat = false,
         float GpuBusy = float.NaN,   // ov.15: PresentMon's MsGPUBusy, only with GPU tracking (the BOUND row)
-        float PresentMs = float.NaN, bool Hidden = false);   // beta2.5: MsBetweenPresents (the fps, like RTSS) and "never reached the screen" (graph / lows skip it)
+        float PresentMs = float.NaN, bool Hidden = false,
+        long Pq = 0);   // diag: PresentMon TimeInQPC (the game's Present() call), only with --qpc_time (overlay-diag.json)   // beta2.5: MsBetweenPresents (the fps, like RTSS) and "never reached the screen" (graph / lows skip it)
 
     /// <summary>The window's stats: real fps (app rendered frames), generated fps (frame generation), average frametime of
     /// all presents, and latency (NaN when none).</summary>
@@ -128,7 +129,10 @@ public sealed class FramesSource : IDisposable
         try
         {
             _sawStale = false;
-            var psi = new ProcessStartInfo(ExePath, Args(Extended, _tier, _staleSession, TrackGpu))
+            // diag (Amine 2026-10-26): QPC timestamps and ETW status columns, only when overlay-diag.json turns it on
+            var args = Args(Extended, _tier, _staleSession, TrackGpu)
+                + (OverlayDiag.On ? " --qpc_time" + (OverlayDiag.Cfg.EtwStatus ? " --track_etw_status" : "") : "");
+            var psi = new ProcessStartInfo(ExePath, args)
             {
                 CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
                 WorkingDirectory = Path.GetDirectoryName(ExePath)!,
@@ -146,8 +150,15 @@ public sealed class FramesSource : IDisposable
             _running = true;
             _startedAt = Stopwatch.GetTimestamp();
             lock (_lock) { _head = 0; _count = 0; _targetPid = 0; _targetApp = ""; _runtime = ""; _presentMode = ""; _syncInterval = -1; }
-            _reader = new Thread(() => ReadLoop(p)) { IsBackground = true, Name = "PresentMon reader", Priority = ThreadPriority.BelowNormal };
+            _reader = new Thread(() => ReadLoop(p)) { IsBackground = true, Name = "PresentMon reader",
+                Priority = OverlayDiag.On ? OverlayDiag.ReaderPriority() : ThreadPriority.BelowNormal };
             _reader.Start();
+            if (OverlayDiag.On)
+            {
+                OverlayDiag.PresentMonCpu = () => { try { return p.HasExited ? TimeSpan.Zero : p.TotalProcessorTime; } catch { return TimeSpan.Zero; } };
+                OverlayDiag.StartProbe(p.StandardOutput.BaseStream, () => _running && ReferenceEquals(_proc, p));
+                Log.Info("Diag", $"PresentMon args: {args}; reader priority {_reader.Priority}");
+            }
             Log.Info("Frames", (Extended ? $"PresentMon started (latency and frame gen, tier {_tier})" : "PresentMon started") + (TrackGpu ? ", GPU tracking" : "")
                 + (_staleSession ? ", replacing a leftover session" : ""));
             _staleSession = false;
@@ -288,6 +299,7 @@ public sealed class FramesSource : IDisposable
                     header = true;
                     continue;
                 }
+                if (OverlayDiag.On) OverlayDiag.OnRow(Stopwatch.GetTimestamp(), line.Length + 2);
                 OnLine(line);
             }
             if (_running && ReferenceEquals(_proc, p))
@@ -328,6 +340,7 @@ public sealed class FramesSource : IDisposable
         _colApp = _colPid = _colRuntime = _colMs = _colT = -1;
         _colType = _colPcLat = _colDispLat = _colMode = _colSwap = -1;
         _colGpuBusy = _colSync = _colUntil = _colDispChange = -1;
+        _colPq = _colEtw = -1; _tQpc = false;
         // beta2 (Amine: LATENCY showed --): the columns this PresentMon sends, once per start
         Log.Info("Frames", "columns: " + line);
         int tRank = 0; _tScale = 1.0;
@@ -341,7 +354,10 @@ public sealed class FramesSource : IDisposable
             else if (_colMs < 0 && c.Equals("FrameTime", StringComparison.OrdinalIgnoreCase)) _colMs = i;
             // beta2.1 (Amine: 0 FPS, dead graph): with --track_frame_type PresentMon 2.6 prints the time in ms
             // (CPUStartTimeInMs / TimeInMs). Best first: CPUStartTime, CPUStartTimeInMs, TimeInSeconds, TimeInMs.
-            else if (TimeRank(c) is int r && r > tRank) { _colT = i; tRank = r; _tScale = r is 4 or 2 ? 1.0 : 0.001; }
+            else if (TimeRank(c) is int r && r > tRank) { _colT = i; tRank = r; _tScale = r == 5 ? 1.0 / Stopwatch.Frequency : r is 4 or 2 ? 1.0 : 0.001; _tQpc = r == 5; }
+            // diag: the Present() call time in QPC and the first ETW status column (--track_etw_status)
+            else if (c.Equals("TimeInQPC", StringComparison.OrdinalIgnoreCase)) _colPq = i;
+            else if (c.Equals("EtwBufferFillPct", StringComparison.OrdinalIgnoreCase)) _colEtw = i;
             else if (c.Equals("FrameType", StringComparison.OrdinalIgnoreCase)) _colType = i;
             else if (c.Equals("PresentMode", StringComparison.OrdinalIgnoreCase)) _colMode = i;
             else if (c.Equals("MsPCLatency", StringComparison.OrdinalIgnoreCase)) _colPcLat = i;
@@ -360,6 +376,8 @@ public sealed class FramesSource : IDisposable
         _colMax = Math.Max(Math.Max(Math.Max(_colApp, _colPid), Math.Max(_colRuntime, _colMs)), Math.Max(Math.Max(_colT, _colType),
                   Math.Max(Math.Max(_colPcLat, _colDispLat), Math.Max(_colMode, _colSwap))));
         _colMax = Math.Max(_colMax, Math.Max(Math.Max(_colGpuBusy, _colSync), Math.Max(_colUntil, _colDispChange)));
+        if (_colPq >= 0) _colMax = Math.Max(_colMax, _colPq);
+        if (_colEtw >= 0) _colMax = Math.Max(_colMax, _colEtw + 5);
         _starts = new int[_colMax + 2];
         if (_colT < 0) Log.Info("Frames", "no time column, using arrival time");
         return _colPid >= 0 && _colMs >= 0;
@@ -367,12 +385,16 @@ public sealed class FramesSource : IDisposable
 
     /// <summary>beta2.1: rank of a time column (0 = not one). Higher wins.</summary>
     private static int TimeRank(string c) =>
+        c.Equals("CPUStartQPC", StringComparison.OrdinalIgnoreCase) ? 5 :   // diag: --qpc_time (QPC ticks, Stopwatch's clock)
         c.Equals("CPUStartTime", StringComparison.OrdinalIgnoreCase) ? 4 :
         c.Equals("CPUStartTimeInMs", StringComparison.OrdinalIgnoreCase) ? 3 :
         c.Equals("TimeInSeconds", StringComparison.OrdinalIgnoreCase) ? 2 :
         c.Equals("TimeInMs", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
 
     private double _tScale = 1.0;   // beta2.1: seconds per unit of the time column
+    private int _colPq = -1, _colEtw = -1;   // diag
+    private bool _tQpc;
+    private int _etwEvery;
 
     private int[] _starts = new int[2];
     private int _colUntil = -1;
@@ -415,6 +437,16 @@ public sealed class FramesSource : IDisposable
         double t = double.NaN;
         if (_colT >= 0 && _colT < n && double.TryParse(Col(span, _colT, n), flt, inv, out double tv)) t = tv * _tScale;
         if (_colT < 0) t = now / (double)Stopwatch.Frequency;   // beta2.1: no time column, arrival time beats no time at all
+        long pq = 0, cq = 0;
+        if (OverlayDiag.On)
+        {
+            if (_colPq >= 0 && _colPq < n) long.TryParse(Col(span, _colPq, n), out pq);
+            if (_tQpc && _colT < n) long.TryParse(Col(span, _colT, n), out cq);
+            OverlayDiag.OnFrame(now, cq, pq, ms);
+            if (_colEtw >= 0 && _colEtw + 5 < n && ++_etwEvery % 100 == 0)
+                OverlayDiag.OnEtwStatus(Col(span, _colEtw, n).ToString(), Col(span, _colEtw + 1, n).ToString(), Col(span, _colEtw + 2, n).ToString(),
+                    Col(span, _colEtw + 3, n).ToString(), Col(span, _colEtw + 4, n).ToString(), Col(span, _colEtw + 5, n).ToString());
+        }
         // extended columns (only present when the toggle is on)
         bool gen = _colType >= 0 && _colType < n && IsGenerated(Col(span, _colType, n));
         // beta2.2 (Amine: show fps like RTSS): no guessing; generated frames only count for the FG tile
@@ -437,6 +469,7 @@ public sealed class FramesSource : IDisposable
                 _count = 0;
                 changed = true;
                 app = _targetApp;
+                if (OverlayDiag.On) OverlayDiag.Target = _targetApp;
             }
             if (_colMode >= 0 && _colMode < n && !gen)   // the game's own frames
             {
@@ -446,7 +479,7 @@ public sealed class FramesSource : IDisposable
             if (double.IsNaN(t)) t = (_count > 0 ? _ring[(_head - 1 + _ring.Length) % _ring.Length].T : 0) + ms / 1000.0;
             // beta2: a real frame after generated ones gets the time since the last real frame (its true frametime)
             if (sync >= 0) _syncInterval = sync;
-            _ring[_head] = new Frame(now, t, ms, gen, lat, pcLat, gpuBusy, presentMs, hidden);
+            _ring[_head] = new Frame(now, t, ms, gen, lat, pcLat, gpuBusy, presentMs, hidden, pq);
             _head = (_head + 1) % _ring.Length;
             if (_count < _ring.Length) _count++;
         }
@@ -608,6 +641,13 @@ public sealed class FramesSource : IDisposable
     public sealed class Playhead
     {
         private double _delay = 0.15;      // target distance behind PresentMon's clock mapped onto ours (s)
+        /// <summary>diag (Amine 2026-10-26): A/B of the hold. Adaptive = 2.0.2 behaviour (the default, the only one used
+        /// without overlay-diag.json). Fixed = same clock mapping and glide, constant FixedSec instead of the adaptive
+        /// delay. Off = the right edge is the newest arrived frame.</summary>
+        public OverlayDiag.PlayMode Mode { get; set; } = OverlayDiag.PlayMode.Adaptive;
+        public double FixedSec { get; set; } = 0.05;
+        /// <summary>diag: the delay used at the last call (s), context only.</summary>
+        public double Delay { get; private set; }
         private double _play = double.NaN;  // the playhead on PresentMon's clock (s)
         private long _lastTicks;
         /// <summary>ov.15: the playhead on PresentMon's clock (s) at the last Visible call: the graph's right edge.</summary>
@@ -620,6 +660,7 @@ public sealed class FramesSource : IDisposable
         {
             int n = frames.Length;
             if (n == 0) return 0;
+            if (Mode == OverlayDiag.PlayMode.Off) { Now = _play = frames[^1].T; _lastTicks = nowTicks; Delay = 0; return n; }
             double f = Stopwatch.Frequency;
             double off = double.MaxValue, worst = 0;
             int from = Math.Max(0, n - 512);
@@ -628,7 +669,9 @@ public sealed class FramesSource : IDisposable
             worst = Math.Min(worst, 1.2) + 0.03;
             // grow at once on a bigger burst, shrink slowly so the scroll speed doesn't wobble
             _delay = worst > _delay ? worst : _delay + (worst - _delay) * 0.01;
-            double target = nowTicks / f - off - _delay, newest = frames[^1].T;
+            double hold = Mode == OverlayDiag.PlayMode.Fixed ? FixedSec : _delay;
+            Delay = hold;
+            double target = nowTicks / f - off - hold, newest = frames[^1].T;
             double dt = _lastTicks == 0 ? 0 : Math.Clamp((nowTicks - _lastTicks) / f, 0, 0.25);
             _lastTicks = nowTicks;
             if (double.IsNaN(_play) || Math.Abs(target - _play) > 1.0) _play = target;   // first call, or a new game / long pause

@@ -123,11 +123,43 @@ internal sealed class D2DOverlay : IDisposable
         {
             var r = _ctx.EndDraw();
             if (r.Failure) { Services.Log.Info("Overlay", $"EndDraw 0x{r.Code:X8}"); return false; }
+            _q0 = System.Diagnostics.Stopwatch.GetTimestamp();
             var p = _swap.Present(1, PresentFlags.None);
+            _q1 = System.Diagnostics.Stopwatch.GetTimestamp();
             if (p.Failure) { Services.Log.Info("Overlay", $"Present 0x{p.Code:X8}"); return false; }
             return true;
         }
         catch (SharpGen.Runtime.SharpGenException ex) { Services.Log.Info("Overlay", $"draw failed 0x{ex.ResultCode.Code:X8}"); return false; }
+    }
+
+    private long _q0, _q1;
+
+    /// <summary>diag (Amine 2026-10-26): after a successful Present, hands Present's call / return QPC, the swapchain's
+    /// frame statistics (the display QPC of the latest displayed present) and DirectComposition's timing (context only)
+    /// to OverlayDiag. Reads only; nothing here changes how the overlay presents.</summary>
+    public void ReportDiag(Services.OverlayDiag.Sample s, double hz, double gameMs)
+    {
+        uint id = 0, statCount = 0; long statQpc = 0; bool ok = false; int hr = 0;
+        try { id = _swap.LastPresentCount; } catch (Exception) { }
+        try
+        {
+            var r = _swap.GetFrameStatistics(out var st);
+            hr = r.Code;
+            if (r.Success) { ok = true; statCount = st.PresentCount; statQpc = st.SyncQPCTime; }
+        }
+        catch (SharpGen.Runtime.SharpGenException ex) { hr = ex.ResultCode.Code; }
+        long dcLast = 0, dcNext = 0, dcFreq = 0; double dcRate = 0;
+        try
+        {
+            var r = _dc.GetFrameStatistics(out var ds);
+            if (r.Success)
+            {
+                dcLast = ds.LastFrameTime; dcNext = ds.NextEstimatedFrameTime; dcFreq = ds.TimeFrequency;
+                dcRate = ds.CurrentCompositionRate.Denominator != 0 ? (double)ds.CurrentCompositionRate.Numerator / ds.CurrentCompositionRate.Denominator : 0;
+            }
+        }
+        catch (Exception) { }
+        Services.OverlayDiag.OnPresent(s, _q0, _q1, id, ok, statCount, statQpc, hr, dcLast, dcNext, dcRate, dcFreq, hz, gameMs);
     }
 
     public void Dispose()
