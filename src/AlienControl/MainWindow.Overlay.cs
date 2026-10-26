@@ -264,7 +264,9 @@ public partial class MainWindow
                 int? hz = disp?.CurrentHz;
                 if (hz is int modeHz) _vblank.MaxHz = modeHz;   // ov.7.1: caps and de-duplicates the vblank count
                 string? res = disp is { Width: > 0, Height: > 0 } ? $"{disp.Width}x{disp.Height}" : null;   // beta3 Metal level
-                return (mhz, gpu, cores, hz, res);
+                // 2.0.1 (Amine): the G-SYNC row asks the driver (every 5 s with the refresh read); null = guess as before
+                bool? vrr = readRefresh && gpuOn && (need & Need.Refresh) != 0 ? NvDrs.VrrEnabled(DisplayRefresh.Device()) : null;
+                return (mhz, gpu, cores, hz, res, vrr, vrrRead: readRefresh);
             });
             var ps = System.Windows.Forms.SystemInformation.PowerStatus;
             _ovSnap = _ovSnap with
@@ -277,6 +279,7 @@ public partial class MainWindow
                 RefreshHz = (need & Need.Refresh) != 0 ? _vblank.Hz ?? r.hz ?? _ovSnap.RefreshHz : _ovSnap.RefreshHz,
                 ModeHz = r.hz ?? _ovSnap.ModeHz,            // beta3: the G-SYNC row compares the counted Hz with this
                 Resolution = r.res ?? _ovSnap.Resolution,
+                VrrOn = !gpuOn ? null : r.vrrRead ? r.vrr : _ovSnap.VrrOn,
                 BatteryPct = (need & Need.Battery) != 0 && ps.BatteryLifePercent <= 1 ? (int)Math.Round(ps.BatteryLifePercent * 100) : _ovSnap.BatteryPct,
                 OnAc = ps.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online,
                 GpuOff = !gpuOn && _gpu.Kind == GpuModeKind.IGpuOnly,
@@ -373,8 +376,8 @@ public partial class MainWindow
             double w = OvPreviewBox.ActualWidth, h = OvPreviewBox.ActualHeight;
             double baseX = (pos % 3) switch { 0 => 0, 1 => (area.ActualWidth - w) / 2, _ => area.ActualWidth - w };
             double baseY = pos < 3 ? 0 : area.ActualHeight - h;
-            double x = Math.Clamp(baseX + area.ActualWidth * look.X / 100.0, 0, Math.Max(0, area.ActualWidth - w));
-            double y = Math.Clamp(baseY + area.ActualHeight * look.Y / 100.0, 0, Math.Max(0, area.ActualHeight - h));
+            // 2.0.1: same rule as the real overlay (from the corner toward the centre)
+            var (x, y) = OverlayLook.Place(pos, look.X, look.Y, 0, 0, area.ActualWidth, area.ActualHeight, w, h);
             OvPreviewBox.RenderTransform = new TranslateTransform(x - baseX, y - baseY);
         }
     }
@@ -398,7 +401,9 @@ public partial class MainWindow
     {
         if (sender is not Border { Tag: var t } || !int.TryParse(t?.ToString(), out int pos)) return;
         OvLook.Position = Math.Clamp(pos, 0, 5);
+        OvLook.ClampMove();   // 2.0.1: a centre shift to the left becomes 0 on a corner
         _settings.Save();
+        PaintOverlaySteppers();
         PaintOverlayPosition();
         ApplyOverlay();
     }
@@ -419,8 +424,9 @@ public partial class MainWindow
     {
         var l = OvLook;
         OvSizeValue.Text = $"{l.Size}%";
-        OvXValue.Text = OffsetText(l.X);
-        OvYValue.Text = OffsetText(l.Y);
+        // 2.0.1: on a corner the value is a distance from the corner (no sign); the centre column keeps a signed shift
+        OvXValue.Text = OverlayLook.CentreColumn(l.Position) ? OffsetText(l.X) : $"{l.X}%";
+        OvYValue.Text = $"{l.Y}%";
     }
 
     private void OvStep_Click(object sender, MouseButtonEventArgs e)
@@ -455,8 +461,8 @@ public partial class MainWindow
         switch (key)
         {
             case "Size": l.Size = OverlayLook.StepSize(l.Size, dir, shift); break;
-            case "X": l.X = OverlayLook.StepOffset(l.X, dir, shift); break;
-            case "Y": l.Y = OverlayLook.StepOffset(l.Y, dir, shift); break;
+            case "X": l.X = OverlayLook.StepOffset(l.X, dir, shift, OverlayLook.MinX(l.Position)); break;   // 2.0.1: + = toward the centre
+            case "Y": l.Y = OverlayLook.StepOffset(l.Y, dir, shift, 0); break;
             default: return;
         }
         _settings.Save();

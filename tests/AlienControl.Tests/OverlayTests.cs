@@ -286,6 +286,40 @@ public class OverlayTests
         Assert.Equal(-50, OverlayLook.StepOffset(-45, -1, true));
     }
 
+    // 2.0.1 (Amine): Move counts from the corner toward the centre, like the NVIDIA overlay
+    [Fact]
+    public void Move_counts_from_the_corner_toward_the_centre()
+    {
+        // 1000 x 500 screen, 200 x 100 overlay
+        Assert.Equal((0.0, 0.0), OverlayLook.Place(0, 0, 0, 0, 0, 1000, 500, 200, 100));
+        Assert.Equal((800.0, 0.0), OverlayLook.Place(2, 0, 0, 0, 0, 1000, 500, 200, 100));      // top right, in the corner
+        Assert.Equal((780.0, 10.0), OverlayLook.Place(2, 2, 2, 0, 0, 1000, 500, 200, 100));     // + moves left and down (inward)
+        Assert.Equal((20.0, 390.0), OverlayLook.Place(3, 2, 2, 0, 0, 1000, 500, 200, 100));     // bottom left: right and up
+        Assert.Equal((780.0, 390.0), OverlayLook.Place(5, 2, 2, 0, 0, 1000, 500, 200, 100));    // bottom right: left and up
+        Assert.Equal((420.0, 0.0), OverlayLook.Place(1, 2, 0, 0, 0, 1000, 500, 200, 100));      // top centre: X is a shift right
+        Assert.Equal((380.0, 0.0), OverlayLook.Place(1, -2, 0, 0, 0, 1000, 500, 200, 100));
+        Assert.Equal((300.0, 0.0), OverlayLook.Place(2, 50, 0, 0, 0, 1000, 500, 200, 100));     // half the screen inward
+        Assert.Equal((100.0, 50.0), OverlayLook.Place(0, 50, 50, 0, 0, 300, 150, 200, 100));    // never leaves the screen
+        Assert.Equal((1800.0, 0.0), OverlayLook.Place(2, 0, 0, 1000, 0, 1000, 500, 200, 100));  // second monitor offset
+    }
+
+    [Fact]
+    public void Move_steppers_stop_at_the_corner_and_old_values_flip()
+    {
+        Assert.Equal(0, OverlayLook.StepOffset(0, -1, false, OverlayLook.MinX(2)));   // can't go past the corner
+        Assert.Equal(1, OverlayLook.StepOffset(0, 1, false, OverlayLook.MinX(2)));
+        Assert.Equal(-1, OverlayLook.StepOffset(0, -1, false, OverlayLook.MinX(1)));  // centre column keeps a sign
+        var l = new OverlayLook { Position = 2, X = -5, Y = 3 };   // 2.0.0: 5 % left of top right, 3 % down
+        l.MigrateMoveV2();
+        Assert.Equal((5, 3), (l.X, l.Y));
+        l = new OverlayLook { Position = 5, X = 4, Y = -6 };       // pointed off screen sideways, 6 % up
+        l.MigrateMoveV2();
+        Assert.Equal((0, 6), (l.X, l.Y));
+        l = new OverlayLook { Position = 1, X = -7, Y = 2 };
+        l.Position = 0; l.ClampMove();                              // centre shift left becomes 0 on a corner
+        Assert.Equal((0, 2), (l.X, l.Y));
+    }
+
     [Fact]
     public void Playhead_plays_a_burst_back_one_frame_at_a_time()
     {

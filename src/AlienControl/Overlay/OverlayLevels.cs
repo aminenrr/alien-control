@@ -156,6 +156,8 @@ public sealed record Sensors
     public int? ModeHz { get; init; }
     /// <summary>beta3: the display mode's size ("2560x1600"), read with the refresh rate.</summary>
     public string? Resolution { get; init; }
+    /// <summary>2.0.1: G-SYNC on / off as the NVIDIA driver reports it for the panel, null when it can't say.</summary>
+    public bool? VrrOn { get; init; }
 
     /// <summary>The fps the game is held at, 0 when nothing holds it: the cap, or the refresh rate with V-Sync on
     /// (the driver's, or the game's own SyncInterval).</summary>

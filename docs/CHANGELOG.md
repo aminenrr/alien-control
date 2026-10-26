@@ -3,6 +3,11 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.1 (2026-10-26)
+- Overlay Move works like the NVIDIA overlay: both steppers count from the chosen corner toward the screen centre (0 = in the corner, + = closer to the centre) on every corner. Top / bottom centre keep a left / right shift. Fixes left / right doing nothing on the right side spots (the overlay was clamped at the edge while the number kept climbing). Old values convert once (Settings.OverlayMoveV2).
+- GPU OC pill: PERF first, then G-MODE, each lit in its mode's own colour (Performance red #FF4D6A, G-Mode white) instead of the accent.
+- Level 2 (Metal): FPS / 1% low / Frame show "--" when no game is running instead of 0.00. G-SYNC On / Off comes from the NVIDIA driver (NvAPI_Disp_GetVRRInfo) when the RTX drives the panel, the old guess otherwise.
+
 ## v2.0.0 (2026-10-25, stable)
 - 2.0 stable: beta3.6 tested on hardware, no code changes. `main` now points at 2.0.
 

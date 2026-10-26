@@ -91,6 +91,43 @@ public static class NvDrs
         return Marshal.GetDelegateForFunctionPointer<T>(p);
     }
 
+    // ---------- 2.0.1 (Amine): G-SYNC row on the Metal level from the driver ----------
+    private const uint IdGetDisplayIdByName = 0xAE457190, IdGetVrrInfo = 0xDF8FDA57;
+    private const int VrrInfoSize = 24;   // NV_GET_VRR_INFO_V1: version, bIsVRREnabled:1 + reserved:31, reservedEx[4]
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int DisplayIdByNameFn([MarshalAs(UnmanagedType.LPStr)] string name, out uint id);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int VrrInfoFn(uint displayId, IntPtr info);
+    private static bool _vrrInit, _vrrUnsupported;
+
+    /// <summary>Is VRR (G-SYNC) on for this display, as the NVIDIA driver says (NvAPI_Disp_GetVRRInfo). Null when the
+    /// RTX doesn't drive that display (Optimus: Intel does), the call is missing, or nvapi isn't there; the overlay
+    /// then guesses from the counted refresh like before.</summary>
+    public static bool? VrrEnabled(string? gdiName)
+    {
+        if (string.IsNullOrEmpty(gdiName)) return null;
+        lock (Gate)
+        {
+            if (_vrrUnsupported || !Load()) return null;
+            IntPtr info = IntPtr.Zero;
+            try
+            {
+                if (!_vrrInit)
+                {
+                    if (Fn<VoidFn>(IdInitialize)() != Ok) return null;
+                    _vrrInit = true;
+                }
+                if (Fn<DisplayIdByNameFn>(IdGetDisplayIdByName)(gdiName, out uint id) != Ok) return null;
+                info = Marshal.AllocHGlobal(VrrInfoSize);
+                for (int i = 0; i < VrrInfoSize; i += 4) Marshal.WriteInt32(info, i, 0);
+                Marshal.WriteInt32(info, 0, (int)Ver(VrrInfoSize, 1));
+                if (Fn<VrrInfoFn>(IdGetVrrInfo)(id, info) != Ok) return null;
+                return (Marshal.ReadInt32(info, 4) & 1) != 0;
+            }
+            catch (EntryPointNotFoundException) { _vrrUnsupported = true; return null; }
+            catch (Exception e) { Log.Warn("NvDrs.VrrEnabled", e); return null; }
+            finally { if (info != IntPtr.Zero) Marshal.FreeHGlobal(info); }
+        }
+    }
+
     /// <summary>Reads the cap and V-Sync for exe (null = global). Error = a short reason, State default then.</summary>
     public static (State State, string? Error) Read(string? exe) { var (st, _, err) = ReadFull(exe); return (st, err); }
 

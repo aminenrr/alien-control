@@ -379,7 +379,7 @@ public partial class MainWindow
         (true, true) => "GPU OC: on in G-Mode and Performance",
         (true, false) => "GPU OC: G-Mode only",
         (false, true) => "GPU OC: Performance only",
-        _ => "GPU OC: off (G-MODE and + PERF are both off)",
+        _ => "GPU OC: off (PERF and G-MODE are both off)",
     };
 
     /// <summary>1.3.4: OC tag for a toast. scopeOk = the mode being entered runs the OC (G-Mode, or Performance with the
@@ -395,7 +395,7 @@ public partial class MainWindow
     {
         OcScopeG.IsChecked = _settings.OcInGMode;
         OcScopePerf.IsChecked = _settings.OcInPerformance;
-        OcScopeTrack.ToolTip = OcScopeText() + " (on AC). G-MODE and + PERF switch on and off on their own; both off = no overclock";
+        OcScopeTrack.ToolTip = OcScopeText() + " (on AC). PERF and G-MODE switch on and off on their own; both off = no overclock";
     }
 
     private void ShowOcCountdown() =>
