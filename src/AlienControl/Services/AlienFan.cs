@@ -20,6 +20,8 @@ public sealed class AlienFan
     /// <summary>Reads temperatures and fan RPMs: WMI first (no process spawn), alienfan-cli as fallback.</summary>
     public async Task<SensorSnapshot> ReadSensorsAsync()
     {
+        // 2.0.2 (stability audit 4a): no WMI read queued behind a timed-out CLI (it would park a pool thread per poll)
+        if (HardwareController.Stuck) return new SensorSnapshot { Error = CliRunner.StuckMessage };
         var w = await Task.Run(() => HardwareController.Run(_wmi.Read));
         if (w is not null) return w;
 

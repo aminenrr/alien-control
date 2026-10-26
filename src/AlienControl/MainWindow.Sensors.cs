@@ -57,7 +57,9 @@ public partial class MainWindow
         await RefreshSensorsAsync();
 
         var g = await _fan.GetGModeAsync();
-        _gmodeOn = g == true;
+        // 2.0.2 (stability audit 3b): a failed read keeps the known state instead of turning it into "off"
+        if (g is bool gm) _gmodeOn = gm;
+        else Services.Log.Info("State", $"G-Mode read failed, keeping {(_gmodeOn ? "on" : "off")}");
         await SyncOcAsync();
         if (_gmodeOn) { ModeGMode.IsChecked = true; SetHint(PowerHint, "G-Mode"); return; }
 

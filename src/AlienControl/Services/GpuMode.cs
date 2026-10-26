@@ -94,7 +94,8 @@ public static class GpuMode
     {
         var kind = Current(Adapters());
         bool? bios = null;
-        if (withBios)
+        // 2.0.2 (stability audit 4a): the BIOS read goes through the ACPI queue; skip it while a timed-out CLI holds it
+        if (withBios && !HardwareController.Stuck)
         {
             var attr = FindGraphicsAttribute();
             if (attr is not null)
@@ -397,32 +398,49 @@ public static class GpuMode
     /// waiting and reports it, but pnputil is never killed mid-operation: PnpIdle completes once it has exited.</summary>
     internal const int PnpTimeoutMs = 60000;
 
-    /// <summary>Completes when no pnputil run started by the app is still going (one that timed out may still be).</summary>
+    /// <summary>Completes when no pnputil run started by the app is still going (one that timed out may still be).
+    /// 2.0.2 (stability audit 4b): covers every run from its start, not only one that timed out.</summary>
     public static Task PnpIdle { get; private set; } = Task.CompletedTask;
 
-    private static async Task<(bool Ok, string Output)> PnpUtil(string verb, string id)
+    internal const string PnpBusyMessage = "The last RTX switch is still finishing (pnputil). Try again once it's done.";
+
+    private static async Task<(bool Ok, string Output, bool StillRunning)> PnpUtil(string verb, string id, TaskCompletionSource idle)
     {
         try
         {
             var r = await ProcessRunner.RunAsync(SysExe.Get("pnputil.exe"), $"/{verb} \"{id}\"", PnpTimeoutMs, kill: false);
-            if (!r.Started) return (false, r.Output);
+            if (!r.Started) return (false, r.Output, false);
             if (r.TimedOut)
             {
-                PnpIdle = r.Pending;
-                return (false, $"no answer after {PnpTimeoutMs / 1000} s. It may still finish: check again in a minute, or restart if the GPU row stays wrong.");
+                // still running: idle completes once it has exited
+                _ = r.Pending.ContinueWith(_ => idle.TrySetResult(), TaskScheduler.Default);
+                return (false, $"no answer after {PnpTimeoutMs / 1000} s. It may still finish: check again in a minute, or restart if the GPU row stays wrong.", true);
             }
-            return (r.ExitCode == 0 || r.ExitCode == 3010, r.Output);
+            return (r.ExitCode == 0 || r.ExitCode == 3010, r.Output, false);
         }
-        catch (Exception ex) { return (false, ex.Message); }
+        catch (Exception ex) { return (false, ex.Message, false); }
     }
 
+    /// <summary>The one RTX enable / disable boundary (iGPU only, Advanced Optimus from iGPU only, the quit prompt).
+    /// 2.0.2 (stability audit 4b, Amine): refused while an earlier pnputil run is still going (one that timed out
+    /// is left to finish), so two device operations never stack. Callers run on the UI thread, and the check and the
+    /// claim happen before the first await, so two callers can't both pass.</summary>
     public static async Task<string?> SetDgpuEnabledAsync(bool enabled)
     {
-        var nv = Adapters().FirstOrDefault(x => x.IsNvidia);
-        if (nv is null) return "NVIDIA GPU not found.";
-        if (enabled ? nv.Ok : nv.Disabled) return null;
-        var (ok, output) = await PnpUtil(enabled ? "enable-device" : "disable-device", nv.PnpId);
-        return ok ? null : $"pnputil failed: {output}";
+        if (!PnpIdle.IsCompleted) { Log.Info("GpuMode", "RTX switch refused: an earlier pnputil run is still going"); return PnpBusyMessage; }
+        var idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        PnpIdle = idle.Task;
+        bool handedOff = false;
+        try
+        {
+            var nv = Adapters().FirstOrDefault(x => x.IsNvidia);
+            if (nv is null) return "NVIDIA GPU not found.";
+            if (enabled ? nv.Ok : nv.Disabled) return null;
+            var (ok, output, stillRunning) = await PnpUtil(enabled ? "enable-device" : "disable-device", nv.PnpId, idle);
+            handedOff = stillRunning;   // idle completes when the late pnputil exits
+            return ok ? null : $"pnputil failed: {output}";
+        }
+        finally { if (!handedOff) idle.TrySetResult(); }
     }
 
     // ---------- Dell BIOS WMI (Ultimate / MUX) ----------
