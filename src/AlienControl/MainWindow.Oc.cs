@@ -26,6 +26,23 @@ public partial class MainWindow
     /// <summary>What the app last wrote to the driver; null = unknown (startup, after resume).</summary>
     private (int Core, int Mem)? _ocApplied;
     private string? _ocError;
+    // 2.0.2 (stability audit 1a, Amine): the NVML write in flight and what it writes. _ocApplied only changes when the
+    // write's continuation runs on the UI thread, which can't happen while the synchronous exit cleanup runs, so the
+    // exit paths look at these too. Set and cleared on the UI thread.
+    private Task<string?>? _ocWrite;
+    private (int Core, int Mem) _ocWriteTarget;
+
+    private Task<string?> StartOcWrite(int core, int mem)
+    {
+        _ocWriteTarget = (core, mem);
+        return _ocWrite = Task.Run(() => GpuOc.Set(core, mem));
+    }
+
+    /// <summary>2.0.2: true when the driver may run offsets other than +0: the last finished write wasn't +0, or a
+    /// non-zero write is (or was just) in flight.</summary>
+    private bool OcMayBeOn => _ocApplied is not (0, 0) || (_ocWrite is not null && _ocWriteTarget != (0, 0));
+
+    private static string Fmt((int Core, int Mem)? o) => o is { } v ? $"+{v.Core} / +{v.Mem}" : "unknown";
 
     private static bool OnAc =>
         System.Windows.Forms.SystemInformation.PowerStatus.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online;
@@ -58,8 +75,13 @@ public partial class MainWindow
         {
             if (e.Mode == Microsoft.Win32.PowerModes.Resume)
             {
+                // 2.0.2 (stability audit 3c, diagnostics only): was an OC write in flight when Resume arrived?
+                Services.Log.Info("Resume", $"OC before resume: applied {Fmt(_ocApplied)}, write in flight {_ocBusy}");
                 _ocApplied = null;                 // a sleep can reset the driver: write again once it has settled
                 await Task.Delay(3000);
+                // 2.0.2 (stability audit 3a, Amine): after the settle, read what the driver really runs instead of
+                // trusting a value cached around the sleep (existing startup check, SyncOcAsync)
+                _ocUnverified = true;
                 await OnResumeAsync();
             }
             if (e.Mode != Microsoft.Win32.PowerModes.Suspend) await SyncOcAsync();
@@ -185,9 +207,19 @@ public partial class MainWindow
                 TrayProfile.Battery => _settings.BatteryPowerIndex, TrayProfile.Quiet => _settings.QuietPowerIndex,
                 TrayProfile.Balanced => _settings.BalancedPowerIndex, TrayProfile.Performance => _settings.PerformancePowerIndex, _ => null,
             };
-            bool g = await _fan.GetGModeAsync() == true;
-            bool presetLost = !g && wantIdx is int i && raw is int r && _settings.PowerRawByIndex.TryGetValue(i, out var exp) && exp != r;
-            Services.Log.Info("Resume", $"preset {want}, power raw {(raw is int v ? v.ToString("x") : "?")}, G-Mode {g}, re-apply {presetLost}");
+            // 2.0.2 (stability audit 3a/3b, Amine): a G-Mode read that fails (null) is unknown, never "off". It used to
+            // count as off, so in G-Mode (power raw != the preset's) presetLost went true and ApplyProfileAsync turned
+            // G-Mode off. One retry; still unknown = keep _gmodeOn and re-apply nothing (the next window open re-reads,
+            // _stateReadUtc above). A successful read updates _gmodeOn (it was read and dropped before).
+            bool? g = await _fan.GetGModeAsync();
+            if (g is null) { await Task.Delay(2000); g = await _fan.GetGModeAsync(); }
+            if (g is bool gm && gm != _gmodeOn)
+            {
+                Services.Log.Info("Resume", $"G-Mode is {(gm ? "on" : "off")} after sleep, app had {(_gmodeOn ? "on" : "off")}");
+                _gmodeOn = gm;
+            }
+            bool presetLost = g == false && wantIdx is int i && raw is int r && _settings.PowerRawByIndex.TryGetValue(i, out var exp) && exp != r;
+            Services.Log.Info("Resume", $"preset {want}, power raw {(raw is int v ? v.ToString("x") : "?")}, G-Mode {(g is bool b ? b.ToString() : "unknown")}, re-apply {presetLost}");
             if (presetLost) await ApplyProfileAsync(want);
             if (_lightsManaged) { _frameDirty = true; await ApplyLightingAsync(_lastColor); }
             await SyncIndicatorsAsync();
@@ -229,7 +261,8 @@ public partial class MainWindow
             try
             {
                 var cur = await Task.Run(GpuOc.Read);
-                if (cur is { } c && c != (0, 0)) Services.Log.Info("GPU OC", $"driver runs +{c.Core} / +{c.Mem} at startup, settings say +0");
+                // 2.0.2: also runs after resume (audit 3a); logged every time so the resume ordering (audit 3c) can be checked
+                Services.Log.Info("GPU OC", $"driver check: runs {Fmt(cur)}, app had {Fmt(_ocApplied)}, kept {(_settings.OcOn ? $"+{_settings.OcCore} / +{_settings.OcMem}" : "off")}");
                 if (cur is not null) _ocApplied = cur;
             }
             finally { _ocBusy = false; }
@@ -240,25 +273,45 @@ public partial class MainWindow
             _ocBusy = true;
             try
             {
-                var err = await Task.Run(() => GpuOc.Set(want.Item1, want.Item2));
+                var err = await StartOcWrite(want.Item1, want.Item2);
                 _ocError = err;
                 _ocApplied = err is null ? want : null;
                 if (err is not null) Status(err);
             }
-            finally { _ocBusy = false; }
+            finally { _ocBusy = false; _ocWrite = null; }
         }
         if (_ocDirty) { _ocDirty = false; await SyncOcAsync(); return; }   // e.g. unplugged during the write: +0 now
         UpdateOcUi();
     }
 
-    /// <summary>Synchronous +0 for Quit (NVML takes a few ms).</summary>
+    /// <summary>Synchronous +0 for Quit (NVML takes a few ms).
+    /// 2.0.2 (stability audit 1a, Amine): an OC write still in flight used to be missed (_ocApplied not updated yet), so
+    /// the +0 was skipped and the write landed after it. Now the cleanup waits for that write (bounded), then writes +0.
+    /// A test's OcPending is only cleared once the +0 went through, so a failed reset is redone on the next launch
+    /// (StartupOcAsync); outside a test the next launch re-syncs anyway (_ocApplied unknown or driver read on AC).</summary>
     private void ResetOcOnExit()
     {
         _ocTimer.Stop();
-        if (_ocTesting) { _settings.OcPending = false; _settings.Save(); }
-        if (_ocApplied is (0, 0) || OcUnavailable) return;   // 2.0.0-beta1.4: never NVML while the RTX is off
-        // 2.0.0-beta1.3: bounded wait for the shared NVML lock, so a stuck driver call can't hang the exit
-        try { GpuOc.Set(0, 0, lockTimeoutMs: 2000); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Oc.cs:207", __e); /* exiting anyway */ }
+        bool mayBeOn = OcMayBeOn;
+        string? err = null;
+        if (mayBeOn && !OcUnavailable)   // 2.0.0-beta1.4: never NVML while the RTX is off
+        {
+            WaitOcWrite(2000);
+            // 2.0.0-beta1.3: bounded wait for the shared NVML lock, so a stuck driver call can't hang the exit
+            try { err = GpuOc.Set(0, 0, lockTimeoutMs: 2000); }
+            catch (System.Exception __e) { AlienControl.Services.Log.Warn("MainWindow.Oc.cs:207", __e); err = __e.Message; /* exiting anyway */ }
+            Services.Log.Info("Exit", err is null ? "GPU OC +0" : "GPU OC +0 failed: " + err);
+        }
+        if (_ocTesting && err is null) { _settings.OcPending = false; _settings.Save(); }
+    }
+
+    /// <summary>2.0.2: waits (bounded) for the OC write in flight. Never throws.</summary>
+    private void WaitOcWrite(int ms)
+    {
+        var w = _ocWrite;
+        if (w is null || w.IsCompleted) return;
+        try { if (!w.Wait(ms)) Services.Log.Info("Exit", $"OC write still running after {ms} ms"); }
+        catch (Exception ex) { Services.Log.Warn("Exit OC write", ex); }
     }
 
     private int _emergencyDone;
@@ -271,14 +324,17 @@ public partial class MainWindow
     {
         if (System.Threading.Interlocked.Exchange(ref _emergencyDone, 1) == 1) return;
         try { _frames.Stop(); } catch (Exception ex) { Services.Log.Warn("Exit cleanup overlay", ex); }   // beta1.3-ov
-        var applied = _ocApplied;
+        bool mayBeOn = OcMayBeOn;   // 2.0.2 (stability audit 1a): counts a write in flight too
+        var write = _ocWrite;
         bool rtxOff = _gpu.Kind == GpuModeKind.IGpuOnly || _rtxSwitching;   // never touch NVML then (NvmlSession refuses during a switch too)
         var t = new System.Threading.Thread(() =>
         {
             try
             {
-                if (applied is not (0, 0) && !rtxOff)
+                if (mayBeOn && !rtxOff)
                 {
+                    // 2.0.2: let the write in flight finish first, so the +0 lands after it
+                    try { write?.Wait(1000); } catch (Exception ex) { Services.Log.Warn("Exit cleanup OC write", ex); }
                     var err = GpuOc.Set(0, 0, lockTimeoutMs: 1500);
                     Services.Log.Info("Exit cleanup", err ?? "GPU OC +0");
                 }
@@ -308,7 +364,9 @@ public partial class MainWindow
             // saved BEFORE the write: if anything dies from here on, the next launch goes back to +0
             _settings.OcPending = true;
             _settings.Save();
-            var err = await Task.Run(() => GpuOc.Set(core, mem));
+            string? err;
+            try { err = await StartOcWrite(core, mem); }
+            finally { _ocWrite = null; }
             if (err is not null)
             {
                 _settings.OcPending = false;

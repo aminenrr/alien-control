@@ -64,8 +64,15 @@ public sealed class CliRunner
 
     /// <summary>alienfan-cli probes ACPI on every start: runs through the shared HardwareController queue.</summary>
     public Task<CliResult> RunAsync(string arguments, int timeoutMs = 8000) =>
-        IsAvailable ? HardwareController.RunAsync(() => RunCoreAsync(arguments, timeoutMs))
-                    : Task.FromResult(new CliResult(false, "", $"{Path.GetFileName(_exePath)} not found next to AlienControl.exe (tools/)."));
+        !IsAvailable ? Task.FromResult(new CliResult(false, "", $"{Path.GetFileName(_exePath)} not found next to AlienControl.exe (tools/)."))
+        // 2.0.2 (stability audit 4a): fail fast while a timed-out CLI still holds the queue (see HardwareController)
+        : HardwareController.Stuck ? Task.FromResult(new CliResult(false, "", StuckMessage))
+        : HardwareController.RunAsync(() => RunCoreAsync(arguments, timeoutMs));
+
+    internal const string StuckMessage = "A hardware command that timed out is still running. Hardware controls wait until it ends.";
+
+    /// <summary>2.0.2: how long a killed CLI gets to really exit before the queue stays held for it.</summary>
+    internal const int KillWaitMs = 5000;
 
     private async Task<CliResult> RunCoreAsync(string arguments, int timeoutMs)
     {
@@ -86,28 +93,59 @@ public sealed class CliRunner
                 WorkingDirectory = Path.GetDirectoryName(_exePath)!
             };
 
-            using var p = new Process { StartInfo = psi };
-            p.Start();
-            var stdout = p.StandardOutput.ReadToEndAsync();
-            var stderr = p.StandardError.ReadToEndAsync();
-
-            using var cts = new CancellationTokenSource(timeoutMs);
+            var p = new Process { StartInfo = psi };
+            bool own = true;   // 2.0.2: false once a stuck process is handed to the late wait, which disposes it
             try
             {
-                await p.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                try { p.Kill(true); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("CliRunner.cs:101", __e); /* already gone */ }
-                return new CliResult(false, "", $"{Path.GetFileName(_exePath)} {arguments} timed out.");
-            }
+                p.Start();
+                var stdout = p.StandardOutput.ReadToEndAsync();
+                var stderr = p.StandardError.ReadToEndAsync();
 
-            return new CliResult(p.ExitCode == 0, await stdout.ConfigureAwait(false), await stderr.ConfigureAwait(false));
+                using var cts = new CancellationTokenSource(timeoutMs);
+                try
+                {
+                    await p.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    try { p.Kill(true); } catch (System.Exception __e) { AlienControl.Services.Log.Warn("CliRunner.cs:101", __e); /* already gone */ }
+                    // 2.0.2 (stability audit 4a, Amine): a kill only requests the exit. A CLI inside an ACPI call can't
+                    // die until the call returns, so the queue isn't released until it really has exited.
+                    string name = Path.GetFileName(_exePath);
+                    var exited = WaitExitAndObserveAsync(p, stdout, stderr);
+                    if (await Task.WhenAny(exited, Task.Delay(KillWaitMs)).ConfigureAwait(false) == exited)
+                    {
+                        Log.Info("CliRunner", $"{name} {arguments} timed out, killed and exited");
+                        return new CliResult(false, "", $"{name} {arguments} timed out.");
+                    }
+                    Log.Info("CliRunner", $"{name} {arguments} timed out and is still running {KillWaitMs / 1000} s after the kill");
+                    own = false;   // the late wait disposes the process
+                    HardwareController.HoldUntil(exited);
+                    return new CliResult(false, "", $"{name} {arguments} timed out. {StuckMessage}");
+                }
+
+                return new CliResult(p.ExitCode == 0, await stdout.ConfigureAwait(false), await stderr.ConfigureAwait(false));
+            }
+            finally { if (own) p.Dispose(); }
         }
         catch (Exception ex)
         {
             return new CliResult(false, "", ex.Message);
         }
+    }
+
+    /// <summary>2.0.2: completes when the killed process has exited and both output reads have finished (their
+    /// result or fault is observed, so nothing ends up as an unobserved task). Disposes the process.</summary>
+    private static async Task WaitExitAndObserveAsync(Process p, Task<string> stdout, Task<string> stderr)
+    {
+        try
+        {
+            try { await p.WaitForExitAsync().ConfigureAwait(false); }
+            catch (Exception e) { Log.Warn("CliRunner.WaitExit", e); }
+            try { await Task.WhenAll(stdout, stderr).ConfigureAwait(false); }
+            catch (Exception e) { Log.Warn("CliRunner.Output", e); }
+        }
+        finally { p.Dispose(); }
     }
 }
 
