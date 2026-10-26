@@ -3,6 +3,14 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.2 (2026-10-26)
+- Stability fixes (PR #24, audit 2026-10-26, items picked by Amine):
+- Resume in G-Mode: a failed (null) G-Mode read no longer turns G-Mode off or applies a conflicting preset; it stays unknown and retries once. Successful reads update the G-Mode state, and the resume OC sync checks the real driver offsets.
+- alienfan-cli timeouts: a timed out process is killed and its exit confirmed before the next hardware command runs; the hardware queue stays held if it survives, and other commands fail fast meanwhile.
+- Quit during an OC write: the write in flight is awaited (bounded) before the +0 reset; the recovery marker is kept if the reset is skipped or fails.
+- GPU mode switching: a second iGPU / Optimus switch is refused while the first is still pending, also after a timeout.
+- OC test recovery: Revert, timeout and a failed apply keep the recovery marker until +0 is confirmed; only Keep clears it. Startup recovery waits while the RTX is off and runs when it comes back.
+
 ## v2.0.1 (2026-10-26)
 - Overlay Move works like the NVIDIA overlay: both steppers count from the chosen corner toward the screen centre (0 = in the corner, + = closer to the centre) on every corner. Top / bottom centre keep a left / right shift. Fixes left / right doing nothing on the right side spots (the overlay was clamped at the edge while the number kept climbing). Old values convert once (Settings.OverlayMoveV2).
 - GPU OC pill: PERF first, then G-MODE, each lit in its mode's own colour (Performance red #FF4D6A, G-Mode white) instead of the accent.
