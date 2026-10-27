@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "playhead": "off",
+  "readerPriority": "BelowNormal",
+  "pump": true,
+  "flush": "50",
+  "etwStatus": true,
+  "etwQuery": true,
+  "raw": true,
+  "presentMon": "patched",
+  "drain": "ab",
+  "drainCycle": [100, 16, 10],
+  "drainSeconds": 30
+}

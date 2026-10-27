@@ -38,6 +38,44 @@ jobs:
           $h = (Get-FileHash "$d/PresentMon.exe" -Algorithm SHA256).Hash.ToLower()
           if ($h -ne "b2a706bc6ad475749e3b7e3409263aa1e6906d45bdcf993f6dbc0f660188f1af") { Write-Host "::error::PresentMon hash $h"; exit 1 }
           Invoke-WebRequest "https://raw.githubusercontent.com/GameTechDev/PresentMon/v2.6.0/LICENSE.txt" -OutFile "$d/LICENSE.txt"
+      # DIAG pass 3 only (Amine 2026-10-27): PresentMon 2.6.0 built from source with dev/diag/presentmon-2.6.0-drain.patch
+      # (OutputThread drain interval settable, nothing else), shipped next to the official exe as PresentMon-drain.exe.
+      # Runs only where the patch file exists (the diag branch). Release builds are untouched.
+      - name: vcpkg binary cache (diag PresentMon)
+        if: hashFiles('dev/diag/presentmon-2.6.0-drain.patch') != ''
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/vcpkg-bin
+          key: vcpkg-pm260-${{ runner.os }}-v1
+      - name: PresentMon drain build (diag only, from source)
+        if: hashFiles('dev/diag/presentmon-2.6.0-drain.patch') != ''
+        shell: pwsh
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}/vcpkg-bin
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/vcpkg-bin" | Out-Null
+          $pm = Join-Path $env:RUNNER_TEMP "pm"
+          git -c core.autocrlf=false -c advice.detachedHead=false clone --depth 1 --branch v2.6.0 https://github.com/GameTechDev/PresentMon $pm
+          Set-Location $pm
+          $head = git rev-parse HEAD
+          if ($head -ne "e13fce6acdb55a808fd8318175a56863e532d95f") { Write-Host "::error::PresentMon v2.6.0 is $head"; exit 1 }
+          # the checkout may have turned the patch into CRLF; PresentMon's sources are LF
+          $patch = Join-Path $env:RUNNER_TEMP "drain.patch"
+          [IO.File]::WriteAllText($patch, ([IO.File]::ReadAllText("$env:GITHUB_WORKSPACE/dev/diag/presentmon-2.6.0-drain.patch") -replace "`r`n", "`n"))
+          git -c core.autocrlf=false apply --verbose $patch
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          git diff --stat
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" integrate install
+          $msb = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
+          & $msb PresentMon\ConsoleApplication.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $exe = Get-ChildItem -Recurse -Path . -Filter "PresentMon-*-x64.exe" | Where-Object { $_.DirectoryName -like "*\build\Release" } | Select-Object -First 1
+          if (-not $exe) { Write-Host "::error::no PresentMon exe"; exit 1 }
+          Write-Host ("built " + $exe.FullName)
+          $dst = "$env:GITHUB_WORKSPACE/src/AlienControl/tools/PresentMon/PresentMon-drain.exe"
+          Copy-Item $exe.FullName $dst
+          Write-Host ("PresentMon-drain.exe sha256 " + (Get-FileHash $dst -Algorithm SHA256).Hash.ToLower() + " bytes " + (Get-Item $dst).Length)
       - name: XAML resource keys
         run: python dev/check_xaml_keys.py
       - name: Test

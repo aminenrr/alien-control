@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "playhead": "off",
+  "readerPriority": "BelowNormal",
+  "pump": true,
+  "flush": "ab",
+  "flushCycle": [0, 250, 100, 50],
+  "flushSeconds": 30,
+  "etwStatus": true,
+  "etwQuery": true,
+  "raw": true
+}
