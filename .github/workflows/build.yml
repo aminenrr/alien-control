@@ -60,7 +60,10 @@ jobs:
           Set-Location $pm
           $head = git rev-parse HEAD
           if ($head -ne "e13fce6acdb55a808fd8318175a56863e532d95f") { Write-Host "::error::PresentMon v2.6.0 is $head"; exit 1 }
-          git -c core.autocrlf=false apply --verbose "$env:GITHUB_WORKSPACE/dev/diag/presentmon-2.6.0-drain.patch"
+          # the checkout may have turned the patch into CRLF; PresentMon's sources are LF
+          $patch = Join-Path $env:RUNNER_TEMP "drain.patch"
+          [IO.File]::WriteAllText($patch, ([IO.File]::ReadAllText("$env:GITHUB_WORKSPACE/dev/diag/presentmon-2.6.0-drain.patch") -replace "`r`n", "`n"))
+          git -c core.autocrlf=false apply --verbose $patch
           if ($LASTEXITCODE -ne 0) { exit 1 }
           git diff --stat
           & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" integrate install
