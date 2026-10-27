@@ -52,6 +52,16 @@ public static class OverlayDiag
         public int FlushSeconds { get; set; } = 30;
         /// <summary>Query the session ourselves (ControlTrace QUERY) once a second: events / buffers lost, buffers, timer.</summary>
         public bool EtwQuery { get; set; } = true;
+        // diag pass 3 (Amine 2026-10-27): PresentMon output-drain interval. "stock" runs the official
+        // tools\PresentMon\PresentMon.exe; "patched" runs tools\PresentMon\PresentMon-drain.exe (2.6.0 built from source
+        // with only OutputThread's Sleep(100) made settable through a shared section, dev/diag/presentmon-2.6.0-drain.patch).
+        public string PresentMon { get; set; } = "stock";
+        /// <summary>Drain interval for the patched build: a period in ms ("100" = stock Sleep(100)), or "ab"
+        /// (cycles DrainCycle every DrainSeconds).</summary>
+        public string Drain { get; set; } = "100";
+        public int[] DrainCycle { get; set; } = { 100, 16, 10 };
+        public int DrainSeconds { get; set; } = 30;
+        public bool Patched => string.Equals((PresentMon ?? "").Trim(), "patched", StringComparison.OrdinalIgnoreCase);
     }
 
     public static readonly Config Cfg = LoadCfg();
@@ -70,6 +80,9 @@ public static class OverlayDiag
             c.FlushSeconds = Math.Clamp(c.FlushSeconds, 5, 600);
             if (c.FlushCycle is null || c.FlushCycle.Length == 0) c.FlushCycle = new[] { 0, 250, 100, 50 };
             for (int i = 0; i < c.FlushCycle.Length; i++) c.FlushCycle[i] = c.FlushCycle[i] <= 0 ? 0 : Math.Clamp(c.FlushCycle[i], 10, 1000);
+            c.DrainSeconds = Math.Clamp(c.DrainSeconds, 5, 600);
+            if (c.DrainCycle is null || c.DrainCycle.Length == 0) c.DrainCycle = new[] { 100, 16, 10 };
+            for (int i = 0; i < c.DrainCycle.Length; i++) c.DrainCycle[i] = Math.Clamp(c.DrainCycle[i], 1, 1000);
             return c;
         }
         catch (Exception e) { Log.Warn("Diag.Config", e); return new Config(); }
@@ -102,7 +115,53 @@ public static class OverlayDiag
         return c.FlushCycle[slot];
     }
 
-    public static string Label(PlayMode m, int flushMs) => ModeName(m) + (flushMs > 0 ? $" flush{flushMs}" : " noflush");
+    private static long _drainStart;
+    /// <summary>diag pass 3: the PresentMon drain interval in force at now (ms). The stock build is always 100.</summary>
+    public static int DrainMs(long now) => Cfg.Patched ? DrainMsAt(Cfg, now, ref _drainStart) : 100;
+
+    internal static int DrainMsAt(Config c, long now, ref long start)
+    {
+        var d = (c.Drain ?? "100").Trim().ToLowerInvariant();
+        if (d != "ab") return int.TryParse(d, out int v) && v > 0 ? Math.Clamp(v, 1, 1000) : 100;
+        if (start == 0) start = now;
+        long slot = (long)((now - start) / (c.DrainSeconds * F)) % c.DrainCycle.Length;
+        return c.DrainCycle[slot];
+    }
+
+    public static string Label(PlayMode m, int flushMs, int drainMs = -1) => ModeName(m) + (flushMs > 0 ? $" flush{flushMs}" : " noflush")
+        + (Cfg.Patched ? $" drain{(drainMs >= 0 ? drainMs : DrainMs(Stopwatch.GetTimestamp()))}" : "");
+
+    // ---------- pass 3: shared section read by the patched PresentMon ----------
+
+    private static System.IO.MemoryMappedFiles.MemoryMappedFile? _drainMap;
+    private static System.IO.MemoryMappedFiles.MemoryMappedViewAccessor? _drainView;
+    public const string DrainSection = @"Local\AlienControlsPmDrain";
+
+    /// <summary>Creates the 16-byte section ([0] drain ms, [4] loop counter, [8] magic, both written by the patched
+    /// PresentMon) before PresentMon starts, and keeps [0] at the current drain interval. Patched mode only.</summary>
+    public static void StartDrain()
+    {
+        if (!Cfg.Patched || _drainMap is not null) return;
+        try
+        {
+            _drainMap = System.IO.MemoryMappedFiles.MemoryMappedFile.CreateOrOpen(DrainSection, 16);
+            _drainView = _drainMap.CreateViewAccessor(0, 16);
+            _drainView.Write(0, DrainMs(Stopwatch.GetTimestamp()));
+            Log.Info("Diag", $"drain section {DrainSection}: drain {Cfg.Drain}" + (Cfg.Drain.Trim().ToLowerInvariant() == "ab" ? $" cycle [{string.Join(",", Cfg.DrainCycle)}] every {Cfg.DrainSeconds} s" : ""));
+            new Thread(() =>
+            {
+                while (true)
+                {
+                    try { _drainView!.Write(0, DrainMs(Stopwatch.GetTimestamp())); } catch { }
+                    Thread.Sleep(5);
+                }
+            }) { IsBackground = true, Name = "diag drain", Priority = ThreadPriority.BelowNormal }.Start();
+        }
+        catch (Exception e) { Log.Warn("Diag.Drain", e); }
+    }
+
+    private static int DrainLoops() { try { return _drainView?.ReadInt32(4) ?? 0; } catch { return 0; } }
+    private static bool DrainAck() { try { return _drainView?.ReadInt32(8) == 0x41435044; } catch { return false; } }
 
     public static string ModeName(PlayMode m) => m switch { PlayMode.Fixed => $"fixed{Cfg.FixedMs}", PlayMode.Off => "off", _ => "adaptive" };
 
@@ -110,7 +169,7 @@ public static class OverlayDiag
 
     private static readonly object _l = new();
     private static long _lastLine, _batchStart, _batchAvail, _batchChunk;
-    private static int _batchRows, _batchBytes, _batchFlush;
+    private static int _batchRows, _batchBytes, _batchFlush, _batchDrain;
     private static long _batchId;
     private static int _probeMissed;   // batches whose first row had no pump stamp
     private static long _batchNewestP, _batchNewestA;   // the target row with the newest Present() in the batch
@@ -132,6 +191,7 @@ public static class OverlayDiag
                 _batchAvail = chunkQpc > 0 && chunkQpc <= now ? chunkQpc : 0;
                 _batchChunk = chunkSeq;
                 _batchFlush = FlushMs(now);
+                _batchDrain = DrainMs(now);
                 if (_batchAvail == 0) _probeMissed++;
             }
             _batchRows++; _batchBytes += bytes;
@@ -150,7 +210,7 @@ public static class OverlayDiag
         if (_batchAvail > 0) w.ReaderDelay.Add((_batchStart - _batchAvail) / F * 1000);
         if (_batchNewestP > 0) w.NewestInBatch.Add((_batchNewestA - _batchNewestP) / F * 1000);
         _batchNewestP = 0;
-        Raw("batches", $"{_batchId},{_batchStart},{_batchAvail},{_batchChunk},{_batchRows},{_batchBytes},{_batchFlush}");
+        Raw("batches", $"{_batchId},{_batchStart},{_batchAvail},{_batchChunk},{_batchRows},{_batchBytes},{_batchFlush},{_batchDrain}");
         _prevBatchStart = _batchStart;
         _batchRows = 0; _batchBytes = 0;
     }
@@ -165,7 +225,7 @@ public static class OverlayDiag
             if (presentQpc > 0) w.DataP.Add((arrival - presentQpc) / F * 1000);
             if (presentQpc > _batchNewestP) { _batchNewestP = presentQpc; _batchNewestA = arrival; }
             if (cpuQpc > 0) w.DataC.Add((arrival - cpuQpc) / F * 1000);
-            Raw("rows", $"{_batchId},{arrival},{cpuQpc},{presentQpc},{ms.ToString(CultureInfo.InvariantCulture)},{FlushMs(arrival)}");
+            Raw("rows", $"{_batchId},{arrival},{cpuQpc},{presentQpc},{ms.ToString(CultureInfo.InvariantCulture)},{FlushMs(arrival)},{DrainMs(arrival)}");
         }
     }
 
@@ -497,7 +557,7 @@ public static class OverlayDiag
 
     private sealed class Window
     {
-        public PlayMode Mode; public int FlushMs; public long Start;
+        public PlayMode Mode; public int FlushMs, DrainMs, Loops0; public long Start;
         public EtwPm? PmEtw, PmEtwLast; public EtwQuery? Q0, QLast; public int QFail;
         public int FlushOk, FlushFail; public uint FlushLastRc; public double FlushCpu0;
         public readonly List<double> FlushCall = new(), FlushInterval = new(), NewestInBatch = new();
@@ -522,12 +582,12 @@ public static class OverlayDiag
     {
         long now = Stopwatch.GetTimestamp();
         var m = Mode(now);
-        int fm = FlushMs(now);
-        if (_w is null || _w.Mode != m || _w.FlushMs != fm || now - _w.Start > F * 10)
+        int fm = FlushMs(now), dm = DrainMs(now);
+        if (_w is null || _w.Mode != m || _w.FlushMs != fm || _w.DrainMs != dm || now - _w.Start > F * 10)
         {
             if (_w is not null) Flush(_w, now);
-            if (_w is null || _w.Mode != m || _w.FlushMs != fm) _settleUntil = now + (long)(F * 2);
-            _w = new Window { Mode = m, FlushMs = fm, Start = now, FlushCpu0 = _flushCpuMs };
+            if (_w is null || _w.Mode != m || _w.FlushMs != fm || _w.DrainMs != dm) _settleUntil = now + (long)(F * 2);
+            _w = new Window { Mode = m, FlushMs = fm, DrainMs = dm, Loops0 = DrainLoops(), Start = now, FlushCpu0 = _flushCpuMs };
             try { using var p = Process.GetCurrentProcess(); _cpu0 = p.TotalProcessorTime; } catch { }
             try { _pmCpu0 = PresentMonCpu?.Invoke() ?? TimeSpan.Zero; } catch { _pmCpu0 = TimeSpan.Zero; }
         }
@@ -553,7 +613,7 @@ public static class OverlayDiag
         try { using var p = Process.GetCurrentProcess(); cpu = (p.TotalProcessorTime - _cpu0).TotalSeconds / sec / Environment.ProcessorCount * 100; } catch { }
         try { pm = ((PresentMonCpu?.Invoke() ?? TimeSpan.Zero) - _pmCpu0).TotalSeconds / sec / Environment.ProcessorCount * 100; } catch { }
         var sb = new StringBuilder();
-        sb.Append(CultureInfo.InvariantCulture, $"Diag [{Label(w.Mode, w.FlushMs)}] {Renderer} {Target} {sec:0.0} s, {w.Frames} game frames, {w.Draws} draws, {w.Missed} missed, CPU app {cpu:0.0} % PresentMon {pm:0.0} %\n");
+        sb.Append(CultureInfo.InvariantCulture, $"Diag [{Label(w.Mode, w.FlushMs, w.DrainMs)}] {Renderer} {Target} {sec:0.0} s, {w.Frames} game frames, {w.Draws} draws, {w.Missed} missed, CPU app {cpu:0.0} % PresentMon {pm:0.0} % ({pm * Environment.ProcessorCount:0.00} % of one core)\n");
         sb.Append($"  e2e age V-P_edge: {P(w.E2e)} | at sample S-P_edge: {P(w.AgeAtSample)} | dcomp est: {P(w.E2eDcompEst)}\n");
         sb.Append($"  parts (matched frames): D_data A-P {P(w.EdgeDataP)} | D_wait S-A {P(w.EdgeWait)} | D_present V-S {P(w.DPresent)}\n");
         sb.Append($"  all rows: A-P {P(w.DataP)} | A-C {P(w.DataC)} | Playhead delay {P(w.Delay)}\n");
@@ -561,6 +621,11 @@ public static class OverlayDiag
         double fcpu = _flushCpuMs - w.FlushCpu0;
         string rcNote = w.FlushFail > 0 ? $" (last rc {w.FlushLastRc})" : "";
         sb.Append(FormattableString.Invariant($"  flush: period {w.FlushMs} ms, ok {w.FlushOk}, failed {w.FlushFail}{rcNote} | interval {P(w.FlushInterval)} | call {P(w.FlushCall)} | flush thread CPU {fcpu:0.0} ms ({fcpu / 10 / sec:0.00} % of one core)\n"));
+        if (Cfg.Patched)
+        {
+            int loops = DrainLoops() - w.Loops0;
+            sb.Append(FormattableString.Invariant($"  drain: period {w.DrainMs} ms, PresentMon loops {loops} ({loops / sec:0.0}/s, {(loops > 0 ? sec * 1000 / loops : 0):0.0} ms each), patched build {(DrainAck() ? "seen" : "NOT seen")}\n"));
+        }
         if (w.PmEtw is { } e0 && w.PmEtwLast is { } e1)
             sb.Append(FormattableString.Invariant($"  ETW (PresentMon): fill {e1.FillPct:0.0} %, buffers {e1.InUse}/{e1.Total}, events lost {e1.EventsLost} (+{e1.EventsLost - e0.EventsLost}), buffers lost {e1.BuffersLost} (+{e1.BuffersLost - e0.BuffersLost}), overflowed presents {e1.Overflowed} (+{e1.Overflowed - e0.Overflowed})\n"));
         else sb.Append("  ETW (PresentMon): no status line this window\n");
@@ -594,15 +659,15 @@ public static class OverlayDiag
     {
         _dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AlienControl", "diag", DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture));
         Directory.CreateDirectory(_dir);
-        File.WriteAllText(Path.Combine(_dir, "meta.txt"), $"qpc_frequency={Stopwatch.Frequency}\nplayhead={Cfg.Playhead}\nfixed_ms={Cfg.FixedMs}\nab_seconds={Cfg.AbSeconds}\nreader_priority={Cfg.ReaderPriority}\npump={Cfg.Pump}\nflush={Cfg.Flush}\nflush_cycle={string.Join(" ", Cfg.FlushCycle)}\nflush_seconds={Cfg.FlushSeconds}\n");
+        File.WriteAllText(Path.Combine(_dir, "meta.txt"), $"qpc_frequency={Stopwatch.Frequency}\nplayhead={Cfg.Playhead}\nfixed_ms={Cfg.FixedMs}\nab_seconds={Cfg.AbSeconds}\nreader_priority={Cfg.ReaderPriority}\npump={Cfg.Pump}\nflush={Cfg.Flush}\nflush_cycle={string.Join(" ", Cfg.FlushCycle)}\nflush_seconds={Cfg.FlushSeconds}\npresentmon={Cfg.PresentMon}\ndrain={Cfg.Drain}\ndrain_cycle={string.Join(" ", Cfg.DrainCycle)}\ndrain_seconds={Cfg.DrainSeconds}\n");
         Log.Info("Diag", "raw CSV in " + _dir);
         _writer = new Thread(() =>
         {
             var writers = new Dictionary<string, StreamWriter>();
             var heads = new Dictionary<string, string>
             {
-                ["rows"] = "batch,arrival_qpc,cpustart_qpc,present_qpc,ms,flush_ms",
-                ["batches"] = "batch,start_qpc,chunk_qpc,chunk_seq,rows,bytes,flush_ms",
+                ["rows"] = "batch,arrival_qpc,cpustart_qpc,present_qpc,ms,flush_ms,drain_ms",
+                ["batches"] = "batch,start_qpc,chunk_qpc,chunk_seq,rows,bytes,flush_ms,drain_ms",
                 ["flushes"] = "call_qpc,return_qpc,period_ms,rc,call_ms,interval_ms",
                 ["etw_pm"] = "qpc,fill_pct,in_use,total,events_lost,buffers_lost,overflowed_presents,flush_ms",
                 ["etw_query"] = "qpc,rc,buffer_kb,min_buffers,max_buffers,log_file_mode,flush_timer_s,number_of_buffers,free_buffers,events_lost,buffers_written,log_buffers_lost,realtime_buffers_lost,flush_ms",

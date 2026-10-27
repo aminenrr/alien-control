@@ -95,3 +95,18 @@ Pass 1 (Playhead A/B): `{ "enabled": true, "playhead": "ab", "fixedMs": 50, "abS
 3. Repeat once with `readerPriority: Normal`.
 4. `capture-present-modes.ps1 -Game <exe> -Label overlay-off` with F4 off, then `-Label overlay-on` with the overlay on.
 5. Send crash.log and the diag folder.
+
+## Pass 3: PresentMon output-drain interval (Amine 2026-10-27)
+
+Question: with the explicit ETW flush at 50 ms, is PresentMon's OutputThread `Sleep(100)` now the limit?
+(Pass 2: batch gap floors at ~109 ms = Sleep(100) rounded up to the 15.6 ms tick.)
+
+- `tools\PresentMon\PresentMon-drain.exe` = PresentMon 2.6.0 (tag commit e13fce6) built in CI from source with
+  `presentmon-2.6.0-drain.patch` only. The drain interval comes from the section `Local\AlienControlsPmDrain`
+  (16 bytes: [0] ms written by Alien Controls, [4] loop counter and [8] magic written by PresentMon).
+  100 ms calls the stock `Sleep(100)`; other values wait on a high-resolution waitable timer (Sleep would round up to 15.6 ms).
+  Without the section the build behaves exactly like 2.6.0.
+- Config: `overlay-diag-pass3.json` (flush fixed 50, `"presentMon": "patched"`, drain cycles 100 / 16 / 10 every 30 s).
+  `"presentMon": "stock"` runs the official exe (drain is then always 100).
+- Log: every window header carries `drainN`, a `drain:` line with PresentMon's real loop count and interval, and
+  PresentMon CPU as % of one core. Raw `batches.csv` / `rows.csv` gain `drain_ms`.

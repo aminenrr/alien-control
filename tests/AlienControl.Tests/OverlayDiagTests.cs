@@ -121,6 +121,27 @@ public class OverlayDiagTests
     }
 
     [Fact]
+    public void Drain_schedule_stock_fixed_and_cycle()
+    {
+        long f = Stopwatch.Frequency, st = 0;
+        var c = new OverlayDiag.Config();
+        Assert.False(c.Patched);
+        Assert.Equal(100, OverlayDiag.DrainMsAt(c, 1, ref st));         // default: stock Sleep(100)
+        c.Drain = "16";
+        Assert.Equal(16, OverlayDiag.DrainMsAt(c, 1, ref st));
+        c.Drain = "0";
+        Assert.Equal(100, OverlayDiag.DrainMsAt(c, 1, ref st));
+        c.Drain = "ab"; c.DrainSeconds = 30; st = 0;
+        long t0 = 10 * f;
+        Assert.Equal(100, OverlayDiag.DrainMsAt(c, t0, ref st));
+        Assert.Equal(16, OverlayDiag.DrainMsAt(c, t0 + 31 * f, ref st));
+        Assert.Equal(10, OverlayDiag.DrainMsAt(c, t0 + 61 * f, ref st));
+        Assert.Equal(100, OverlayDiag.DrainMsAt(c, t0 + 91 * f, ref st));
+        c.PresentMon = "Patched";
+        Assert.True(c.Patched);
+    }
+
+    [Fact]
     public void Trace_properties_offsets_match_x64_layout()
     {
         var p = System.Runtime.InteropServices.Marshal.AllocHGlobal(OverlayDiag.PropsSize);

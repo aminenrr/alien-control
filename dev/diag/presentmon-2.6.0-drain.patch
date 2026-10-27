@@ -1,0 +1,92 @@
+diff --git a/PresentMon/OutputThread.cpp b/PresentMon/OutputThread.cpp
+index 2b61aef..7776b94 100644
+--- a/PresentMon/OutputThread.cpp
++++ b/PresentMon/OutputThread.cpp
+@@ -563,6 +563,62 @@ static void ProcessEvents(
+     }
+ }
+ 
++// ---- Alien Controls diagnostic patch (NOT upstream, NOT for release) ----
++// The output thread normally sleeps a fixed 100 ms between drains. For the overlay-latency diagnostic the
++// interval is read from a 16-byte shared section the parent (Alien Controls) owns:
++//   [0] LONG drain ms (1..1000; anything else = stock 100)   [4] LONG loop counter (written here)
++//   [8] LONG magic 0x41435044 written here once, so the parent can see the patched build is running.
++// A value of 100 keeps the stock Sleep(100) call exactly. Other values wait on a high-resolution waitable
++// timer, because Sleep() rounds up to the 15.6 ms system tick in this process.
++// Without the section (no parent, or stock usage) behaviour is identical to upstream 2.6.0.
++namespace {
++struct DrainCtl {
++    HANDLE map = NULL;
++    volatile LONG* p = nullptr;
++    HANDLE timer = NULL;
++    void Open()
++    {
++        map = OpenFileMappingW(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, L"Local\\AlienControlsPmDrain");
++        if (map != NULL) {
++            p = static_cast<volatile LONG*>(MapViewOfFile(map, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, 16));
++            if (p != nullptr) {
++                InterlockedExchange(&p[2], 0x41435044);
++            }
++        }
++        timer = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
++    }
++    void Wait()
++    {
++        LONG ms = 100;
++        if (p != nullptr) {
++            InterlockedIncrement(&p[1]);
++            LONG v = p[0];
++            if (v >= 1 && v <= 1000) {
++                ms = v;
++            }
++        }
++        if (ms == 100 || timer == NULL) {
++            Sleep(static_cast<DWORD>(ms));
++            return;
++        }
++        LARGE_INTEGER due;
++        due.QuadPart = -static_cast<LONGLONG>(ms) * 10000;
++        if (SetWaitableTimerEx(timer, &due, 0, nullptr, nullptr, nullptr, 0)) {
++            WaitForSingleObject(timer, INFINITE);
++        } else {
++            Sleep(static_cast<DWORD>(ms));
++        }
++    }
++    void Close()
++    {
++        if (timer != NULL) { CloseHandle(timer); timer = NULL; }
++        if (p != nullptr) { UnmapViewOfFile(const_cast<LONG*>(p)); p = nullptr; }
++        if (map != NULL) { CloseHandle(map); map = NULL; }
++    }
++};
++}
++// ---- end Alien Controls diagnostic patch ----
++
+ void Output(PMTraceSession const* pmSession)
+ {
+     SetThreadDescription(GetCurrentThread(), L"PresentMon Output Thread");
+@@ -576,6 +632,9 @@ void Output(PMTraceSession const* pmSession)
+     processEvents.reserve(128);
+     presentEvents.reserve(1024);
+ 
++    DrainCtl drain; // Alien Controls diagnostic patch
++    drain.Open();
++
+     for (;;) {
+         // Read gQuit here, but then check it after processing queued events.
+         // This ensures that we call Dequeue*() at least once after
+@@ -631,10 +690,12 @@ void Output(PMTraceSession const* pmSession)
+             break;
+         }
+ 
+-        // Sleep to reduce overhead.
+-        Sleep(100);
++        // Sleep to reduce overhead. (Alien Controls diagnostic patch: interval from the shared section.)
++        drain.Wait();
+     }
+ 
++    drain.Close(); // Alien Controls diagnostic patch
++
+     // Close all CSV and process handles
+     for (auto& pair : gProcesses) {
+         auto processInfo = &pair.second;

@@ -52,6 +52,16 @@ public sealed class FramesSource : IDisposable
 
     public static string ExePath => Path.Combine(AppContext.BaseDirectory, "tools", "PresentMon", "PresentMon.exe");
     public static bool Available => File.Exists(ExePath);
+    /// <summary>diag pass 3 (Amine 2026-10-27): the patched 2.6.0 build (drain interval settable), only when
+    /// overlay-diag.json says "presentmon": "patched". Otherwise, and always without diag, the official exe.</summary>
+    public static string DrainExePath => Path.Combine(AppContext.BaseDirectory, "tools", "PresentMon", "PresentMon-drain.exe");
+    private static string RunPath()
+    {
+        if (!OverlayDiag.On || !OverlayDiag.Cfg.Patched) return ExePath;
+        if (File.Exists(DrainExePath)) return DrainExePath;
+        Log.Info("Diag", "presentmon patched requested but PresentMon-drain.exe is missing, running the stock exe");
+        return ExePath;
+    }
 
     public bool Running => _running;
 
@@ -132,10 +142,12 @@ public sealed class FramesSource : IDisposable
             // diag (Amine 2026-10-26): QPC timestamps and ETW status columns, only when overlay-diag.json turns it on
             var args = Args(Extended, _tier, _staleSession, TrackGpu)
                 + (OverlayDiag.On ? " --qpc_time" + (OverlayDiag.Cfg.EtwStatus ? " --track_etw_status" : "") : "");
-            var psi = new ProcessStartInfo(ExePath, args)
+            var exe = RunPath();
+            if (OverlayDiag.On && exe != ExePath) OverlayDiag.StartDrain();
+            var psi = new ProcessStartInfo(exe, args)
             {
                 CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
-                WorkingDirectory = Path.GetDirectoryName(ExePath)!,
+                WorkingDirectory = Path.GetDirectoryName(exe)!,
             };
             var p = Process.Start(psi)!;
             AttachToJob(p);
@@ -161,7 +173,7 @@ public sealed class FramesSource : IDisposable
             {
                 OverlayDiag.PresentMonCpu = () => { try { return p.HasExited ? TimeSpan.Zero : p.TotalProcessorTime; } catch { return TimeSpan.Zero; } };
                 OverlayDiag.StartEtwControl(SessionName, () => _running && _proc is not null);
-                Log.Info("Diag", $"PresentMon args: {args}; reader priority {_reader.Priority}; pump {(pump is not null)}");
+                Log.Info("Diag", $"PresentMon exe: {Path.GetFileName(exe)}; args: {args}; reader priority {_reader.Priority}; pump {(pump is not null)}");
             }
             Log.Info("Frames", (Extended ? $"PresentMon started (latency and frame gen, tier {_tier})" : "PresentMon started") + (TrackGpu ? ", GPU tracking" : "")
                 + (_staleSession ? ", replacing a leftover session" : ""));
