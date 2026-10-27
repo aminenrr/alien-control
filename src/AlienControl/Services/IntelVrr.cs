@@ -41,6 +41,14 @@ public sealed class IntelVrr : IDisposable
     private EnumFn? _enumDevices, _enumOutputs;
     private PropsFn? _props;
     private bool _tried, _disabled;
+    private string? _lastDiag;   // 2.0.3: what IGCL said, logged once per change (Amine: VRR showed Off in Optimus)
+
+    private void Diag(string text)
+    {
+        if (text == _lastDiag) return;
+        _lastDiag = text;
+        Log.Info("IntelVrr", text);
+    }
 
     /// <summary>VRR on / off for the active Intel display output, or null (no IGCL, no active Intel output).</summary>
     public bool? Read()
@@ -53,28 +61,37 @@ public sealed class IntelVrr : IDisposable
             {
                 if (!_tried && !Open()) return null;
                 uint n = 0;
-                if (_enumDevices!(_api, ref n, null) != 0 || n == 0) return null;
+                int rc = _enumDevices!(_api, ref n, null);
+                if (rc != 0 || n == 0) { Diag($"devices rc=0x{rc:X} n={n}"); return null; }
                 var devices = new IntPtr[n];
-                if (_enumDevices(_api, ref n, devices) != 0) return null;
+                if ((rc = _enumDevices(_api, ref n, devices)) != 0) { Diag($"devices rc=0x{rc:X}"); return null; }
                 buf = Marshal.AllocHGlobal(PropsSize);
-                foreach (var dev in devices)
+                var log = new System.Text.StringBuilder();
+                bool? result = null;
+                for (int d = 0; d < devices.Length; d++)
                 {
-                    if (dev == IntPtr.Zero) continue;
+                    if (devices[d] == IntPtr.Zero) continue;
                     uint c = 0;
-                    if (_enumOutputs!(dev, ref c, null) != 0 || c == 0) continue;
+                    rc = _enumOutputs!(devices[d], ref c, null);
+                    log.Append($"dev{d} outs rc=0x{rc:X} n={c}; ");
+                    if (rc != 0 || c == 0) continue;
                     var outs = new IntPtr[c];
-                    if (_enumOutputs(dev, ref c, outs) != 0) continue;
-                    foreach (var o in outs)
+                    if (_enumOutputs(devices[d], ref c, outs) != 0) continue;
+                    for (int k = 0; k < outs.Length; k++)
                     {
-                        if (o == IntPtr.Zero) continue;
+                        if (outs[k] == IntPtr.Zero) continue;
                         for (int i = 0; i < PropsSize; i += 4) Marshal.WriteInt32(buf, i, 0);
                         Marshal.WriteInt32(buf, 0, PropsSize);   // Version 0
-                        if (_props!(o, buf) != 0) continue;
-                        var r = Parse((uint)Marshal.ReadInt32(buf, OffConfig), (uint)Marshal.ReadInt32(buf, OffEnabled));
-                        if (r is bool on) return on;
+                        rc = _props!(outs[k], buf);
+                        uint cfg = (uint)Marshal.ReadInt32(buf, OffConfig), en = (uint)Marshal.ReadInt32(buf, OffEnabled),
+                             sup = (uint)Marshal.ReadInt32(buf, OffEnabled + 4), type = (uint)Marshal.ReadInt32(buf, 16);
+                        log.Append($"out{k} rc=0x{rc:X} type={type} cfg=0x{cfg:X} en=0x{en:X} sup=0x{sup:X}; ");
+                        if (rc != 0 || result is not null) continue;
+                        result = Parse(cfg, en);
                     }
                 }
-                return null;
+                Diag(log.Append($"-> {(result is bool b ? (b ? "on" : "off") : "null")}").ToString());
+                return result;
             }
             catch (Exception ex) { Log.Warn("IntelVrr", ex); Disable(); return null; }
             finally { if (buf != IntPtr.Zero) Marshal.FreeHGlobal(buf); }
@@ -89,15 +106,16 @@ public sealed class IntelVrr : IDisposable
     {
         _tried = true;
         if (!NativeLibrary.TryLoad("ControlLib.dll", typeof(IntelVrr).Assembly, DllImportSearchPath.System32, out _lib))
-        { _lib = IntPtr.Zero; _disabled = true; return false; }
+        { _lib = IntPtr.Zero; _disabled = true; Diag("ControlLib.dll not found"); return false; }
         var init = Fn<InitFn>("ctlInit");
         _close = Fn<CloseFn>("ctlClose");
         _enumDevices = Fn<EnumFn>("ctlEnumerateDevices");
         _enumOutputs = Fn<EnumFn>("ctlEnumerateDisplayOutputs");
         _props = Fn<PropsFn>("ctlGetDisplayProperties");
-        if (init is null || _enumDevices is null || _enumOutputs is null || _props is null) { Disable(); return false; }
+        if (init is null || _enumDevices is null || _enumOutputs is null || _props is null) { Diag("missing export"); Disable(); return false; }
         var args = new CtlInitArgs { Size = (uint)Marshal.SizeOf<CtlInitArgs>(), AppVersion = (1u << 16) | 1u };
-        if (init(ref args, out _api) != 0 || _api == IntPtr.Zero) { _api = IntPtr.Zero; Disable(); return false; }
+        int ri = init(ref args, out _api);
+        if (ri != 0 || _api == IntPtr.Zero) { _api = IntPtr.Zero; Diag($"ctlInit rc=0x{ri:X}"); Disable(); return false; }
         return true;
     }
 

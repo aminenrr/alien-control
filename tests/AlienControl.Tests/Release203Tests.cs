@@ -122,6 +122,9 @@ public class Release203Tests
         var v = new OverlayView { Level = 2, Items = OverlayLevels.L2, Scale = 1, Fps = 60,
             Data = new Sensors { VrrOn = true, Panel = PanelGpu.Intel } };
         Assert.Contains(v.BuildMetal(), r => r.Find(OverlayView.MCols) == "VRR On");
+        // Intel with no IGCL answer: no guess from the counted refresh (it sat at 240 under VRR in Optimus)
+        Assert.Null(OverlayView.SyncState(new Sensors { Panel = PanelGpu.Intel, RefreshHz = 240, ModeHz = 240 }, 143, null));
+        Assert.False(OverlayView.SyncState(new Sensors { Panel = PanelGpu.Nvidia, RefreshHz = 240, ModeHz = 240 }, 143, null));
     }
 
     [Fact]

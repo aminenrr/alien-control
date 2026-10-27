@@ -207,7 +207,7 @@ public sealed class OverlayView
         {
             // 2.0.3 (Amine): VRR (Intel, Optimus) or G-SYNC (NVIDIA) next to the Hz, in the same colours as level 2
             var c = new List<Cell> { new(N(d.RefreshHz), "Hz") };
-            _gsyncLast = d.VrrOn ?? GsyncState(d.RefreshHz, d.ModeHz, Fps, _gsyncLast);
+            _gsyncLast = SyncState(d, Fps, _gsyncLast);
             if (SyncCell(d.Panel, _gsyncLast) is Cell sc) c.Add(sc);
             rows.Add(new("DISPLAY", DimC, c.ToArray()));
         }
@@ -611,6 +611,11 @@ public sealed class OverlayView
         return last;
     }
 
+    /// <summary>2.0.3 (Amine: VRR read Off in Optimus): the driver's answer; the counted-refresh guess only on the
+    /// NVIDIA side, since vblank counting on the Intel path doesn't follow VRR, so Intel with no answer stays "--".</summary>
+    internal static bool? SyncState(Sensors d, double fps, bool? last) =>
+        d.VrrOn ?? (d.Panel == PanelGpu.Intel ? null : GsyncState(d.RefreshHz, d.ModeHz, fps, last));
+
     private static MRow Lr(string l, Rgba lc, string r, Rgba rc) =>
         new(new[] { new MSeg(l, lc, 0, false), new MSeg(r, rc, MCols, true) });
 
@@ -633,7 +638,7 @@ public sealed class OverlayView
             if ((it & Item.Gsync) != 0)
             {
                 // 2.0.1 (Amine): the driver's answer when it gives one, else the guess from the counted refresh
-                _gsyncLast = d.VrrOn ?? GsyncState(d.RefreshHz, d.ModeHz, Fps, _gsyncLast);
+                _gsyncLast = SyncState(d, Fps, _gsyncLast);
                 // 2.0.3 (Amine): VRR in Intel blue when the Intel GPU drives the panel (Optimus), G-SYNC in NVIDIA
                 // green otherwise; Off keeps the accent, dimmed
                 (gs, gc) = SyncLabel(d.Panel, _gsyncLast);
