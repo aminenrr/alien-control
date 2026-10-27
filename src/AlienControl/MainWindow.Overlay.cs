@@ -353,6 +353,7 @@ public partial class MainWindow
         if (_settings.OverlayLatencyFg) { pv.Fps = 71; pv.FrameMs = 1000.0 / 142; }
         pv.LatMs = 28 + rnd.Next(-2, 3);
         pv.LatPc = true;
+        pv.DispMs = 14 + rnd.Next(-1, 2);   // 2.0.3: both latencies, like a Reflex game
         pv.Engine = "DX12";
         pv.Graph = _previewGraph;
         pv.GraphT = _previewT;

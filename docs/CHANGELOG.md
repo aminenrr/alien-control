@@ -3,6 +3,11 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.0.3 (2026-10-27, test build)
+- Overlay latency (ported from diag/overlay-latency, PR #25, stock PresentMon 2.6.0 only): our PresentMon ETW session is flushed every 50 ms (ControlTrace FLUSH, Services/EtwFlush.cs), so frames reach the overlay ~0.18 s old instead of ~1.6 s (measured on diag, no event loss, no CPU cost). The graph Playhead holds a fixed 180 ms behind PresentMon instead of the adaptive delay (Amine; 120 ms ran dry 8 to 14 % of the time). No patched exe, no diag logging.
+- GPU USE reads like RTSS: with the RTX on and awake, the driver's graphics load (NvAPI_GPU_GetDynamicPstatesInfoEx, utilization[0]); the PDH engtype_3D sum read 10 to 15 points low. Optimus only asks the driver while PDH already sees the RTX busy, so it never wakes a sleeping RTX; iGPU only, a GPU switch or a failed call keep the PDH value.
+- Latency rows match on dGPU and Optimus (PR #26): PresentMon's display latency is always kept and shown as DISP LAT in both modes, with PC LAT (Reflex) above it when the game sends it. Level 2 shows PC lat / Disp lat.
+
 ## v2.0.2 (2026-10-26)
 - Stability fixes (PR #24, audit 2026-10-26, items picked by Amine):
 - Resume in G-Mode: a failed (null) G-Mode read no longer turns G-Mode off or applies a conflicting preset; it stays unknown and retries once. Successful reads update the G-Mode state, and the resume OC sync checks the real driver offsets.

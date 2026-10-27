@@ -72,6 +72,11 @@ public sealed class OverlayView
     /// <summary>Latency in ms, NaN when unknown. LatPc: Reflex style PC latency instead of display latency.</summary>
     public double LatMs { get; set; } = double.NaN;
     public bool LatPc { get; set; }
+    /// <summary>2.0.3 (Amine): display latency (frame start to screen), NaN when unknown. Shown as its own row next to
+    /// PC LAT, so dGPU (Reflex) and Optimus (no Reflex) read the same number.</summary>
+    public double DispMs { get; set; } = double.NaN;
+    private bool ShowDisp => LatPc && !double.IsNaN(DispMs);
+    private string DispValue => DispMs.ToString(DispMs < 10 ? "0.0" : "0");
     public string Engine { get; set; } = "";
     public double Low1 { get; set; }
     public double Low01 { get; set; }
@@ -204,6 +209,7 @@ public sealed class OverlayView
                 var b => new[] { new Cell(b, ""), new Cell("EST", "") },
             }));
         if ((it & Item.Latency) != 0) rows.Add(new(LatLabel, DimC, new[] { new Cell(LatValue, "ms") }));
+        if ((it & Item.Latency) != 0 && ShowDisp) rows.Add(new("DISP LAT", DimC, new[] { new Cell(DispValue, "ms") }));
         if ((it & Item.PresentMode) != 0) rows.Add(new("MODE", DimC, new[] { new Cell(ModeLabel(PresentMode), "") }));
         // ov.5: lows as normal rows, so they line up with the columns above
         if ((it & Item.Low1) != 0)
@@ -353,6 +359,7 @@ public sealed class OverlayView
         }
         if ((it & Item.FrameTime) != 0) l.Add(new("", White, new[] { new Cell(FrameMs.ToString("0.0"), "ms") }, false));
         if ((it & Item.Latency) != 0) l.Add(new(LatPc ? "PC LAT" : "DISP", DimC, new[] { new Cell(LatValue, "ms") }, false));
+        if ((it & Item.Latency) != 0 && ShowDisp) l.Add(new("DISP", DimC, new[] { new Cell(DispValue, "ms") }, false));
         if ((it & Item.FrameGraph) != 0) l.Add(new("", White, Array.Empty<Cell>(), true));
         if ((it & (Item.Cpu | Item.CpuTemp)) != 0)
         {
@@ -590,7 +597,8 @@ public sealed class OverlayView
                 have ? Math.Min(9999, 1000 / mn).ToString("0.00") : "--", White, MetalRed, White));
         if ((it & Item.FrameTime) != 0)
             r.Add(Br("Frame:", live && FrameMs > 0 ? FrameMs.ToString("0.00") : "--", have ? mn.ToString("0.00") : "--", have ? mx.ToString("0.00") : "--", MetalBlue, MetalBlue, MetalRed));
-        if ((it & Item.Latency) != 0) r.Add(Lr("Latency:", White, LatValue == "--" ? "--" : LatValue + "ms", White));
+        if ((it & Item.Latency) != 0) r.Add(Lr(ShowDisp ? "PC lat:" : "Latency:", White, LatValue == "--" ? "--" : LatValue + "ms", White));
+        if ((it & Item.Latency) != 0 && ShowDisp) r.Add(Lr("Disp lat:", White, DispValue + "ms", White));
         if ((it & Item.FrameGraph) != 0) r.Add(new(Array.Empty<MSeg>(), Graph: true));
         if ((it & (Item.Gpu | Item.GpuTemp | Item.GpuPower)) != 0)
             r.Add(d.GpuOff ? Lr("GPU:", MetalGreen, "OFF", MetalGreen)

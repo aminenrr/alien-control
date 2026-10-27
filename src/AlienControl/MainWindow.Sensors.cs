@@ -118,7 +118,8 @@ public partial class MainWindow
             // 2.0.0-beta1.4 (ui review #5): RAM / VRAM / CPU % / GPU % are read on a worker thread (one PDH query, see
             // SystemStats); the UI thread only assigns the numbers
             bool igpu = IgpuTilesActive;   // 2.0.0-beta1.4 (Amine): then GPU USE reads the Intel GPU
-            var h = await Task.Run(() => ReadHomeStats(igpu));
+            var rtx = (Kind: _gpu.Kind, Switching: _rtxSwitching, Unsure: _gpuSourceUnsure);   // 2.0.3: read on the UI thread
+            var h = await Task.Run(() => ReadHomeStats(igpu, rtx.Kind, rtx.Switching, rtx.Unsure));
             OverlayTakeSensors(s, gpu, h.Cpu, h.Gpu, h.Ram, h.Vram);   // beta1.3-ov: one reader, shared with the overlay
             if (!HomePage.IsVisible || !homeShown) return;
             if (h.Ram is { } ram) SetMem(RamText, RamTextUnit, RamBar, ram.Used, ram.Total);
@@ -136,8 +137,18 @@ public partial class MainWindow
 
     /// <summary>Worker thread: the Home numbers in one go. _stats has one caller at a time (RefreshSensorsAsync's
     /// _polling guard), which its CPU % delta needs.</summary>
-    private HomeStats ReadHomeStats(bool igpuOnly) =>
-        new(SystemStats.Ram(), _stats.Vram(), _stats.CpuUsage(), igpuOnly ? _stats.IntelGpuUsage() : _stats.GpuUsage());   // 2.0.0-beta1.4 (Amine)
+    private HomeStats ReadHomeStats(bool igpuOnly, GpuModeKind kind, bool switching, bool unsure) =>
+        new(SystemStats.Ram(), _stats.Vram(), _stats.CpuUsage(), igpuOnly ? _stats.IntelGpuUsage() : RtxGpuUse(kind, switching, unsure));   // 2.0.0-beta1.4 (Amine)
+
+    /// <summary>2.0.3 (Amine: GPU USE 10 to 15 points under RTSS): the driver's graphics load (NvAPI) when the RTX is on
+    /// and awake, else the PDH 3D sum. PDH is always read first: it's the fallback and, on Optimus, the proof the RTX
+    /// is awake, so the driver is never what wakes it.</summary>
+    private double? RtxGpuUse(GpuModeKind kind, bool switching, bool unsure)
+    {
+        double? pdh = _stats.GpuUsage();
+        if (!GpuUse.MayAskDriver(kind, switching, unsure, NvmlSession.Removing, pdh)) return pdh;
+        return GpuUse.Pick(NvDrs.GpuUtilization(), pdh);
+    }
 
     // ---------- 2.0.0-beta1.4 (Amine): which GPU the GPU tiles read ----------
 

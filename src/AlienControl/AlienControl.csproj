@@ -10,9 +10,9 @@
     <AssemblyName>AlienControl</AssemblyName>
     <RootNamespace>AlienControl</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>2.0.2</Version>
+    <Version>2.0.3</Version>
     <!-- the footer and Settings show the informational version (v2.0.0-beta1.4); release.yml checks it matches the tag -->
-    <InformationalVersion>2.0.2</InformationalVersion>
+    <InformationalVersion>2.0.3</InformationalVersion>
     <Product>Alien Controls</Product>
     <AssemblyTitle>Alien Controls</AssemblyTitle>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
