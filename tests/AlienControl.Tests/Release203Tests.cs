@@ -139,6 +139,13 @@ public class Release203Tests
         var lat = rows.Single(r => r.Label == "LAT");
         Assert.Equal(new[] { "13", "35" }, lat.Cells.Select(c => c.Value));
         Assert.Equal(new[] { "ms disp", "ms pc" }, lat.Cells.Select(c => c.Unit));
+        Assert.Single(rows.Single(r => r.Label == "DISPLAY").Cells);              // sync unknown: Hz only
+        v.Data = new Sensors { VrrOn = true, Panel = PanelGpu.Intel };
+        var disp = v.BuildRows().Single(r => r.Label == "DISPLAY").Cells;
+        Assert.Equal(("VRR", OverlayView.IntelAccent), (disp[1].Value, disp[1].Color));
+        v.Data = new Sensors { VrrOn = false, Panel = PanelGpu.Nvidia };
+        disp = v.BuildRows().Single(r => r.Label == "DISPLAY").Cells;
+        Assert.Equal(("G-SYNC", "OFF"), (disp[1].Value, disp[1].Unit));
         v.LatPc = false; v.LatMs = 14;
         Assert.Equal(new[] { "14" }, v.BuildRows().Single(r => r.Label == "LAT").Cells.Select(c => c.Value));
     }

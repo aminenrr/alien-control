@@ -203,7 +203,14 @@ public sealed class OverlayView
         if ((it & Item.Fans) != 0)
             rows.Add(new("FANS", FanC, new[] { new Cell(N(d.CpuFanRpm), "RPM"), new Cell(N(d.GpuFanRpm), "RPM") }));
         Space();
-        if ((it & Item.Refresh) != 0) rows.Add(new("DISPLAY", DimC, new[] { new Cell(N(d.RefreshHz), "Hz") }));
+        if ((it & Item.Refresh) != 0)
+        {
+            // 2.0.3 (Amine): VRR (Intel, Optimus) or G-SYNC (NVIDIA) next to the Hz, in the same colours as level 2
+            var c = new List<Cell> { new(N(d.RefreshHz), "Hz") };
+            _gsyncLast = d.VrrOn ?? GsyncState(d.RefreshHz, d.ModeHz, Fps, _gsyncLast);
+            if (SyncCell(d.Panel, _gsyncLast) is Cell sc) c.Add(sc);
+            rows.Add(new("DISPLAY", DimC, c.ToArray()));
+        }
         if ((it & Item.Bound) != 0)   // ov.15: an estimate, so it says so
             rows.Add(new("BOUND", DimC, Bound switch
             {
@@ -562,6 +569,16 @@ public sealed class OverlayView
     internal static readonly Rgba MetalCpu = Rgba.Hex(0x5AA0FF);
     internal static readonly Rgba IntelAccent = Rgba.Hex(0x00C7FD);    // 2.0.3: Intel energy blue
     internal static readonly Rgba NvidiaAccent = Rgba.Hex(0x76B900);   // 2.0.3: NVIDIA green
+
+    /// <summary>2.0.3 (Amine): the DISPLAY row's sync tag on levels 3 / 4: "G-SYNC" or "VRR" in the accent when on,
+    /// dimmed with "OFF" when off, nothing while unknown.</summary>
+    internal static Cell? SyncCell(PanelGpu panel, bool? on)
+    {
+        if (on is not bool o) return null;
+        var (text, color) = SyncLabel(panel, o);
+        string name = text[..text.LastIndexOf(' ')];
+        return o ? new Cell(name, "", color) : new Cell(name, "OFF", color);
+    }
 
     /// <summary>2.0.3 (Amine): the Metal sync row's words and colour for the GPU that drives the panel.</summary>
     internal static (string Text, Rgba Color) SyncLabel(PanelGpu panel, bool? on)
