@@ -35,7 +35,11 @@ public static class OverlayDiag
     public sealed class Config
     {
         public bool Enabled { get; set; }
-        public string Playhead { get; set; } = "ab";      // adaptive | fixed | off | ab (cycles adaptive, fixed, off)
+        public string Playhead { get; set; } = "ab";      // adaptive | fixed | fixedNNN | off | ab (cycles adaptive, fixed, off) | cycle (PlayCycle)
+        /// <summary>diag step 1 (Amine 2026-10-27): with Playhead "cycle", the modes in order, AbSeconds each.
+        /// Tokens: off, adaptive, fixed (FixedMs) or fixedNNN. Adaptive is followed by off so the next fixed slot never
+        /// has to glide down from the adaptive hold.</summary>
+        public string[] PlayCycle { get; set; } = { "fixed120", "off", "fixed120", "off", "adaptive", "off" };
         public int FixedMs { get; set; } = 50;
         public int AbSeconds { get; set; } = 20;
         public string ReaderPriority { get; set; } = "BelowNormal";
@@ -91,15 +95,35 @@ public static class OverlayDiag
     // ---------- Playhead mode (A/B) ----------
 
     private static long _abStart;
-    public static PlayMode Mode(long now)
+    public static PlayMode Mode(long now) => ModeAt(Cfg, now, ref _abStart).Mode;
+    /// <summary>The fixed hold (ms) in force at now (only meaningful while the mode is Fixed).</summary>
+    public static int FixedMsNow(long now) => ModeAt(Cfg, now, ref _abStart).FixedMs;
+
+    internal static (PlayMode Mode, int FixedMs) Token(string t, int fixedDefault)
     {
-        var p = Cfg.Playhead.ToLowerInvariant();
-        if (p == "adaptive") return PlayMode.Adaptive;
-        if (p == "fixed") return PlayMode.Fixed;
-        if (p == "off") return PlayMode.Off;
-        if (_abStart == 0) _abStart = now;
-        long slot = (long)((now - _abStart) / (Cfg.AbSeconds * F)) % 3;
-        return slot switch { 0 => PlayMode.Adaptive, 1 => PlayMode.Fixed, _ => PlayMode.Off };
+        t = (t ?? "").Trim().ToLowerInvariant();
+        if (t == "off") return (PlayMode.Off, fixedDefault);
+        if (t == "fixed") return (PlayMode.Fixed, fixedDefault);
+        if (t.StartsWith("fixed", StringComparison.Ordinal) && int.TryParse(t.AsSpan(5), out int ms)) return (PlayMode.Fixed, Math.Clamp(ms, 0, 1000));
+        return (PlayMode.Adaptive, fixedDefault);
+    }
+
+    internal static (PlayMode Mode, int FixedMs) ModeAt(Config c, long now, ref long start)
+    {
+        var p = (c.Playhead ?? "ab").Trim().ToLowerInvariant();
+        if (p == "ab")
+        {
+            if (start == 0) start = now;
+            long slot3 = (long)((now - start) / (c.AbSeconds * F)) % 3;
+            return (slot3 switch { 0 => PlayMode.Adaptive, 1 => PlayMode.Fixed, _ => PlayMode.Off }, c.FixedMs);
+        }
+        if (p == "cycle" && c.PlayCycle is { Length: > 0 })
+        {
+            if (start == 0) start = now;
+            long slot = (long)((now - start) / (c.AbSeconds * F)) % c.PlayCycle.Length;
+            return Token(c.PlayCycle[slot], c.FixedMs);
+        }
+        return Token(p, c.FixedMs);
     }
 
     private static long _flushStart;
@@ -128,7 +152,7 @@ public static class OverlayDiag
         return c.DrainCycle[slot];
     }
 
-    public static string Label(PlayMode m, int flushMs, int drainMs = -1) => ModeName(m) + (flushMs > 0 ? $" flush{flushMs}" : " noflush")
+    public static string Label(PlayMode m, int flushMs, int drainMs = -1, int fixedMs = -1) => ModeName(m, fixedMs) + (flushMs > 0 ? $" flush{flushMs}" : " noflush")
         + (Cfg.Patched ? $" drain{(drainMs >= 0 ? drainMs : DrainMs(Stopwatch.GetTimestamp()))}" : "");
 
     // ---------- pass 3: shared section read by the patched PresentMon ----------
@@ -163,7 +187,7 @@ public static class OverlayDiag
     private static int DrainLoops() { try { return _drainView?.ReadInt32(4) ?? 0; } catch { return 0; } }
     private static bool DrainAck() { try { return _drainView?.ReadInt32(8) == 0x41435044; } catch { return false; } }
 
-    public static string ModeName(PlayMode m) => m switch { PlayMode.Fixed => $"fixed{Cfg.FixedMs}", PlayMode.Off => "off", _ => "adaptive" };
+    public static string ModeName(PlayMode m, int fixedMs = -1) => m switch { PlayMode.Fixed => $"fixed{(fixedMs >= 0 ? fixedMs : FixedMsNow(Stopwatch.GetTimestamp()))}", PlayMode.Off => "off", _ => "adaptive" };
 
     // ---------- reader side (PresentMon reader thread) ----------
 
@@ -218,6 +242,7 @@ public static class OverlayDiag
     /// <summary>A target frame kept in the ring. cpuQpc / presentQpc 0 = PresentMon didn't give it.</summary>
     public static void OnFrame(long arrival, long cpuQpc, long presentQpc, float ms)
     {
+        if (On && ms > 0 && ms < 1000) lock (_l) { var gw = Win(); if (!Settling(arrival)) gw.GameMs.Add(ms); }
         lock (_l)
         {
             var w = Win();
@@ -464,7 +489,16 @@ public static class OverlayDiag
 
     // ---------- render side ----------
 
-    public struct Sample { public long S, EdgeA, EdgeC, EdgeP; public double Delay; public PlayMode Mode; public int Flush; public bool Has; }
+    public struct Sample
+    {
+        public long S, EdgeA, EdgeC, EdgeP; public double Delay; public PlayMode Mode; public int Flush; public bool Has;
+        /// <summary>step 1: the graph's right edge as drawn (GraphNow, QPC seconds) and whether the playhead was
+        /// waiting at the newest frame (buffer ran dry).</summary>
+        public double EdgeNow; public bool Starved;
+    }
+    private static double _prevEdge = double.NaN;
+    private static long _prevEdgeS;
+    private static int _stallRun;
 
     private readonly struct Pending
     {
@@ -486,6 +520,7 @@ public static class OverlayDiag
             var w = Win();
             if (Settling(q1)) { s.Has = false; }
             w.Draws++;
+            EdgeStats(w, s);
             w.PresentBlock.Add((q1 - q0) / F * 1000);
             if (_lastQ1 > 0)
             {
@@ -540,6 +575,37 @@ public static class OverlayDiag
     }
 
     /// <summary>WPF renderer: only the sample side is measurable (no swapchain statistics).</summary>
+    /// <summary>step 1 (Amine 2026-10-27): per render, how far the drawn right edge moved. A stall is a render where
+    /// it did not move (&lt; 0.05 ms); runs of stalls are counted as consecutive renders. A jump is a move bigger than
+    /// 2x the wall time since the previous render (and over 25 ms), or over 50 ms.</summary>
+    private static void EdgeStats(Window w, Sample s)
+    {
+        if (!s.Has || s.EdgeNow <= 0) { _prevEdge = double.NaN; EndRun(w); return; }
+        w.EdgeAge.Add((s.S / F - s.EdgeNow) * 1000);
+        if (s.Starved) w.Starved++;
+        if (!double.IsNaN(_prevEdge) && s.S > _prevEdgeS)
+        {
+            double adv = (s.EdgeNow - _prevEdge) * 1000, wall = (s.S - _prevEdgeS) / F * 1000;
+            w.Renders++;
+            w.Adv.Add(adv);
+            w.Wall.Add(wall);
+            if (adv < 0.05) { w.Stalled++; _stallRun++; }
+            else
+            {
+                EndRun(w);
+                if (adv > 50) w.Jump50++;
+                if (adv > Math.Max(2 * wall, 25)) w.JumpBig++;
+            }
+        }
+        _prevEdge = s.EdgeNow; _prevEdgeS = s.S;
+    }
+
+    private static void EndRun(Window w)
+    {
+        if (_stallRun > 0) { w.Runs.Add(_stallRun); if (_stallRun >= 2) w.Run2++; if (_stallRun >= 5) w.Run5++; if (_stallRun >= 10) w.Run10++; }
+        _stallRun = 0;
+    }
+
     public static void OnWpfFrame(Sample s)
     {
         lock (_l)
@@ -557,7 +623,9 @@ public static class OverlayDiag
 
     private sealed class Window
     {
-        public PlayMode Mode; public int FlushMs, DrainMs, Loops0; public long Start;
+        public PlayMode Mode; public int FlushMs, DrainMs, Loops0, FixedMs; public long Start;
+        public int Renders, Stalled, Run2, Run5, Run10, Jump50, JumpBig, Starved;
+        public readonly List<double> EdgeAge = new(), Adv = new(), Wall = new(), Runs = new(), GameMs = new();
         public EtwPm? PmEtw, PmEtwLast; public EtwQuery? Q0, QLast; public int QFail;
         public int FlushOk, FlushFail; public uint FlushLastRc; public double FlushCpu0;
         public readonly List<double> FlushCall = new(), FlushInterval = new(), NewestInBatch = new();
@@ -582,12 +650,12 @@ public static class OverlayDiag
     {
         long now = Stopwatch.GetTimestamp();
         var m = Mode(now);
-        int fm = FlushMs(now), dm = DrainMs(now);
-        if (_w is null || _w.Mode != m || _w.FlushMs != fm || _w.DrainMs != dm || now - _w.Start > F * 10)
+        int fm = FlushMs(now), dm = DrainMs(now), xm = m == PlayMode.Fixed ? FixedMsNow(now) : 0;
+        if (_w is null || _w.Mode != m || _w.FlushMs != fm || _w.DrainMs != dm || _w.FixedMs != xm || now - _w.Start > F * 10)
         {
             if (_w is not null) Flush(_w, now);
-            if (_w is null || _w.Mode != m || _w.FlushMs != fm || _w.DrainMs != dm) _settleUntil = now + (long)(F * 2);
-            _w = new Window { Mode = m, FlushMs = fm, DrainMs = dm, Loops0 = DrainLoops(), Start = now, FlushCpu0 = _flushCpuMs };
+            if (_w is null || _w.Mode != m || _w.FlushMs != fm || _w.DrainMs != dm || _w.FixedMs != xm) { _settleUntil = now + (long)(F * 2); _stallRun = 0; _prevEdge = double.NaN; }
+            _w = new Window { Mode = m, FlushMs = fm, DrainMs = dm, FixedMs = xm, Loops0 = DrainLoops(), Start = now, FlushCpu0 = _flushCpuMs };
             try { using var p = Process.GetCurrentProcess(); _cpu0 = p.TotalProcessorTime; } catch { }
             try { _pmCpu0 = PresentMonCpu?.Invoke() ?? TimeSpan.Zero; } catch { _pmCpu0 = TimeSpan.Zero; }
         }
@@ -605,6 +673,14 @@ public static class OverlayDiag
         return string.Format(CultureInfo.InvariantCulture, "p50 {0:0.0} p95 {1:0.0} max {2:0.0}{3} (n {4})", q(0.5), q(0.95), v[^1], unit, v.Count);
     }
 
+    private static string P99(List<double> v, string unit = " ms")
+    {
+        if (v.Count == 0) return "n/a";
+        v.Sort();
+        double q(double p) => v[Math.Min(v.Count - 1, (int)Math.Floor(p * (v.Count - 1) + 0.5))];
+        return string.Format(CultureInfo.InvariantCulture, "p50 {0:0.0} p95 {1:0.0} p99 {2:0.0} max {3:0.0}{4} (n {5})", q(0.5), q(0.95), q(0.99), v[^1], unit, v.Count);
+    }
+
     private static void Flush(Window w, long now)
     {
         double sec = (now - w.Start) / F;
@@ -613,11 +689,16 @@ public static class OverlayDiag
         try { using var p = Process.GetCurrentProcess(); cpu = (p.TotalProcessorTime - _cpu0).TotalSeconds / sec / Environment.ProcessorCount * 100; } catch { }
         try { pm = ((PresentMonCpu?.Invoke() ?? TimeSpan.Zero) - _pmCpu0).TotalSeconds / sec / Environment.ProcessorCount * 100; } catch { }
         var sb = new StringBuilder();
-        sb.Append(CultureInfo.InvariantCulture, $"Diag [{Label(w.Mode, w.FlushMs, w.DrainMs)}] {Renderer} {Target} {sec:0.0} s, {w.Frames} game frames, {w.Draws} draws, {w.Missed} missed, CPU app {cpu:0.0} % PresentMon {pm:0.0} % ({pm * Environment.ProcessorCount:0.00} % of one core)\n");
+        sb.Append(CultureInfo.InvariantCulture, $"Diag [{Label(w.Mode, w.FlushMs, w.DrainMs, w.FixedMs)}] {Renderer} {Target} {sec:0.0} s, {w.Frames} game frames, {w.Draws} draws, {w.Missed} missed, CPU app {cpu:0.0} % PresentMon {pm:0.0} % ({pm * Environment.ProcessorCount:0.00} % of one core)\n");
         sb.Append($"  e2e age V-P_edge: {P(w.E2e)} | at sample S-P_edge: {P(w.AgeAtSample)} | dcomp est: {P(w.E2eDcompEst)}\n");
         sb.Append($"  parts (matched frames): D_data A-P {P(w.EdgeDataP)} | D_wait S-A {P(w.EdgeWait)} | D_present V-S {P(w.DPresent)}\n");
         sb.Append($"  all rows: A-P {P(w.DataP)} | A-C {P(w.DataC)} | Playhead delay {P(w.Delay)}\n");
-        sb.Append($"  batches: gap {P(w.Gap)} | rows {P(w.BatchRows, "")} | bytes {P(w.BatchBytes, "")} | newest row A-P {P(w.NewestInBatch)} | reader delay B-W {P(w.ReaderDelay)}, no stamp {_probeMissed}\n");
+        EndRun(w);
+        double sp = w.Renders > 0 ? 100.0 * w.Stalled / w.Renders : 0;
+        sb.Append(FormattableString.Invariant($"  edge: age {P99(w.EdgeAge)} | advance/render {P99(w.Adv)} | render interval {P(w.Wall)}\n"));
+        sb.Append(FormattableString.Invariant($"  edge stalls: {w.Stalled}/{w.Renders} renders ({sp:0.0} %), runs {w.Runs.Count} (>=2: {w.Run2}, >=5: {w.Run5}, >=10: {w.Run10}), run length {P(w.Runs, "")} | jumps >50 ms {w.Jump50}, >2x interval {w.JumpBig} | playhead starved {w.Starved} renders\n"));
+        sb.Append($"  game frametime: {P99(w.GameMs)}\n");
+        sb.Append($"  batches: gap {P99(w.Gap)} | rows {P(w.BatchRows, "")} | bytes {P(w.BatchBytes, "")} | newest row A-P {P(w.NewestInBatch)} | reader delay B-W {P(w.ReaderDelay)}, no stamp {_probeMissed}\n");
         double fcpu = _flushCpuMs - w.FlushCpu0;
         string rcNote = w.FlushFail > 0 ? $" (last rc {w.FlushLastRc})" : "";
         sb.Append(FormattableString.Invariant($"  flush: period {w.FlushMs} ms, ok {w.FlushOk}, failed {w.FlushFail}{rcNote} | interval {P(w.FlushInterval)} | call {P(w.FlushCall)} | flush thread CPU {fcpu:0.0} ms ({fcpu / 10 / sec:0.00} % of one core)\n"));

@@ -142,6 +142,28 @@ public class OverlayDiagTests
     }
 
     [Fact]
+    public void Playhead_cycle_tokens_and_slots()
+    {
+        long f = Stopwatch.Frequency, st = 0;
+        var c = new OverlayDiag.Config { FixedMs = 50 };
+        Assert.Equal((OverlayDiag.PlayMode.Fixed, 120), OverlayDiag.Token("fixed120", 50));
+        Assert.Equal((OverlayDiag.PlayMode.Fixed, 50), OverlayDiag.Token("fixed", 50));
+        Assert.Equal(OverlayDiag.PlayMode.Off, OverlayDiag.Token("OFF", 50).Mode);
+        Assert.Equal(OverlayDiag.PlayMode.Adaptive, OverlayDiag.Token("adaptive", 50).Mode);
+        c.Playhead = "fixed80";
+        Assert.Equal((OverlayDiag.PlayMode.Fixed, 80), OverlayDiag.ModeAt(c, 1, ref st));
+        c.Playhead = "cycle"; c.AbSeconds = 20; st = 0;
+        long t0 = 5 * f;
+        Assert.Equal((OverlayDiag.PlayMode.Fixed, 120), OverlayDiag.ModeAt(c, t0, ref st));
+        Assert.Equal(OverlayDiag.PlayMode.Off, OverlayDiag.ModeAt(c, t0 + 21 * f, ref st).Mode);
+        Assert.Equal(OverlayDiag.PlayMode.Fixed, OverlayDiag.ModeAt(c, t0 + 41 * f, ref st).Mode);
+        Assert.Equal(OverlayDiag.PlayMode.Adaptive, OverlayDiag.ModeAt(c, t0 + 81 * f, ref st).Mode);
+        Assert.Equal(OverlayDiag.PlayMode.Off, OverlayDiag.ModeAt(c, t0 + 101 * f, ref st).Mode);
+        Assert.Equal(OverlayDiag.PlayMode.Fixed, OverlayDiag.ModeAt(c, t0 + 121 * f, ref st).Mode);
+        Assert.Equal("fixed120 flush50", OverlayDiag.Label(OverlayDiag.PlayMode.Fixed, 50, -1, 120));
+    }
+
+    [Fact]
     public void Trace_properties_offsets_match_x64_layout()
     {
         var p = System.Runtime.InteropServices.Marshal.AllocHGlobal(OverlayDiag.PropsSize);

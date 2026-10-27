@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "playhead": "off",
+  "abSeconds": 20,
+  "readerPriority": "BelowNormal",
+  "pump": true,
+  "flush": "50",
+  "etwStatus": true,
+  "etwQuery": true,
+  "raw": true,
+  "presentMon": "stock"
+}

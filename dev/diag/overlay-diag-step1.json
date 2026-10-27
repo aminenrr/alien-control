@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "playhead": "cycle",
+  "playCycle": ["fixed120", "off", "fixed120", "off", "adaptive", "off"],
+  "abSeconds": 20,
+  "readerPriority": "BelowNormal",
+  "pump": true,
+  "flush": "50",
+  "etwStatus": true,
+  "etwQuery": true,
+  "raw": true,
+  "presentMon": "stock"
+}

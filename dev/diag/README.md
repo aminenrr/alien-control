@@ -110,3 +110,14 @@ Question: with the explicit ETW flush at 50 ms, is PresentMon's OutputThread `Sl
   `"presentMon": "stock"` runs the official exe (drain is then always 100).
 - Log: every window header carries `drainN`, a `drain:` line with PresentMon's real loop count and interval, and
   PresentMon CPU as % of one core. Raw `batches.csv` / `rows.csv` gain `drain_ms`.
+
+## Step 1: fixed Playhead on stock PresentMon (Amine 2026-10-27)
+
+Official PresentMon 2.6.0 (`"presentMon": "stock"`), explicit flush 50 ms, Playhead modes compared:
+- `overlay-diag-step1.json`: `"playhead": "cycle"`, `playCycle` fixed120, off, fixed120, off, adaptive, off (20 s each).
+  Tokens: off, adaptive, fixed (uses fixedMs) or fixedNNN. Adaptive is always followed by off.
+- `overlay-diag-step1-video-off.json` / `-video-fixed120.json`: one mode for the whole run, for the RTSS screen recordings.
+- New per-window log lines: `edge:` (right-edge age at sample, advance per render, render interval),
+  `edge stalls:` (renders where the drawn edge did not move, runs of consecutive stalls, jumps >50 ms and >2x the
+  render interval, renders where the playhead waited at the newest frame = hold ran dry), `game frametime:` (p50/p95/p99),
+  and batch gap with p99.

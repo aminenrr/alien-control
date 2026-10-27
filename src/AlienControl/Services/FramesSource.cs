@@ -665,6 +665,8 @@ public sealed class FramesSource : IDisposable
         public double FixedSec { get; set; } = 0.05;
         /// <summary>diag: the delay used at the last call (s), context only.</summary>
         public double Delay { get; private set; }
+        /// <summary>diag step 1: the last call had the playhead waiting at the newest frame (the hold ran dry).</summary>
+        public bool Starved { get; private set; }
         private double _play = double.NaN;  // the playhead on PresentMon's clock (s)
         private long _lastTicks;
         /// <summary>ov.15: the playhead on PresentMon's clock (s) at the last Visible call: the graph's right edge.</summary>
@@ -677,6 +679,7 @@ public sealed class FramesSource : IDisposable
         {
             int n = frames.Length;
             if (n == 0) return 0;
+            Starved = false;
             if (Mode == OverlayDiag.PlayMode.Off) { Now = _play = frames[^1].T; _lastTicks = nowTicks; Delay = 0; return n; }
             double f = Stopwatch.Frequency;
             double off = double.MaxValue, worst = 0;
@@ -698,6 +701,7 @@ public sealed class FramesSource : IDisposable
                 _play = Math.Max(_play, Math.Min(_play + dt * rate, Math.Max(_play, newest)));
             }
             Now = _play;
+            Starved = target > newest && _play >= newest;
             int k = n;
             while (k > 0 && frames[k - 1].T > _play) k--;
             return k;

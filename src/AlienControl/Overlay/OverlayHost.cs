@@ -311,7 +311,7 @@ public sealed class OverlayHost : IDisposable
         if (!v.HasGraph) { v.GraphCount = 0; return; }
         int total = _frames.CopyRecent(_gbuf);
         long sampled = Stopwatch.GetTimestamp();
-        if (OverlayDiag.On) { _play.Mode = OverlayDiag.Mode(sampled); _play.FixedSec = OverlayDiag.Cfg.FixedMs / 1000.0; }
+        if (OverlayDiag.On) { _play.Mode = OverlayDiag.Mode(sampled); _play.FixedSec = OverlayDiag.FixedMsNow(sampled) / 1000.0; }
         int n = _play.Visible(new ReadOnlySpan<FramesSource.Frame>(_gbuf, 0, total), sampled);
         // beta2.4: subpixel slide between the newest shown frame and the next one due
         double frac = 0;
@@ -336,6 +336,7 @@ public sealed class OverlayHost : IDisposable
             {
                 Has = true, S = sampled, EdgeA = _gbuf[e].Ticks, EdgeP = _gbuf[e].Pq,
                 EdgeC = (long)Math.Round(_gbuf[e].T * Stopwatch.Frequency), Delay = _play.Delay, Mode = _play.Mode, Flush = OverlayDiag.FlushMs(sampled),
+                EdgeNow = v.GraphNow, Starved = _play.Starved,
             };
         }
     }
