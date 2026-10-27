@@ -70,8 +70,9 @@ jobs:
           $msb = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
           & $msb PresentMon\ConsoleApplication.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          $exe = Get-ChildItem build\Release -Filter "PresentMon-*-x64.exe" | Select-Object -First 1
-          if (-not $exe) { Get-ChildItem -Recurse build | Select-Object FullName; Write-Host "::error::no PresentMon exe"; exit 1 }
+          $exe = Get-ChildItem -Recurse -Path . -Filter "PresentMon-*-x64.exe" | Where-Object { $_.DirectoryName -like "*\build\Release" } | Select-Object -First 1
+          if (-not $exe) { Write-Host "::error::no PresentMon exe"; exit 1 }
+          Write-Host ("built " + $exe.FullName)
           $dst = "$env:GITHUB_WORKSPACE/src/AlienControl/tools/PresentMon/PresentMon-drain.exe"
           Copy-Item $exe.FullName $dst
           Write-Host ("PresentMon-drain.exe sha256 " + (Get-FileHash $dst -Algorithm SHA256).Hash.ToLower() + " bytes " + (Get-Item $dst).Length)
