@@ -156,8 +156,8 @@ public class Release203Tests
     [Fact]
     public void Intel_display_properties_layout()
     {
-        Assert.Equal(192, IntelVrr.PropsSize);
-        Assert.Equal(44, IntelVrr.OffEnabled);
-        Assert.Equal(40, IntelVrr.OffConfig);
+        Assert.Equal(200, IntelVrr.PropsSize);
+        Assert.Equal(52, IntelVrr.OffEnabled);
+        Assert.Equal(48, IntelVrr.OffConfig);
     }
 }
