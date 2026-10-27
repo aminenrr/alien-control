@@ -164,6 +164,23 @@ public class OverlayTests
     }
 
     [Fact]
+    public void Display_latency_kept_next_to_pc_latency()
+    {
+        long now = Stopwatch.GetTimestamp();
+        var frames = new FramesSource.Frame[100];
+        for (int i = 0; i < 100; i++) frames[i] = new(now, i * 0.01, 10f, Lat: 30f, PcLat: true, DispLat: 14f);
+        var st = FramesSource.StatsOver(frames, now, Stopwatch.Frequency / 2);
+        Assert.True(st.PcLat);
+        Assert.Equal(30, st.LatMs, 3);
+        Assert.Equal(14, st.DispMs, 3);
+        for (int i = 0; i < 100; i++) frames[i] = new(now, i * 0.01, 10f, Lat: 15f, DispLat: 15f);
+        st = FramesSource.StatsOver(frames, now, Stopwatch.Frequency / 2);
+        Assert.False(st.PcLat);
+        Assert.Equal(15, st.LatMs, 3);
+        Assert.Equal(15, st.DispMs, 3);
+    }
+
+    [Fact]
     public void No_generated_frames_means_real_is_all()
     {
         long now = Stopwatch.GetTimestamp();

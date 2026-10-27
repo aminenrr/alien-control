@@ -30,11 +30,12 @@ public sealed class FramesSource : IDisposable
     /// Reflex style PC latency (input to display) rather than PresentMon's display latency (frame start to display).</summary>
     public readonly record struct Frame(long Ticks, double T, float Ms, bool Gen = false, float Lat = float.NaN, bool PcLat = false,
         float GpuBusy = float.NaN,   // ov.15: PresentMon's MsGPUBusy, only with GPU tracking (the BOUND row)
-        float PresentMs = float.NaN, bool Hidden = false);   // beta2.5: MsBetweenPresents (the fps, like RTSS) and "never reached the screen" (graph / lows skip it)
+        float PresentMs = float.NaN, bool Hidden = false,
+        float DispLat = float.NaN);   // 2.0.3 (Amine): display latency kept even when Lat is the Reflex PC latency, so modes compare   // beta2.5: MsBetweenPresents (the fps, like RTSS) and "never reached the screen" (graph / lows skip it)
 
     /// <summary>The window's stats: real fps (app rendered frames), generated fps (frame generation), average frametime of
     /// all presents, and latency (NaN when none).</summary>
-    public readonly record struct Stats(double Fps, double GenFps, double AvgMs, double LatMs, bool PcLat);
+    public readonly record struct Stats(double Fps, double GenFps, double AvgMs, double LatMs, bool PcLat, double DispMs = double.NaN);
 
     private readonly object _lock = new();
     private readonly Frame[] _ring = new Frame[4096];
@@ -423,6 +424,13 @@ public sealed class FramesSource : IDisposable
         if (_colPcLat >= 0 && _colPcLat < n && TryMs(Col(span, _colPcLat, n), out float pl)) { lat = pl; pcLat = true; }
         else if (_colDispLat >= 0 && _colDispLat < n && TryMs(Col(span, _colDispLat, n), out float dl)) lat = dl;
         else if (_colUntil >= 0 && _colUntil < n && TryMs(Col(span, _colUntil, n), out float ud)) lat = ud;   // beta2
+        // 2.0.3 (Amine: PC LAT on dGPU vs DISP LAT on Optimus aren't comparable): display latency on its own as well
+        float disp = !pcLat ? lat : float.NaN;
+        if (pcLat)
+        {
+            if (_colDispLat >= 0 && _colDispLat < n && TryMs(Col(span, _colDispLat, n), out float dl2)) disp = dl2;
+            else if (_colUntil >= 0 && _colUntil < n && TryMs(Col(span, _colUntil, n), out float ud2)) disp = ud2;
+        }
         float gpuBusy = float.NaN;
         if (_colGpuBusy >= 0 && _colGpuBusy < n && float.TryParse(Col(span, _colGpuBusy, n), flt, inv, out float gb) && gb >= 0 && gb < 5000) gpuBusy = gb;
         int sync = -1;
@@ -446,7 +454,7 @@ public sealed class FramesSource : IDisposable
             if (double.IsNaN(t)) t = (_count > 0 ? _ring[(_head - 1 + _ring.Length) % _ring.Length].T : 0) + ms / 1000.0;
             // beta2: a real frame after generated ones gets the time since the last real frame (its true frametime)
             if (sync >= 0) _syncInterval = sync;
-            _ring[_head] = new Frame(now, t, ms, gen, lat, pcLat, gpuBusy, presentMs, hidden);
+            _ring[_head] = new Frame(now, t, ms, gen, lat, pcLat, gpuBusy, presentMs, hidden, disp);
             _head = (_head + 1) % _ring.Length;
             if (_count < _ring.Length) _count++;
         }
@@ -586,20 +594,22 @@ public sealed class FramesSource : IDisposable
         var (fps, avg) = FpsOver(frames, nowTicks, windowTicks);
         if (fps <= 0) return new Stats(0, 0, 0, double.NaN, false);
         double window = windowTicks / (double)Stopwatch.Frequency, last = frames[^1].T;
-        int n = 0, gen = 0, latN = 0, pcN = 0; double latSum = 0, pcSum = 0;
+        int n = 0, gen = 0, latN = 0, pcN = 0, dN = 0; double latSum = 0, pcSum = 0, dSum = 0;
         for (int i = frames.Length - 1; i >= 0; i--)
         {
             var f = frames[i];
             if (last - f.T > window) break;
             n++;
             if (f.Gen) gen++;
-            if (float.IsNaN(f.Lat) || f.Gen) continue;
+            if (f.Gen) continue;
+            if (!float.IsNaN(f.DispLat)) { dSum += f.DispLat; dN++; }
+            if (float.IsNaN(f.Lat)) continue;
             if (f.PcLat) { pcSum += f.Lat; pcN++; } else { latSum += f.Lat; latN++; }
         }
         double genFps = n > 0 ? fps * gen / n : 0;   // beta2.2: fps counts every frame, FG = the generated share
         // Reflex PC latency wins when the game sends it; otherwise PresentMon's display latency
         double lat = pcN > 0 ? pcSum / pcN : latN > 0 ? latSum / latN : double.NaN;
-        return new Stats(fps, genFps, avg, lat, pcN > 0);
+        return new Stats(fps, genFps, avg, lat, pcN > 0, dN > 0 ? dSum / dN : double.NaN);
     }
 
     /// <summary>ov.14: smooth graph playback. PresentMon delivers frames in bursts (ETW buffers), so drawing the newest
