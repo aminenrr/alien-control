@@ -76,6 +76,33 @@ public static class DisplayRefresh
         try { return TargetDevice(); } catch { return null; }
     }
 
+    /// <summary>2.0.3 (Amine): which GPU drives the panel this class reads, from the adapter's PCI id (VEN_8086 Intel,
+    /// VEN_10DE NVIDIA). Optimus: Intel; dGPU mode: NVIDIA. Unknown when it can't be read.</summary>
+    public static AlienControl.Overlay.PanelGpu PanelGpu()
+    {
+        try
+        {
+            string? name = TargetDevice();
+            if (name is null) return AlienControl.Overlay.PanelGpu.Unknown;
+            var dd = new DISPLAY_DEVICE { cb = Marshal.SizeOf<DISPLAY_DEVICE>() };
+            for (uint i = 0; EnumDisplayDevices(null, i, ref dd, 0); i++)
+            {
+                if (string.Equals(dd.DeviceName, name, StringComparison.OrdinalIgnoreCase)) return VendorOf(dd.DeviceID);
+                dd.cb = Marshal.SizeOf<DISPLAY_DEVICE>();
+            }
+        }
+        catch { }
+        return AlienControl.Overlay.PanelGpu.Unknown;
+    }
+
+    internal static AlienControl.Overlay.PanelGpu VendorOf(string? pciId)
+    {
+        string id = (pciId ?? "").ToUpperInvariant();
+        return id.Contains("VEN_8086") ? AlienControl.Overlay.PanelGpu.Intel
+             : id.Contains("VEN_10DE") ? AlienControl.Overlay.PanelGpu.Nvidia
+             : AlienControl.Overlay.PanelGpu.Unknown;
+    }
+
     private static DEVMODE NewMode() => new() { dmSize = (short)Marshal.SizeOf<DEVMODE>(), dmDeviceName = "", dmFormName = "" };
 
     public sealed record State(int CurrentHz, int Width, int Height, IReadOnlyList<int> AvailableHz);

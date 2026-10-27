@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
+using AlienControl.Overlay;
 using AlienControl.Services;
 using Xunit;
 
@@ -101,5 +103,51 @@ public class Release203Tests
         var ad = new FramesSource.Playhead { Adaptive = true };
         ad.Visible(fr, now);
         Assert.True(ad.Hold > 0.9);
+    }
+
+    [Fact]
+    public void Sync_row_follows_the_panel_gpu()
+    {
+        Assert.Equal(("VRR On", OverlayView.IntelAccent), OverlayView.SyncLabel(PanelGpu.Intel, true));
+        Assert.Equal("VRR Off", OverlayView.SyncLabel(PanelGpu.Intel, false).Text);
+        Assert.Equal(("G-SYNC On", OverlayView.NvidiaAccent), OverlayView.SyncLabel(PanelGpu.Nvidia, true));
+        Assert.Equal("G-SYNC --", OverlayView.SyncLabel(PanelGpu.Unknown, null).Text);
+        Assert.Equal(PanelGpu.Intel, DisplayRefresh.VendorOf(@"PCI\VEN_8086&DEV_46A6&SUBSYS_0B191028"));
+        Assert.Equal(PanelGpu.Nvidia, DisplayRefresh.VendorOf(@"PCI\VEN_10DE&DEV_24A0"));
+        Assert.Equal(PanelGpu.Unknown, DisplayRefresh.VendorOf(null));
+        Assert.Null(IntelVrr.Parse(0, IntelVrr.FlagVrr));                 // output not active
+        Assert.True(IntelVrr.Parse(IntelVrr.FlagActive | 2, IntelVrr.FlagVrr | 1));
+        Assert.False(IntelVrr.Parse(IntelVrr.FlagActive, 1));
+
+        var v = new OverlayView { Level = 2, Items = OverlayLevels.L2, Scale = 1, Fps = 60,
+            Data = new Sensors { VrrOn = true, Panel = PanelGpu.Intel } };
+        Assert.Contains(v.BuildMetal(), r => r.Find(OverlayView.MCols) == "VRR On");
+    }
+
+    [Fact]
+    public void Level4_clusters_fans_and_lat()
+    {
+        var v = new OverlayView { Level = 4, Items = OverlayLevels.L4 | Item.Latency | Item.PresentMode | Item.Bound | Item.Clock,
+            Scale = 1, Data = new Sensors(), Bound = "GPU", LatMs = 35, LatPc = true, DispMs = 13 };
+        var rows = v.BuildRows();
+        var labels = rows.Select(r => r.Gap ? "-" : r.Label).ToList();
+        string seq = string.Join(" ", labels);
+        Assert.Contains("TIME - GPU - CPU", seq);
+        Assert.Contains("VRAM RAM - BATT - FANS - DISPLAY BOUND LAT MODE - FPS 1% LOW 0.1% LOW", seq);
+        Assert.DoesNotContain("FAN ", seq.Replace("FANS", ""));
+        Assert.False(rows[0].Gap); Assert.False(rows[^1].Gap);
+        var lat = rows.Single(r => r.Label == "LAT");
+        Assert.Equal(new[] { "13", "35" }, lat.Cells.Select(c => c.Value));
+        Assert.Equal(new[] { "ms disp", "ms pc" }, lat.Cells.Select(c => c.Unit));
+        v.LatPc = false; v.LatMs = 14;
+        Assert.Equal(new[] { "14" }, v.BuildRows().Single(r => r.Label == "LAT").Cells.Select(c => c.Value));
+    }
+
+    [Fact]
+    public void Intel_display_properties_layout()
+    {
+        Assert.Equal(192, IntelVrr.PropsSize);
+        Assert.Equal(44, IntelVrr.OffEnabled);
+        Assert.Equal(40, IntelVrr.OffConfig);
     }
 }

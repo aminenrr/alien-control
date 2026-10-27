@@ -130,6 +130,7 @@ public sealed class OverlayView
     private double FsUnit => Fs * 0.55;         // units are drawn smaller
     private double Pad => 6 * Scale;
     private double RowH => Fs * 1.18;
+    private double GapH => RowH * 0.4;   // 2.0.3 (Amine): space between clusters
 
     // ---------- layout model ----------
 
@@ -138,14 +139,18 @@ public sealed class OverlayView
     {
         public Cell(string value, string unit) : this(value, unit, White) { }
     }
-    internal readonly record struct Row(string Label, Rgba Color, Cell[] Cells);
+    internal readonly record struct Row(string Label, Rgba Color, Cell[] Cells, bool Gap = false);
 
     internal List<Row> BuildRows()
     {
         var d = Data;
         var it = Items;
         var rows = new List<Row>();
+        // 2.0.3 (Amine): a little space between clusters: time - gpu - cpu + cores - vram + ram - batt - fans -
+        // display, bound, lat, mode - fps, lows, graph
+        void Space() { if (rows.Count > 0 && !rows[^1].Gap) rows.Add(new("", DimC, Array.Empty<Cell>(), Gap: true)); }
         if ((it & Item.Clock) != 0) rows.Add(new("TIME", DimC, new[] { new Cell(Clock.Length > 0 ? Clock : "--", "") }));   // ov.15
+        Space();
         if ((it & (Item.Gpu | Item.GpuTemp | Item.GpuPower | Item.GpuClocks)) != 0)
         {
             var c = new List<Cell>();
@@ -159,6 +164,7 @@ public sealed class OverlayView
             }
             rows.Add(new("GPU", GpuC, c.ToArray()));
         }
+        Space();
         if ((it & (Item.Cpu | Item.CpuTemp | Item.CpuPower | Item.CpuMhz)) != 0)
         {
             var c = new List<Cell>();
@@ -182,8 +188,10 @@ public sealed class OverlayView
                 rows.Add(new($"{core.Kind}{core.Index}", core.Kind == 'E' ? CoreE : CpuC, c.ToArray()));
             }
         }
+        Space();
         if ((it & Item.Vram) != 0) rows.Add(new("VRAM", VramC, new[] { new Cell(G(d.VramGiB), "GiB") }));
         if ((it & Item.Ram) != 0) rows.Add(new("RAM", RamC, new[] { new Cell(G(d.RamGiB), "GiB") }));
+        Space();
         if ((it & Item.Battery) != 0)
         {
             var c = new List<Cell> { new(N(d.BatteryPct), "%") };
@@ -191,16 +199,11 @@ public sealed class OverlayView
             else if (d.BatteryW is int w) c.Add(new(w.ToString(), "W"));
             rows.Add(new("BATT", BattC, c.ToArray()));
         }
+        Space();
         if ((it & Item.Fans) != 0)
-            rows.Add(new("FAN", FanC, new[] { new Cell(N(d.CpuFanRpm), "RPM"), new Cell(N(d.GpuFanRpm), "RPM") }));
+            rows.Add(new("FANS", FanC, new[] { new Cell(N(d.CpuFanRpm), "RPM"), new Cell(N(d.GpuFanRpm), "RPM") }));
+        Space();
         if ((it & Item.Refresh) != 0) rows.Add(new("DISPLAY", DimC, new[] { new Cell(N(d.RefreshHz), "Hz") }));
-        if ((it & Item.Engine) != 0)
-        {
-            var c = new List<Cell> { new(Fps.ToString("0"), "FPS") };
-            if (ShowGen) c.Add(new("| " + GenFps.ToString("0"), "FG"));
-            if ((it & Item.FrameTime) != 0) c.Add(new(FrameMs.ToString("0.0"), "ms"));
-            rows.Add(new(string.IsNullOrEmpty(Engine) ? "FPS" : Engine, EngineC, c.ToArray()));
-        }
         if ((it & Item.Bound) != 0)   // ov.15: an estimate, so it says so
             rows.Add(new("BOUND", DimC, Bound switch
             {
@@ -208,9 +211,18 @@ public sealed class OverlayView
                 "" => new[] { new Cell("--", "") },
                 var b => new[] { new Cell(b, ""), new Cell("EST", "") },
             }));
-        if ((it & Item.Latency) != 0) rows.Add(new(LatLabel, DimC, new[] { new Cell(LatValue, "ms") }));
-        if ((it & Item.Latency) != 0 && ShowDisp) rows.Add(new("DISP LAT", DimC, new[] { new Cell(DispValue, "ms") }));
+        // 2.0.3 (Amine): one LAT row. Display latency always (comparable in Optimus and dGPU), PC latency next to it
+        // when the game has Reflex
+        if ((it & Item.Latency) != 0) rows.Add(new("LAT", DimC, LatCells()));
         if ((it & Item.PresentMode) != 0) rows.Add(new("MODE", DimC, new[] { new Cell(ModeLabel(PresentMode), "") }));
+        Space();
+        if ((it & Item.Engine) != 0)
+        {
+            var c = new List<Cell> { new(Fps.ToString("0"), "FPS") };
+            if (ShowGen) c.Add(new("| " + GenFps.ToString("0"), "FG"));
+            if ((it & Item.FrameTime) != 0) c.Add(new(FrameMs.ToString("0.0"), "ms"));
+            rows.Add(new(string.IsNullOrEmpty(Engine) ? "FPS" : Engine, EngineC, c.ToArray()));
+        }
         // ov.5: lows as normal rows, so they line up with the columns above
         if ((it & Item.Low1) != 0)
         {
@@ -219,8 +231,15 @@ public sealed class OverlayView
             rows.Add(new("1% LOW", EngineC, c.ToArray()));
         }
         if ((it & Item.Low01) != 0) rows.Add(new("0.1% LOW", EngineC, new[] { new Cell(Low01.ToString("0"), "FPS") }));
+        if (rows.Count > 0 && rows[^1].Gap) rows.RemoveAt(rows.Count - 1);
         return rows;
     }
+
+    /// <summary>2.0.3 (Amine): the LAT row's cells. With Reflex: display latency, then PC latency ("ms pc"). Without:
+    /// the one latency PresentMon gives (present to screen).</summary>
+    internal Cell[] LatCells() => ShowDisp
+        ? new[] { new Cell(DispValue, "ms disp"), new Cell(LatValue, "ms pc") }
+        : new[] { new Cell(LatValue, "ms") };
 
     private static string N(double? v) => v is double x ? x.ToString("0") : "--";
     private static string N(int? v) => v is int x ? x.ToString() : "--";
@@ -307,7 +326,8 @@ public sealed class OverlayView
         }
         double w = Pad * 2 + _labelW;
         foreach (var cw in _colW) if (cw > 0) w += cw + 10 * Scale;
-        double h = Pad * 2 + _rows.Count * RowH;
+        double h = Pad * 2;
+        foreach (var r in _rows) h += r.Gap ? GapH : RowH;
         if ((Items & Item.FrameGraph) != 0)
         {
             w = Math.Max(w, GraphW + Pad * 2);
@@ -321,6 +341,7 @@ public sealed class OverlayView
         double y = Pad;
         foreach (var r in _rows)
         {
+            if (r.Gap) { y += GapH; continue; }
             Label(c, r.Label, r.Color, Pad, y);
             double x = Pad + _labelW;
             for (int i = 0; i < ValueCols; i++)
@@ -539,6 +560,22 @@ public sealed class OverlayView
     private double _mGraphHi = 20;
     private bool? _gsyncLast;
     internal static readonly Rgba MetalCpu = Rgba.Hex(0x5AA0FF);
+    internal static readonly Rgba IntelAccent = Rgba.Hex(0x00C7FD);    // 2.0.3: Intel energy blue
+    internal static readonly Rgba NvidiaAccent = Rgba.Hex(0x76B900);   // 2.0.3: NVIDIA green
+
+    /// <summary>2.0.3 (Amine): the Metal sync row's words and colour for the GPU that drives the panel.</summary>
+    internal static (string Text, Rgba Color) SyncLabel(PanelGpu panel, bool? on)
+    {
+        bool intel = panel == PanelGpu.Intel;
+        string name = intel ? "VRR" : "G-SYNC";
+        Rgba accent = intel ? IntelAccent : NvidiaAccent;
+        return on switch
+        {
+            true => ($"{name} On", accent),
+            false => ($"{name} Off", new Rgba(accent.R, accent.G, accent.B, 0x99)),
+            _ => ($"{name} --", DimC),
+        };
+    }
 
     private double MFs => 20 * Scale;
     private double MRowH => MFs * 1.22;
@@ -580,8 +617,9 @@ public sealed class OverlayView
             {
                 // 2.0.1 (Amine): the driver's answer when it gives one, else the guess from the counted refresh
                 _gsyncLast = d.VrrOn ?? GsyncState(d.RefreshHz, d.ModeHz, Fps, _gsyncLast);
-                gs = _gsyncLast switch { true => "G-SYNC On", false => "G-SYNC Off", _ => "G-SYNC --" };
-                if (_gsyncLast == true) gc = MetalGreen;
+                // 2.0.3 (Amine): VRR in Intel blue when the Intel GPU drives the panel (Optimus), G-SYNC in NVIDIA
+                // green otherwise; Off keeps the accent, dimmed
+                (gs, gc) = SyncLabel(d.Panel, _gsyncLast);
             }
             r.Add(Lr(mode, MetalGreen, gs, gc));
         }

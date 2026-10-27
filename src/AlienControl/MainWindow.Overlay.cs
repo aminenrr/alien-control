@@ -265,8 +265,12 @@ public partial class MainWindow
                 if (hz is int modeHz) _vblank.MaxHz = modeHz;   // ov.7.1: caps and de-duplicates the vblank count
                 string? res = disp is { Width: > 0, Height: > 0 } ? $"{disp.Width}x{disp.Height}" : null;   // beta3 Metal level
                 // 2.0.1 (Amine): the G-SYNC row asks the driver (every 5 s with the refresh read); null = guess as before
-                bool? vrr = readRefresh && gpuOn && (need & Need.Refresh) != 0 ? NvDrs.VrrEnabled(DisplayRefresh.Device()) : null;
-                return (mhz, gpu, cores, hz, res, vrr, vrrRead: readRefresh);
+                // 2.0.3 (Amine): ask whichever GPU drives the panel: Intel (Optimus) through IGCL, NVIDIA through NvAPI
+                PanelGpu panel = readRefresh ? DisplayRefresh.PanelGpu() : _ovSnap.Panel;
+                bool? vrr = !readRefresh ? null
+                    : panel == PanelGpu.Intel ? _intelVrr.Read()
+                    : gpuOn ? NvDrs.VrrEnabled(DisplayRefresh.Device()) : null;
+                return (mhz, gpu, cores, hz, res, vrr, vrrRead: readRefresh, panel);
             });
             var ps = System.Windows.Forms.SystemInformation.PowerStatus;
             _ovSnap = _ovSnap with
@@ -279,7 +283,8 @@ public partial class MainWindow
                 RefreshHz = (need & Need.Refresh) != 0 ? _vblank.Hz ?? r.hz ?? _ovSnap.RefreshHz : _ovSnap.RefreshHz,
                 ModeHz = r.hz ?? _ovSnap.ModeHz,            // beta3: the G-SYNC row compares the counted Hz with this
                 Resolution = r.res ?? _ovSnap.Resolution,
-                VrrOn = !gpuOn ? null : r.vrrRead ? r.vrr : _ovSnap.VrrOn,
+                VrrOn = r.vrrRead ? r.vrr : r.panel == PanelGpu.Intel || gpuOn ? _ovSnap.VrrOn : null,
+                Panel = r.panel,
                 BatteryPct = (need & Need.Battery) != 0 && ps.BatteryLifePercent <= 1 ? (int)Math.Round(ps.BatteryLifePercent * 100) : _ovSnap.BatteryPct,
                 OnAc = ps.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online,
                 GpuOff = !gpuOn && _gpu.Kind == GpuModeKind.IGpuOnly,

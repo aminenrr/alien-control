@@ -187,9 +187,11 @@ public class Overlay15Tests
         v.Bound = "GPU";
         b = v.BuildRows().Single(r => r.Label == "BOUND");
         Assert.Equal(new[] { "GPU", "EST" }, b.Cells.Select(x => x.Value));
-        // BOUND sits right under the FPS row; beta2: no STUTTER row
+        // 2.0.3 (Amine): DISPLAY, BOUND, LAT side by side, then a gap, then FPS; beta2: no STUTTER row
         var labels = OverlayValuesWith(Item.Latency).BuildRows().Select(r => r.Label).ToList();
-        Assert.Equal(labels.IndexOf("FPS") + 1, labels.IndexOf("BOUND"));
+        Assert.Equal(labels.IndexOf("DISPLAY") + 1, labels.IndexOf("BOUND"));
+        Assert.Equal(labels.IndexOf("BOUND") + 1, labels.IndexOf("LAT"));
+        Assert.Equal(labels.IndexOf("LAT") + 2, labels.IndexOf("FPS"));
         Assert.DoesNotContain("STUTTER", labels);
     }
 
