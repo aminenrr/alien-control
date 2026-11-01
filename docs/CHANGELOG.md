@@ -3,6 +3,11 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.1.0-test.1 (2026-11-01, test build)
+- Built on 2.0.0 (known-good CPU power) to bisect the CPU package power drop seen in 2.0.3 (~18-20 W with the GPU at 130-140 W). Includes 2.0.1 and the 2.0.3 overlay and display fixes. 2.0.2 is held back.
+- 2.0.3 ETW flush (50 ms + timeBeginPeriod(1)) is compiled in but off (EtwFlush.Enabled); the graph playhead stays adaptive while it is off. GPU USE reads PDH as in 2.0.0 (NvAPI not wired).
+- CPU power path (presets, CPU boost, G-Mode, frequency cap, CPU W meter) is the same code as 2.0.0.
+
 ## v2.0.1 (2026-10-26)
 - Overlay Move works like the NVIDIA overlay: both steppers count from the chosen corner toward the screen centre (0 = in the corner, + = closer to the centre) on every corner. Top / bottom centre keep a left / right shift. Fixes left / right doing nothing on the right side spots (the overlay was clamped at the edge while the number kept climbing). Old values convert once (Settings.OverlayMoveV2).
 - GPU OC pill: PERF first, then G-MODE, each lit in its mode's own colour (Performance red #FF4D6A, G-Mode white) instead of the accent.
