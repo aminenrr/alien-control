@@ -128,6 +128,75 @@ public static class NvDrs
         }
     }
 
+    // ---------- 2.0.3 (Amine): GPU USE like RTSS, from the driver ----------
+    // The PDH engtype_3D sum read 10 to 15 points below RTSS. RTSS (and the NVIDIA overlay) use the driver's graphics
+    // domain load: NvAPI_GPU_GetDynamicPstatesInfoEx, utilization[0] = GPU (graphics), busy % over the last second.
+    // NV_GPU_DYNAMIC_PSTATES_INFO_EX (nvapi.h), version 1: NvU32 version; NvU32 flags (bit 0: dynamic P-states on);
+    // struct { NvU32 bIsPresent:1; NvU32 percentage; } utilization[8]  =  4 + 4 + 8 * 8 = 72 bytes.
+    private const uint IdEnumPhysicalGpus = 0xE5AC921F, IdGetDynamicPstatesInfoEx = 0x60DED2ED;
+    internal const int PstatesInfoSize = 72, MaxPhysicalGpus = 64;
+    internal static uint PstatesInfoVer => Ver(PstatesInfoSize, 1);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int EnumGpusFn(IntPtr handles, out uint count);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int PstatesFn(IntPtr gpu, IntPtr info);
+    private static bool _utilInit, _utilUnsupported;
+    private static int _utilFailLogged;
+
+    /// <summary>Graphics domain load (0..100) of the first NVIDIA GPU, from the driver. Null when nvapi or the call is
+    /// missing, the call fails, or the domain isn't reported. The caller decides when it may ask: only with the RTX on
+    /// and known awake, so this never wakes a sleeping RTX (Optimus) and never touches a GPU being removed.
+    /// GPU handles are enumerated per call and not kept (a switch can invalidate them).</summary>
+    public static double? GpuUtilization()
+    {
+        lock (Gate)
+        {
+            if (_utilUnsupported || !Load()) return null;
+            IntPtr handles = IntPtr.Zero, info = IntPtr.Zero;
+            try
+            {
+                if (!_utilInit)
+                {
+                    if (Fn<VoidFn>(IdInitialize)() != Ok) return null;
+                    _utilInit = true;
+                }
+                handles = Marshal.AllocHGlobal(MaxPhysicalGpus * IntPtr.Size);
+                int r = Fn<EnumGpusFn>(IdEnumPhysicalGpus)(handles, out uint count);
+                if (r != Ok || count == 0) { LogUtilFail("EnumPhysicalGPUs", r); return null; }
+                info = Marshal.AllocHGlobal(PstatesInfoSize);
+                for (int i = 0; i < PstatesInfoSize; i += 4) Marshal.WriteInt32(info, i, 0);
+                Marshal.WriteInt32(info, 0, (int)PstatesInfoVer);
+                r = Fn<PstatesFn>(IdGetDynamicPstatesInfoEx)(Marshal.ReadIntPtr(handles), info);
+                if (r != Ok) { LogUtilFail("GetDynamicPstatesInfoEx", r); return null; }
+                var buf = new byte[PstatesInfoSize];
+                Marshal.Copy(info, buf, 0, PstatesInfoSize);
+                return ParseGraphicsUtil(buf);
+            }
+            catch (EntryPointNotFoundException) { _utilUnsupported = true; Log.Info("NvDrs", "GPU utilization call missing, GPU USE stays on PDH"); return null; }
+            catch (Exception e) { Log.Warn("NvDrs.GpuUtilization", e); return null; }
+            finally
+            {
+                if (info != IntPtr.Zero) Marshal.FreeHGlobal(info);
+                if (handles != IntPtr.Zero) Marshal.FreeHGlobal(handles);
+            }
+        }
+    }
+
+    private static void LogUtilFail(string what, int status)
+    {
+        if (_utilFailLogged++ < 3) Log.Info("NvDrs", $"{what} failed ({status}), GPU USE falls back to PDH");
+    }
+
+    /// <summary>utilization[0] (graphics) of an NV_GPU_DYNAMIC_PSTATES_INFO_EX v1 buffer: null when the buffer is short,
+    /// the version doesn't match, the domain isn't present, or the percentage is out of range. The flags bit (dynamic
+    /// P-states on) isn't required: the load is reported either way.</summary>
+    internal static double? ParseGraphicsUtil(ReadOnlySpan<byte> b)
+    {
+        if (b.Length < PstatesInfoSize) return null;
+        if (BitConverter.ToUInt32(b[..4]) != PstatesInfoVer) return null;
+        uint present = BitConverter.ToUInt32(b.Slice(8, 4)), pct = BitConverter.ToUInt32(b.Slice(12, 4));
+        if ((present & 1) == 0 || pct > 100) return null;
+        return pct;
+    }
+
     /// <summary>Reads the cap and V-Sync for exe (null = global). Error = a short reason, State default then.</summary>
     public static (State State, string? Error) Read(string? exe) { var (st, _, err) = ReadFull(exe); return (st, err); }
 

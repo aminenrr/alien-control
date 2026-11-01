@@ -337,6 +337,7 @@ public sealed class OverlayHost : IDisposable
         p.FrameMs = st.AvgMs;
         p.LatMs = st.LatMs;
         p.LatPc = st.PcLat;
+        p.DispMs = st.DispMs;
         var (low1, low01, _) = Lows(span[Math.Max(0, n - 2048)..]);
         p.Low1 = low1;
         p.Low01 = low01;

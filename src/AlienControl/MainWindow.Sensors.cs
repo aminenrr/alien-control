@@ -140,6 +140,7 @@ public partial class MainWindow
     // ---------- 2.0.0-beta1.4 (Amine): which GPU the GPU tiles read ----------
 
     private readonly IntelGpuTemp _igpuTemp = new();
+    private readonly IntelVrr _intelVrr = new();   // 2.0.3 (Amine): VRR row in Optimus (2.1: overlay part only)
     private string? _igpuTempLogged;     // the source last written to crash.log (once per source)
     private bool _igpuTempFromCpu;       // the GPU temp tile shows the CPU package (IGCL missing / failed)
 

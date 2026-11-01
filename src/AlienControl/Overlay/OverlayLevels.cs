@@ -127,6 +127,9 @@ public static class OverlayLevels
 }
 
 /// <summary>The latest sensor values the overlay draws. Immutable, swapped whole (no locks on the overlay thread).</summary>
+/// <summary>2.0.3 (Amine): the GPU the panel is connected to right now (Optimus: Intel, dGPU mode: NVIDIA).</summary>
+public enum PanelGpu { Unknown, Intel, Nvidia }
+
 public sealed record Sensors
 {
     public double? CpuLoad { get; init; }
@@ -158,6 +161,8 @@ public sealed record Sensors
     public string? Resolution { get; init; }
     /// <summary>2.0.1: G-SYNC on / off as the NVIDIA driver reports it for the panel, null when it can't say.</summary>
     public bool? VrrOn { get; init; }
+    /// <summary>2.0.3 (Amine): which GPU drives the panel, so the Metal row says VRR (Intel) or G-SYNC (NVIDIA).</summary>
+    public PanelGpu Panel { get; init; }
 
     /// <summary>The fps the game is held at, 0 when nothing holds it: the cap, or the refresh rate with V-Sync on
     /// (the driver's, or the game's own SyncInterval).</summary>
