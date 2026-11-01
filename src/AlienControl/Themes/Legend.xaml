@@ -11,19 +11,19 @@
 
     <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
     <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
-    <sys:String x:Key="Str.Title">A L I E N   C O N T R O L S</sys:String>
-    <sys:String x:Key="Str.Cpu">C P U</sys:String>
-    <sys:String x:Key="Str.CpuFan">C P U   F A N</sys:String>
-    <sys:String x:Key="Str.Gpu">G P U</sys:String>
-    <sys:String x:Key="Str.GpuFan">G P U   F A N</sys:String>
-    <sys:String x:Key="Str.Ram">R A M</sys:String>
-    <sys:String x:Key="Str.Vram">V R A M</sys:String>
-    <sys:String x:Key="Str.CpuUse">C P U   U S E</sys:String>
-    <sys:String x:Key="Str.GpuUse">G P U   U S E</sys:String>
-    <sys:String x:Key="Str.Clean">CLICK TO CLEAN</sys:String>
-    <sys:String x:Key="Str.FxPrefix">FX</sys:String>
-    <sys:String x:Key="Str.Settings">S E T T I N G S</sys:String>
-    <sys:String x:Key="Str.OcKeep">KEEP THESE CLOCKS?</sys:String>
+    <sys:String x:Key="Str.Title" xml:space="preserve">A L I E N   C O N T R O L S</sys:String>
+    <sys:String x:Key="Str.Cpu" xml:space="preserve">C P U</sys:String>
+    <sys:String x:Key="Str.CpuFan" xml:space="preserve">C P U   F A N</sys:String>
+    <sys:String x:Key="Str.Gpu" xml:space="preserve">G P U</sys:String>
+    <sys:String x:Key="Str.GpuFan" xml:space="preserve">G P U   F A N</sys:String>
+    <sys:String x:Key="Str.Ram" xml:space="preserve">R A M</sys:String>
+    <sys:String x:Key="Str.Vram" xml:space="preserve">V R A M</sys:String>
+    <sys:String x:Key="Str.CpuUse" xml:space="preserve">C P U   U S E</sys:String>
+    <sys:String x:Key="Str.GpuUse" xml:space="preserve">G P U   U S E</sys:String>
+    <sys:String x:Key="Str.Clean" xml:space="preserve">CLICK TO CLEAN</sys:String>
+    <sys:String x:Key="Str.FxPrefix" xml:space="preserve">FX</sys:String>
+    <sys:String x:Key="Str.Settings" xml:space="preserve">S E T T I N G S</sys:String>
+    <sys:String x:Key="Str.OcKeep" xml:space="preserve">KEEP THESE CLOCKS?</sys:String>
 
     <!-- 2.0.0-beta1.4: TextPrimary / TextBody / TextMuted moved to Legend2.xaml with the rest of the palette -->
 

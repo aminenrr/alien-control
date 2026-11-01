@@ -72,7 +72,7 @@ the approved themes, `profile_chip.py` the v0.8.1 chip and `gpu_warning.py` the 
 They need the icon SVGs and fonts (Selawik, Cascadia Mono / JetBrains Mono) locally.
 
 ## Rules
-- Never send light ID 2 on the chassis (power button).
+- Never send light ID 2 on the chassis (power button), except `AlienFx.SetPowerButtonAsync` behind the Power button light switch (setpower).
 - Never write the keyboard with per-key `setone`; use `KeyboardHid` frames.
 - Never let a profile change GPU mode or trigger a restart.
 - Keep idle cost at zero: no timers while hidden, no looping animations. 2.0: only read what is on screen (sensor timers run for Home / Tuning only).

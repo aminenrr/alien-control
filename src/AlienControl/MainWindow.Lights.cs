@@ -37,6 +37,7 @@ public partial class MainWindow
         ZoneKeyboard.IsChecked = !_settings.OffKeyboard;
         ZoneRing.IsChecked = !_settings.OffRing;
         ZoneHead.IsChecked = !_settings.OffAlienhead;
+        PowerLedToggle.IsChecked = !_settings.PowerButtonOff;   // 2.1.0-test.2: its own switch, not in LightsOffCount
         // 1.3.1-beta.3 (Amine): "Turn off" / "Turn on", accent while any light is on (like a lit tile), plain once all are off
         bool allOff = LightsOffCount == 3;
         ZoneAll.Content = allOff ? "Turn on" : "Turn off";
@@ -82,6 +83,37 @@ public partial class MainWindow
         bool half = _settings.LightsHalf;
         if (!off) _settings.LightsHalf = false;   // Turn on = full brightness
         await SetZonesAsync(off, off, off, half != _settings.LightsHalf);
+    }
+
+    /// <summary>2.1.0-test.2 (Amine): the power button light switch on the Lights tab. Independent of the zones: Turn off,
+    /// zone taps and Ctrl + Alt + F leave it alone, and it doesn't count in "all off".</summary>
+    private async void PowerLed_Click(object sender, RoutedEventArgs e)
+    {
+        if (_zoneUiBusy) return;
+        if (ZoneDebounced()) { SyncZoneTiles(); return; }
+        _settings.PowerButtonOff = PowerLedToggle.IsChecked != true;
+        _settings.Save();
+        await ApplyPowerButtonAsync(force: true);
+    }
+
+    /// <summary>Sends the power button state through the lighting gate. force = the user just switched it; otherwise
+    /// (startup, resume) it is re-sent only while it is off, so a user who never used the switch keeps the firmware's light.</summary>
+    private async Task ApplyPowerButtonAsync(bool force = false)
+    {
+        bool off = _settings.PowerButtonOff;
+        if (!_fx.IsAvailable || (!off && (!force || !_settings.PowerButtonTouched))) return;
+        await _zoneGate.WaitAsync();
+        try
+        {
+            var r = await _fx.SetPowerButtonAsync(off);
+            Log.Info("Lights", $"power button light {(off ? "off" : "on")} {(r.Ok ? "ok" : "FAILED " + r.Error)}");
+            if (r.Ok && !_settings.PowerButtonTouched) { _settings.PowerButtonTouched = true; _settings.Save(); }
+            if (!r.Ok && force) Status("Power button light: alienfx-cli didn't take it (see the log)");
+            // a chassis CLI run drops the 5 white status keys: give a lit keyboard its frame back
+            if (!_settings.OffKeyboard) await RefreshStatusKeysAsync();
+        }
+        catch (Exception ex) { Log.Warn("Lights.PowerButton", ex); }
+        finally { _zoneGate.Release(); }
     }
 
     private async Task SetZonesAsync(bool keyboard, bool ring, bool head, bool halfChanged = false)

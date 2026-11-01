@@ -71,7 +71,7 @@ The names saved by `probe`/`status` are **wrong**. Mapped by lighting one ID at 
 | ID | Light |
 |---|---|
 | 0 + 1 | rear "tron" ring (driven as one light, like AWCC) |
-| 2 | **power button: never send** (the firmware's blue on AC / amber on battery is kept on purpose) |
+| 2 | **power button**: only the Power button light switch sends it (2.1.0-test.2, `setpower` AC + battery colours); zones and colours never do |
 | 3 | lid Alienhead |
 | 4-15 | no visible effect |
 

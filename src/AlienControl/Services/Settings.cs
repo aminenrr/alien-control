@@ -44,6 +44,11 @@ public sealed class Settings
     public bool OffKeyboard { get; set; }
     public bool OffRing { get; set; }
     public bool OffAlienhead { get; set; }
+    /// <summary>2.1.0-test.2 (Amine): the power button light (chassis ID 2) dark on AC and battery. Its own switch:
+    /// zone taps, Turn off and Ctrl + Alt + F never change it. False = the app doesn't touch the power button.</summary>
+    public bool PowerButtonOff { get; set; }
+    /// <summary>2.1.0-test.2: true once the app sent setpower, so turning the light back on rewrites the colours.</summary>
+    public bool PowerButtonTouched { get; set; }
     /// <summary>1.3.1 Ctrl + Alt + F: lights at half of Brightness (keyboard, rear ring, Alienhead).</summary>
     public bool LightsHalf { get; set; }
 

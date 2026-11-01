@@ -12,32 +12,35 @@
                     xmlns:fx="clr-namespace:AlienControl"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
-    <!-- ===== strings (WPF has no letter spacing: spaced capitals, like Legend.xaml) ===== -->
-    <sys:String x:Key="Str2.Home">H O M E</sys:String>
-    <sys:String x:Key="Str2.Tuning">T U N I N G</sys:String>
-    <sys:String x:Key="Str2.Lights">L I G H T S</sys:String>
-    <sys:String x:Key="Str2.Overlay">O V E R L A Y</sys:String>
-    <sys:String x:Key="Str2.Preset">P R E S E T</sys:String>
-    <sys:String x:Key="Str2.GMode">G - M O D E</sys:String>
-    <sys:String x:Key="Str2.Lighting">L I G H T I N G</sys:String>
-    <sys:String x:Key="Str2.Perf">P E R F O R M A N C E   M O D E</sys:String>
-    <sys:String x:Key="Str2.GpuMode">G P U   M O D E</sys:String>
-    <sys:String x:Key="Str2.GpuOc">G P U   O V E R C L O C K</sys:String>
-    <sys:String x:Key="Str2.CpuBoost">C P U   B O O S T</sys:String>
-    <sys:String x:Key="Str2.Refresh">R E F R E S H</sys:String>
-    <sys:String x:Key="Str2.Fans">F A N S</sys:String>
-    <sys:String x:Key="Str2.Zones">Z O N E S</sys:String>
-    <sys:String x:Key="Str2.Color">C O L O R</sys:String>
-    <sys:String x:Key="Str2.Fx">E F F E C T   A N D   B R I G H T N E S S</sys:String>
-    <sys:String x:Key="Str2.Timeout">B A C K L I G H T   T I M E O U T</sys:String>
-    <sys:String x:Key="Str2.StatusKeys">S T A T U S   K E Y S</sys:String>
-    <sys:String x:Key="Str2.OverlayLevel">O V E R L A Y   L E V E L</sys:String>
-    <sys:String x:Key="Str2.Advanced">A D V A N C E D</sys:String>
-    <sys:String x:Key="Str2.General">G E N E R A L</sys:String>
-    <sys:String x:Key="Str2.Keys">K E Y S</sys:String>
-    <sys:String x:Key="Str2.Alerts">A L E R T S</sys:String>
-    <sys:String x:Key="Str2.TabGeneralKeys">G E N E R A L  ·  K E Y S</sys:String>
-    <sys:String x:Key="Str2.TabAlertsAdvanced">A L E R T S  ·  A D V A N C E D</sys:String>
+    <!-- ===== strings (WPF has no letter spacing: spaced capitals, like Legend.xaml) =====
+         2.1.0-test.2: xml:space="preserve" on every string. XAML collapses runs of spaces in element text, so the
+         three-space word gap ("G P U   M O D E") showed as one space and read as GPUMODE. -->
+    <sys:String x:Key="Str2.Home" xml:space="preserve">H O M E</sys:String>
+    <sys:String x:Key="Str2.Tuning" xml:space="preserve">T U N I N G</sys:String>
+    <sys:String x:Key="Str2.Lights" xml:space="preserve">L I G H T S</sys:String>
+    <sys:String x:Key="Str2.Overlay" xml:space="preserve">O V E R L A Y</sys:String>
+    <sys:String x:Key="Str2.Preset" xml:space="preserve">P R E S E T</sys:String>
+    <sys:String x:Key="Str2.GMode" xml:space="preserve">G - M O D E</sys:String>
+    <sys:String x:Key="Str2.Lighting" xml:space="preserve">L I G H T I N G</sys:String>
+    <sys:String x:Key="Str2.Perf" xml:space="preserve">P E R F O R M A N C E   M O D E</sys:String>
+    <sys:String x:Key="Str2.GpuMode" xml:space="preserve">G P U   M O D E</sys:String>
+    <sys:String x:Key="Str2.GpuOc" xml:space="preserve">G P U   O V E R C L O C K</sys:String>
+    <sys:String x:Key="Str2.CpuBoost" xml:space="preserve">C P U   B O O S T</sys:String>
+    <sys:String x:Key="Str2.Refresh" xml:space="preserve">R E F R E S H</sys:String>
+    <sys:String x:Key="Str2.Fans" xml:space="preserve">F A N S</sys:String>
+    <sys:String x:Key="Str2.Zones" xml:space="preserve">Z O N E S</sys:String>
+    <sys:String x:Key="Str2.Color" xml:space="preserve">C O L O R</sys:String>
+    <sys:String x:Key="Str2.Fx" xml:space="preserve">E F F E C T   A N D   B R I G H T N E S S</sys:String>
+    <sys:String x:Key="Str2.Timeout" xml:space="preserve">B A C K L I G H T   T I M E O U T</sys:String>
+    <sys:String x:Key="Str2.StatusKeys" xml:space="preserve">S T A T U S   K E Y S</sys:String>
+    <sys:String x:Key="Str2.OverlayLevel" xml:space="preserve">O V E R L A Y   L E V E L</sys:String>
+    <sys:String x:Key="Str2.FpsCap" xml:space="preserve">F P S   C A P</sys:String>
+    <sys:String x:Key="Str2.Advanced" xml:space="preserve">A D V A N C E D</sys:String>
+    <sys:String x:Key="Str2.General" xml:space="preserve">G E N E R A L</sys:String>
+    <sys:String x:Key="Str2.Keys" xml:space="preserve">K E Y S</sys:String>
+    <sys:String x:Key="Str2.Alerts" xml:space="preserve">A L E R T S</sys:String>
+    <sys:String x:Key="Str2.TabGeneralKeys" xml:space="preserve">G E N E R A L  ·  K E Y S</sys:String>
+    <sys:String x:Key="Str2.TabAlertsAdvanced" xml:space="preserve">A L E R T S  ·  A D V A N C E D</sys:String>
 
     <!-- ===== palette (HANDOFF.md colours) ===== -->
     <SolidColorBrush x:Key="TextPrimary" Color="#F2F6F9" />

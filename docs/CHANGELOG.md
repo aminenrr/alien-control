@@ -3,6 +3,12 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.1.0-test.2 (2026-11-01, test build)
+- Everything in 2.1.0-test.1 (CPU power path still the 2.0.0 code, 2.0.2 held back, ETW flush off).
+- Section titles keep their word gaps: GPU MODE, GPU BOOST, PERFORMANCE MODE, EFFECT AND BRIGHTNESS, BACKLIGHT TIMEOUT, STATUS KEYS, OVERLAY LEVEL... XAML collapsed the three-space gap in the spaced-capital strings (Legend.xaml, Legend2.xaml), now xml:space="preserve".
+- FPS CAP title uses the same spaced capitals as the other sections. The EFFECT AND BRIGHTNESS hint is shorter (CTRL+ALT+F · LEVEL) so it still fits.
+- Lights > Status keys: Power button light switch. Off = setpower black on AC and battery (chassis ID 2), On = blue on AC, amber on battery. Its own state: zone tiles, Turn off and Ctrl + Alt + F never change it. Re-sent at startup and resume only while it is off; never sent if the switch was never used.
+
 ## v2.1.0-test.1 (2026-11-01, test build)
 - Built on 2.0.0 (known-good CPU power) to bisect the CPU package power drop seen in 2.0.3 (~18-20 W with the GPU at 130-140 W). Includes 2.0.1 and the 2.0.3 overlay and display fixes. 2.0.2 is held back.
 - 2.0.3 ETW flush (50 ms + timeBeginPeriod(1)) is compiled in but off (EtwFlush.Enabled); the graph playhead stays adaptive while it is off. GPU USE reads PDH as in 2.0.0 (NvAPI not wired).

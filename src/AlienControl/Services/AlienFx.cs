@@ -45,6 +45,13 @@ public sealed class AlienFx
         return res;
     }
 
+    /// <summary>2.1.0-test.2 (Amine): the power button light (ID 2), its own switch. Uses setpower, which keeps the light
+    /// in hardware power-button mode (AC colour, battery colour) instead of painting it like a zone: off = black on both,
+    /// on = blue on AC and amber on battery (the firmware's look). The only command that sends ID 2.</summary>
+    public Task<CliResult> SetPowerButtonAsync(bool off) => Run(off
+        ? $"setpower={_s.ChassisDevice},{Settings.PowerButtonLight},0,0,0,0,0,0"
+        : $"setpower={_s.ChassisDevice},{Settings.PowerButtonLight},0,0,255,255,128,0");
+
     /// <summary>Scales a color by brightness 0..255 (software dimming).</summary>
     public static byte[] Dim(byte[] c, int brightness) =>
         c.Select(v => (byte)(v * System.Math.Clamp(brightness, 0, 255) / 255)).ToArray();
