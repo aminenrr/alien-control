@@ -3,6 +3,11 @@
 Each version was built by GitHub Actions (artifact `AlienControl-win-x64`). "Untested" means not yet run on the laptop.
 From 1.0.0 on, tagged versions are also on the GitHub Releases page as a zip.
 
+## v2.1.0-test.3 (2026-11-01, test build)
+- test.2 without the Power button light switch (Amine: removed). setpower turned the light's charging state into a cyan/blue to amber morph and the On colours didn't match the stock cyan. The app never sends the power button (ID 2) again, as in 2.0.0.
+- Keeps test.2's title word gaps and the FPS CAP title.
+- Restoring a power button test.2 changed: see docs/releases/v2.1.0-test.3.md.
+
 ## v2.1.0-test.2 (2026-11-01, test build)
 - Everything in 2.1.0-test.1 (CPU power path still the 2.0.0 code, 2.0.2 held back, ETW flush off).
 - Section titles keep their word gaps: GPU MODE, GPU BOOST, PERFORMANCE MODE, EFFECT AND BRIGHTNESS, BACKLIGHT TIMEOUT, STATUS KEYS, OVERLAY LEVEL... XAML collapsed the three-space gap in the spaced-capital strings (Legend.xaml, Legend2.xaml), now xml:space="preserve".

@@ -216,7 +216,6 @@ public partial class MainWindow : Window
         InitAuto(); // v0.9.11 auto preset + toasts
         InitKbdTimeout();   // 1.3.0-beta.1
         SyncZoneTiles();   // 2.0: the 1.3.5 Lights menu is inline on the Lights tab
-        if (_settings.PowerButtonOff) _ = ApplyPowerButtonAsync();   // 2.1.0-test.2: keep it dark after a restart
         InitSettingsPage();   // 1.3.0-beta.2
         _ = Task.Run(() => FolderSafety.UserWritable(AppContext.BaseDirectory)).ContinueWith(t =>
         {

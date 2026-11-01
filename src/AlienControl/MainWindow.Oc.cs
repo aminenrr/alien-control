@@ -190,7 +190,6 @@ public partial class MainWindow
             Services.Log.Info("Resume", $"preset {want}, power raw {(raw is int v ? v.ToString("x") : "?")}, G-Mode {g}, re-apply {presetLost}");
             if (presetLost) await ApplyProfileAsync(want);
             if (_lightsManaged) { _frameDirty = true; await ApplyLightingAsync(_lastColor); }
-            if (_settings.PowerButtonOff) await ApplyPowerButtonAsync();   // 2.1.0-test.2
             await SyncIndicatorsAsync();
         }
         catch (Exception ex) { Services.Log.Warn("Resume", ex); }
